@@ -37,8 +37,8 @@ class AiMemoryAndTacticsTest {
           }],
           "memory_update":{
             "summary":"Enemy has shown no military yet.",
-            "trust_by_player":{"enemy":0.3},
-            "threat_by_player":{"enemy":0.4},
+            "trust_by_player":[{"player_id":"enemy","score":0.3}],
+            "threat_by_player":[{"player_id":"enemy","score":0.4}],
             "suspicions":["Enemy may be holding combat cards."],
             "plans":["Develop before committing."]
           }
