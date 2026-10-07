@@ -35,6 +35,16 @@ public final class AiGameViewBuilder {
         root.put("contract_obligations", visibleObligations(state, viewerPlayerId));
         root.put("access_routes", visibleRoutes(state, viewerPlayerId));
         root.put("relationships", visibleRelationships(state, viewer));
+        root.put("recent_events", state.visibleEvents(viewerPlayerId,20).stream().map(e -> {
+            Map<String,Object> item = new LinkedHashMap<>();
+            item.put("round",e.round());
+            item.put("type",e.type());
+            item.put("actor_player_id",e.actorPlayerId());
+            item.put("target_player_id",e.targetPlayerId());
+            item.put("card_ids",e.cardIds());
+            item.put("summary",e.summary());
+            return item;
+        }).toList());
 
         try {
             return mapper.writeValueAsString(root);
