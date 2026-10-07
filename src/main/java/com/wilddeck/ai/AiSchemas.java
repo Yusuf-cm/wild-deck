@@ -13,11 +13,11 @@ public final class AiSchemas {
           "type":"object",
           "properties":{
             "kind":{"type":"string","enum":["DRAW","PLAY","WORLD_ACTION","NEGOTIATE","PASS"]},
-            "verb":{"type":["string","null"]},
+            "verb":{"type":"string"},
             "source_card_ids":{"type":"array","items":{"type":"string"}},
             "target_card_ids":{"type":"array","items":{"type":"string"}},
-            "target_player_id":{"type":["string","null"]},
-            "card_id":{"type":["string","null"]},
+            "target_player_id":{"type":"string"},
+            "card_id":{"type":"string"},
             "hidden_play":{"type":"boolean"},
             "message":{"type":"string"},
             "strategic_summary":{"type":"string"},
@@ -36,17 +36,15 @@ public final class AiSchemas {
           "properties":{
             "candidates":{
               "type":"array",
-              "minItems":1,
-              "maxItems":5,
               "items":{
                 "type":"object",
                 "properties":{
                   "kind":{"type":"string","enum":["DRAW","PLAY","WORLD_ACTION","NEGOTIATE","PASS"]},
-                  "verb":{"type":["string","null"]},
+                  "verb":{"type":"string"},
                   "source_card_ids":{"type":"array","items":{"type":"string"}},
                   "target_card_ids":{"type":"array","items":{"type":"string"}},
-                  "target_player_id":{"type":["string","null"]},
-                  "card_id":{"type":["string","null"]},
+                  "target_player_id":{"type":"string"},
+                  "card_id":{"type":"string"},
                   "hidden_play":{"type":"boolean"},
                   "message":{"type":"string"},
                   "strategic_summary":{"type":"string"},
@@ -66,7 +64,7 @@ public final class AiSchemas {
                     "type":"object",
                     "properties":{
                       "player_id":{"type":"string"},
-                      "score":{"type":"number","minimum":0,"maximum":1}
+                      "score":{"type":"number"}
                     },
                     "required":["player_id","score"],
                     "additionalProperties":false
@@ -78,7 +76,7 @@ public final class AiSchemas {
                     "type":"object",
                     "properties":{
                       "player_id":{"type":"string"},
-                      "score":{"type":"number","minimum":0,"maximum":1}
+                      "score":{"type":"number"}
                     },
                     "required":["player_id","score"],
                     "additionalProperties":false
@@ -149,7 +147,7 @@ public final class AiSchemas {
               "INVESTIGATE_INFORMATION","SPY_INFORMATION","QUESTION_OTHERS",
               "DISCLOSE_INFORMATION","TRADE_INFORMATION","SPREAD_INFORMATION","DISCUSS_INFORMATION"
             ]},
-            "target_player_id":{"type":["string","null"]},
+            "target_player_id":{"type":"string"},
             "related_player_id":{"type":["string","null"]},
             "contract_id":{"type":["string","null"]},
             "topic_key":{"type":["string","null"]},
