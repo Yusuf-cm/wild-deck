@@ -12,11 +12,21 @@ import java.util.*;
 public final class ContractEngine {
 
     public void registerContract(GameState state, Contract contract) {
-        if (contract.terms().isEmpty()) {
-            throw new IllegalArgumentException("official contract needs at least one term");
+        if (contract.terms().isEmpty() && contract.customClauses().isEmpty()) {
+            throw new IllegalArgumentException("official contract needs at least one term or custom clause");
         }
         for (String participantId : contract.participantIds()) {
             state.player(participantId);
+        }
+        for (CustomContractClause clause : contract.customClauses()) {
+            for (String actorId : clause.boundActorIds()) {
+                if (!contract.participantIds().contains(actorId)) {
+                    throw new IllegalArgumentException("custom clause binds non-participant " + actorId);
+                }
+            }
+            for (String consentId : clause.requiredConsentFrom()) {
+                state.player(consentId);
+            }
         }
         state.addContract(contract);
     }
@@ -66,6 +76,15 @@ public final class ContractEngine {
                     && request.relatedPlayerId() != null
                     && !contract.participantIds().contains(request.relatedPlayerId())) {
                 return Decision.reject("CONTRACT", "ALLIANCE_SECRECY blocks disclosure to outsider");
+            }
+
+            for (CustomContractClause clause : contract.customClauses()) {
+                if (clause.effect() == ClauseEffect.FORBID && clause.matches(request)) {
+                    String reason = clause.description().isBlank()
+                            ? "custom Official Contract clause blocks action"
+                            : clause.description();
+                    return Decision.reject("CONTRACT", reason);
+                }
             }
         }
 
