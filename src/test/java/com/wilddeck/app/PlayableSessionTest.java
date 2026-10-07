@@ -1,5 +1,6 @@
 package com.wilddeck.app;
 
+import com.wilddeck.ai.*;
 import com.wilddeck.engine.*;
 import org.junit.jupiter.api.Test;
 
@@ -77,4 +78,65 @@ class PlayableSessionTest {
         assertNotNull(privateSummary);
         assertNull(leaked);
     }
+    @Test
+    void reportsGroqSourceWhenStrategicProposalExecutes() {
+        AiModelClient client = request -> """
+                {
+                  "candidates": [{
+                    "kind": "DRAW",
+                    "verb": null,
+                    "source_card_ids": [],
+                    "target_card_ids": [],
+                    "target_player_id": null,
+                    "card_id": null,
+                    "hidden_play": false,
+                    "message": "",
+                    "strategic_summary": "Draw for more options.",
+                    "confidence": 0.8
+                  }],
+                  "memory_update": {
+                    "summary": "Opening turn.",
+                    "trust_by_player": {},
+                    "threat_by_player": {},
+                    "suspicions": [],
+                    "plans": []
+                  }
+                }
+                """;
+        GroqConfig config = new GroqConfig(
+                "test-key","https://example.invalid","fast","strategic");
+        WildDeckAiService ai = new WildDeckAiService(client,config);
+        PlayableSession session = PlayableSession.standard(42,ai);
+
+        assertTrue(session.endTurn().success());
+        int handBefore = session.state().player("asha").hand().size();
+
+        ActionExecutionResult result = session.runCurrentAiTurn();
+
+        assertTrue(result.success());
+        assertEquals(AiDecisionSource.GROQ,session.lastAiDecisionSource());
+        assertTrue(session.lastAiDiagnostic().isBlank());
+        assertEquals(handBefore + 1,session.state().player("asha").hand().size());
+    }
+
+    @Test
+    void reportsFallbackWhenGroqThrowsInsteadOfSilentlyMaskingIt() {
+        AiModelClient client = request -> {
+            throw new IllegalStateException("simulated Groq outage");
+        };
+        GroqConfig config = new GroqConfig(
+                "test-key","https://example.invalid","fast","strategic");
+        WildDeckAiService ai = new WildDeckAiService(client,config);
+        PlayableSession session = PlayableSession.standard(42,ai);
+
+        assertTrue(session.endTurn().success());
+        ActionExecutionResult result = session.runCurrentAiTurn();
+
+        assertTrue(result.success());
+        assertEquals(
+                AiDecisionSource.HEURISTIC_AFTER_GROQ_ERROR,
+                session.lastAiDecisionSource());
+        assertTrue(session.lastAiDiagnostic().contains("simulated Groq outage"));
+    }
+
 }

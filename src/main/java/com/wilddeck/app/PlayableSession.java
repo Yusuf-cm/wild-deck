@@ -17,6 +17,8 @@ public final class PlayableSession {
     private final HeuristicOpponentAgent heuristic = new HeuristicOpponentAgent();
     private final WildDeckAiService groqAi;
     private int turnIndex;
+    private AiDecisionSource lastAiDecisionSource;
+    private String lastAiDiagnostic = "";
 
     public PlayableSession(
             long seed,
@@ -64,6 +66,8 @@ public final class PlayableSession {
     public String humanPlayerId() { return humanPlayerId; }
     public String currentPlayerId() { return state.activePlayerId(); }
     public boolean humanTurn() { return humanPlayerId.equals(currentPlayerId()); }
+    public AiDecisionSource lastAiDecisionSource() { return lastAiDecisionSource; }
+    public String lastAiDiagnostic() { return lastAiDiagnostic; }
 
     public ActionExecutionResult endTurn() {
         if (state.winner().isPresent()) {
@@ -108,20 +112,28 @@ public final class PlayableSession {
         }
 
         AiActionProposal proposal;
+        lastAiDiagnostic = "";
         if (groqAi != null) {
             try {
                 proposal = groqAi.chooseOpponentAction(state,playerId);
+                lastAiDecisionSource = AiDecisionSource.GROQ;
             } catch (RuntimeException e) {
                 proposal = heuristic.choose(state,playerId);
+                lastAiDecisionSource = AiDecisionSource.HEURISTIC_AFTER_GROQ_ERROR;
+                lastAiDiagnostic = compactDiagnostic(e);
             }
         } else {
             proposal = heuristic.choose(state,playerId);
+            lastAiDecisionSource = AiDecisionSource.HEURISTIC;
         }
 
         ActionExecutionResult result = executor.execute(state,playerId,proposal);
-        if (!result.success() && groqAi != null) {
+        if (!result.success() && groqAi != null
+                && lastAiDecisionSource == AiDecisionSource.GROQ) {
             AiActionProposal fallback = heuristic.choose(state,playerId);
             result = executor.execute(state,playerId,fallback);
+            lastAiDecisionSource = AiDecisionSource.HEURISTIC_AFTER_GROQ_REJECTION;
+            lastAiDiagnostic = "Groq proposal failed Java execution; deterministic fallback used.";
         }
 
         String aiName = state.player(playerId).name();
@@ -136,6 +148,14 @@ public final class PlayableSession {
         return state.occupations().stream()
                 .filter(o -> o.status() == OccupationStatus.ACTIVE)
                 .toList();
+    }
+
+    private static String compactDiagnostic(RuntimeException e) {
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) return e.getClass().getSimpleName();
+        String compact = message.replaceAll("\\s+", " ").trim();
+        if (compact.length() > 280) compact = compact.substring(0,280) + "...";
+        return e.getClass().getSimpleName() + ": " + compact;
     }
 
     private void dealOpeningHands(int handSize) {
