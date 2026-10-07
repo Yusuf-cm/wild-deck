@@ -9,6 +9,7 @@ public final class GameState {
     private final Map<String,Occupation> occupations = new LinkedHashMap<>();
     private final Map<String,CardRelation> cardRelations = new LinkedHashMap<>();
     private final Map<String,AccessRoute> accessRoutes = new LinkedHashMap<>();
+    private final Map<String,ContractObligation> contractObligations = new LinkedHashMap<>();
     private final Deque<CardInstance> deck = new ArrayDeque<>();
     private String activePlayerId;
     private boolean mainActionUsed;
@@ -30,6 +31,7 @@ public final class GameState {
     public Collection<Occupation> occupations() { return List.copyOf(occupations.values()); }
     public Collection<CardRelation> cardRelations() { return List.copyOf(cardRelations.values()); }
     public Collection<AccessRoute> accessRoutes() { return List.copyOf(accessRoutes.values()); }
+    public Collection<ContractObligation> contractObligations() { return List.copyOf(contractObligations.values()); }
 
     public PlayerState player(String id) {
         PlayerState player = players.get(id);
@@ -86,6 +88,14 @@ public final class GameState {
 
     public Optional<AccessRoute> accessRoute(String id) {
         return Optional.ofNullable(accessRoutes.get(id));
+    }
+
+    public void addContractObligation(ContractObligation obligation) {
+        contractObligations.put(obligation.id(), obligation);
+    }
+
+    public Optional<ContractObligation> contractObligation(String id) {
+        return Optional.ofNullable(contractObligations.get(id));
     }
 
     public List<CardRelation> relationsTo(String targetCardId, CardRelationType type) {
