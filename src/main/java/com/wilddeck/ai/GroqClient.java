@@ -49,7 +49,7 @@ public final class GroqClient implements AiModelClient {
             if (fallback.statusCode() >= 200 && fallback.statusCode() < 300) {
                 return extractContent(fallback.body());
             }
-            throw apiError(fallback);
+            throw combinedApiError(first,fallback);
         }
 
         throw apiError(first);
@@ -67,7 +67,7 @@ public final class GroqClient implements AiModelClient {
             ArrayNode messages = body.putArray("messages");
             String systemPrompt = strictSchema
                     ? request.systemPrompt()
-                    : jsonObjectSystemPrompt(request.systemPrompt());
+                    : jsonObjectSystemPrompt(request.systemPrompt(),request.jsonSchema().toString());
             messages.addObject()
                     .put("role", "system")
                     .put("content", systemPrompt);
@@ -121,9 +121,24 @@ public final class GroqClient implements AiModelClient {
                 "Groq API error " + response.statusCode() + ": " + response.body());
     }
 
-    static String jsonObjectSystemPrompt(String original) {
+    static String jsonObjectSystemPrompt(String original,String schema) {
         String prompt = original == null ? "" : original;
-        return prompt + "\nReturn only a valid JSON object matching the requested structure.";
+        String expected = schema == null ? "{}" : schema;
+        return prompt
+                + "\nReturn only a valid JSON object matching this exact JSON schema:"
+                + "\n" + expected
+                + "\nUse empty strings for unused scalar fields when the schema requires strings.";
+    }
+
+    private IllegalStateException combinedApiError(
+            HttpResponse<String> strict,
+            HttpResponse<String> fallback
+    ) {
+        return new IllegalStateException(
+                "Groq strict JSON-schema request failed "
+                        + strict.statusCode() + ": " + strict.body()
+                        + " | JSON-object fallback failed "
+                        + fallback.statusCode() + ": " + fallback.body());
     }
 
     private static String trimSlash(String value) {

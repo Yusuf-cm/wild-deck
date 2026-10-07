@@ -19,6 +19,7 @@ public final class WildDeckAiService {
         Do not decide whether an action succeeds. Java validates legality and resolves outcomes.
         For WORLD_ACTION commands, use an actual capability on one of the supplied source cards.
         If the command cannot be represented, return PASS and explain what is missing.
+        Use empty strings, not null, for unused scalar fields such as verb, target_player_id, and card_id.
         Return no chain-of-thought. strategic_summary must be one short sentence.
         """;
 
@@ -34,6 +35,7 @@ public final class WildDeckAiService {
         Preserve useful hidden assets when revealing them is not worth it.
         Update memory using only evidence in the supplied view/history; suspicions may be uncertain.
         Trust/threat values must be between 0 and 1.
+        Use empty strings, not null, for unused scalar action fields such as verb, target_player_id, and card_id.
         Return no chain-of-thought. strategic_summary must be a short tactical reason only.
         """;
 
@@ -88,7 +90,7 @@ public final class WildDeckAiService {
         String json = client.completeJson(new AiRequest(
                 config.fastModel(),ACTION_SYSTEM_PROMPT,user,
                 AiSchemas.actionProposal(),"wild_deck_action","low",0.1));
-        return read(json,AiActionProposal.class);
+        return read(json,AiActionProposalWire.class).toDomain();
     }
 
     public AiActionProposal chooseOpponentAction(GameState state, String playerId) {
