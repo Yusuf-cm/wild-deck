@@ -49,6 +49,8 @@ public final class WarfareEngine {
         if (!legality.allowed())
             throw new IllegalStateException(legality.phase() + ": " + legality.reason());
 
+        new ContractEngine().onParticipantAttacked(state, targetPlayerId, attackerPlayerId);
+
         if (attacker.definition().strength() == null)
             throw new IllegalStateException("attacker has no combat strength");
 
