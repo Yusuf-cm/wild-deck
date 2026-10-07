@@ -9,10 +9,12 @@ class GroqClientTest {
     @Test
     void jsonObjectFallbackPromptExplicitlyRequestsJson() {
         String prompt = GroqClient.jsonObjectSystemPrompt(
-                "Choose the strongest legal move."
+                "Choose the strongest legal move.",
+                "{\"type\":\"object\",\"required\":[\"kind\"]}"
         );
 
         assertTrue(prompt.toLowerCase().contains("json"));
         assertTrue(prompt.contains("valid JSON object"));
+        assertTrue(prompt.contains("\"required\":[\"kind\"]"));
     }
 }
