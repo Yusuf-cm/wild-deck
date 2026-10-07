@@ -29,13 +29,32 @@ public final class InteractionEngine {
             return Decision.reject("REQUIREMENTS","no deployed source has capability " + intent.normalizedVerb());
         }
 
-        if (intent.targetPlayerId() != null && HOSTILE.contains(intent.normalizedVerb())
-                && state.blocksHostility(intent.actingPlayerId(), intent.targetPlayerId())) {
-            return Decision.reject("LEGALITY","active non-aggression contract blocks hostility");
+        if (intent.targetPlayerId() != null && HOSTILE.contains(intent.normalizedVerb())) {
+            Decision contractDecision = new ContractEngine().validate(
+                    state,
+                    new ContractActionRequest(
+                            intent.actingPlayerId(),
+                            ContractActionType.HOSTILE_DIRECT,
+                            intent.targetPlayerId(),
+                            null,
+                            null
+                    )
+            );
+            if (!contractDecision.allowed()) return contractDecision;
         }
 
+        AccessEngine access = new AccessEngine();
         for (String id : intent.targetCardIds()) {
-            if (state.findCard(id).isEmpty()) return Decision.reject("TARGET_ACCESS","missing target " + id);
+            CardInstance target = state.findCard(id).orElse(null);
+            if (target == null) return Decision.reject("TARGET_ACCESS","missing target " + id);
+
+            if (!target.controllerId().equals(intent.actingPlayerId()) && !sources.isEmpty()) {
+                AccessDecision reach = access.canReach(
+                        state, intent.actingPlayerId(), sources.get(0).id(), target.id());
+                if (!reach.allowed()) {
+                    return Decision.reject("TARGET_ACCESS", reach.reason());
+                }
+            }
         }
 
         return Decision.allow();

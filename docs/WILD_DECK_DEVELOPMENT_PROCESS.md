@@ -1515,3 +1515,159 @@ A vassal does not count as independent.
 Conquered and annihilated Kingdoms are eliminated.
 
 This means a player may win while one or more vassal Kingdoms still exist.
+
+
+---
+
+# 29. Access, relationships and Official Contract enforcement v1
+
+## World relationships
+
+Wild Deck now stores explicit relationships between cards instead of creating a full board-map system.
+
+The first relationship types are:
+
+- `ATTACHED_TO`
+- `PROTECTS`
+- `CONTAINS`
+
+This lets card effects create meaningful topology while preserving the design principle that a Kingdom is simply everything successfully put into play.
+
+## Access routes
+
+The engine now distinguishes:
+
+> **I know a target exists**
+
+from:
+
+> **I can physically reach that target.**
+
+An enemy card may require a legitimate route before an action can target it.
+
+Current route types:
+
+- `TUNNEL`
+- `PORTAL`
+- `INFILTRATION`
+
+Routes are supported by actual deployed cards. If the support is destroyed, removed or no longer controlled by the route owner, the route no longer provides access.
+
+### Examples
+
+A tunnel route may be supported by a card capable of `TUNNEL` or `BURROW`.
+
+A mapped pre-existing tunnel path can also be represented by combining:
+
+- `NAVIGATE TUNNELS`
+- `INFILTRATE` or `SMUGGLE`
+
+A portal route requires capabilities that both:
+
+- link locations
+- open/teleport through the gate
+
+This models the Void Gate playtest without hard-coding the Void Gate card name.
+
+## Hidden targets
+
+A hidden enemy target cannot be reached merely because it exists in authoritative game state.
+
+The acting player must first know/discover it.
+
+Knowledge therefore remains separate from access.
+
+## Containment
+
+A contained asset cannot simply be selected from outside.
+
+The attacker needs a legitimate bypass route or physical opening.
+
+This lets structures shelter specialists, artifacts or units without introducing a separate building-interior minigame.
+
+## Breach traversal and the Bone Colossus pattern
+
+The engine contains a generic state/property interaction:
+
+- containing structure is `BREACHED` or has a `DAMAGED_OPENING`
+- source has property `BONE`
+- source has capability `REASSEMBLE`
+
+That combination provides a legal physical basis for passing through the breach in dispersed form and reforming.
+
+The engine does **not** check whether the card is named Bone Colossus.
+
+This preserves the Conservation Rule and emergent interaction philosophy.
+
+## Official Contract enforcement
+
+Earlier versions stored Official Contracts and directly enforced Non-Aggression, but several other terms existed only as data.
+
+Contract enforcement v1 separates contract rules into two categories.
+
+### Hard prohibitions
+
+These are rejected before an illegal action mutates game state.
+
+Current enforced prohibitions include:
+
+- `NON_AGGRESSION`
+- `NO_PROXY_ATTACKS`
+- `NO_HOSTILE_COOPERATION`
+- `ALLIANCE_SECRECY`
+- vassals attacking their overlord
+
+### Positive obligations
+
+A contract may require a future action rather than merely forbid something.
+
+Current tracked obligations include:
+
+- `MUTUAL_DEFENSE`
+- `INTELLIGENCE_SHARING`
+
+When an allied participant is attacked, the engine can create a Mutual Defense obligation for the other bound participants.
+
+When the AI/referee classifies threat intelligence as confirmed, Java can create an Intelligence Sharing obligation for the player who knows it.
+
+Every obligation has:
+
+- contract ID
+- obligated player
+- protected/beneficiary player
+- creation round
+- due round
+- status
+
+Status may become:
+
+- `OPEN`
+- `FULFILLED`
+- `BREACHED`
+
+This prevents future promises from silently disappearing from game memory.
+
+### Why positive obligations are tracked rather than auto-playing cards
+
+The engine should not choose *how* a player fulfills a promise.
+
+For example, Mutual Defense may logically be satisfied through:
+
+- sending an army
+- intercepting an attack
+- opening a portal
+- providing a defensive spell
+- another legal defensive action
+
+Java therefore tracks the duty while the player/AI chooses the means.
+
+## Current limitation: parameterized custom clauses
+
+Highly specific contracts such as the Match #4 "Brian Silence Clause" need structured parameters such as:
+
+- protected subject
+- forbidden information actions
+- allowed recipients
+- mutual-consent exceptions
+
+The current engine hard-enforces the reusable general clauses above. Parameterized custom clauses are the next contract milestone so natural-language negotiated terms can be translated into precise Java-enforceable rules.
