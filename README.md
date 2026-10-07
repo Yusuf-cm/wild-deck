@@ -51,6 +51,12 @@ mvn test
 mvn -q exec:java
 ```
 
+## Documentation
+
+The complete design history, playtest lessons, rule evolution, engine architecture, and implementation roadmap are documented in:
+
+`docs/WILD_DECK_DEVELOPMENT_PROCESS.md`
+
 ## Next engine layers
 
 Combat reactions, capture/occupation, conquest/annihilation/vassalage, richer contracts, resource-producing structures, attachment relationships, access/path logic, and the AI natural-language translator.
