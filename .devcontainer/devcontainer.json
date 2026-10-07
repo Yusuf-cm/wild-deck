@@ -17,6 +17,6 @@
       }
     }
   },
-  "postCreateCommand": "mvn -q dependency:go-offline",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y maven && mvn -q dependency:go-offline",
   "remoteUser": "vscode"
 }
