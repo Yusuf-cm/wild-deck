@@ -76,6 +76,28 @@ The first warfare layer now supports:
 
 Combat arithmetic is deliberately isolated in `WarfareRules` so playtesting can rebalance numbers without rewriting the combat lifecycle.
 
+## Kingdom warfare v1
+
+The Kingdom warfare layer now supports:
+
+- delayed occupation and capture
+- one-round counterattack windows
+- ownership transfer after successful capture
+- defense-broken checks
+- conquest of surviving assets
+- resource transfer on conquest
+- annihilation into corpses / wrecks / ruins
+- voluntary vassalage
+- forced vassalage after military defeat
+- vassals being unable to attack their overlord
+- last-independent-Kingdom victory detection
+
+Forced conquest, annihilation, and vassalage currently require:
+1. the defender has no effective deployed military defense, and
+2. the attacker has already completed at least one occupation against that Kingdom.
+
+That second rule represents a real physical foothold instead of letting a player conquer a Kingdom from across the table.
+
 ## Next engine layers
 
-Capture/occupation, conquest/annihilation/vassalage, richer reactions, resource-producing structures, attachment relationships, access/path logic, and the AI natural-language translator.
+Richer combat reactions, attachment relationships, tunnels/portals/access, resource-producing structures, scouting/information events, and the AI natural-language translator.
