@@ -65,9 +65,12 @@ public final class GroqClient implements AiModelClient {
             }
 
             ArrayNode messages = body.putArray("messages");
+            String systemPrompt = strictSchema
+                    ? request.systemPrompt()
+                    : jsonObjectSystemPrompt(request.systemPrompt());
             messages.addObject()
                     .put("role", "system")
-                    .put("content", request.systemPrompt());
+                    .put("content", systemPrompt);
             messages.addObject()
                     .put("role", "user")
                     .put("content", request.userPrompt());
@@ -116,6 +119,11 @@ public final class GroqClient implements AiModelClient {
     private IllegalStateException apiError(HttpResponse<String> response) {
         return new IllegalStateException(
                 "Groq API error " + response.statusCode() + ": " + response.body());
+    }
+
+    static String jsonObjectSystemPrompt(String original) {
+        String prompt = original == null ? "" : original;
+        return prompt + "\nReturn only a valid JSON object matching the requested structure.";
     }
 
     private static String trimSlash(String value) {
