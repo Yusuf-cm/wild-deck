@@ -26,6 +26,7 @@ public final class GameState {
     public int round() { return round; }
     public String activePlayerId() { return activePlayerId; }
     public boolean mainActionUsed() { return mainActionUsed; }
+    public int deckSize() { return deck.size(); }
     public Collection<PlayerState> players() { return List.copyOf(players.values()); }
     public List<Contract> contracts() { return List.copyOf(contracts); }
     public Collection<Occupation> occupations() { return List.copyOf(occupations.values()); }

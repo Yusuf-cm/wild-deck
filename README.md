@@ -146,3 +146,118 @@ The natural-language AI will eventually translate custom negotiated clauses into
 ## Next engine layers
 
 Richer combat reactions, resource-producing structures, scouting/information events, parameterized custom contract clauses, and the AI natural-language translator.
+
+
+## Groq AI v1
+
+Wild Deck now has a provider-backed AI layer designed around a strict authority boundary:
+
+```text
+natural language / opponent strategy
+            ↓
+          Groq
+            ↓
+structured proposal only
+            ↓
+       Java validation
+            ↓
+authoritative state mutation
+```
+
+Groq never directly changes the game state.
+
+### Default model split
+
+The defaults are deliberately separated by workload:
+
+- `openai/gpt-oss-20b` — high-frequency command translation, contract translation and classification
+- `openai/gpt-oss-120b` — lower-frequency opponent strategic planning
+
+Both are configurable through environment variables so a model can be replaced without changing game logic.
+
+### Setup
+
+Copy:
+
+```text
+.env.example
+```
+
+and provide `GROQ_API_KEY` in your runtime environment. Never commit the key.
+
+Supported environment variables:
+
+```text
+GROQ_API_KEY
+GROQ_BASE_URL
+GROQ_FAST_MODEL
+GROQ_STRATEGIC_MODEL
+```
+
+The Java client uses Groq's OpenAI-compatible `/chat/completions` endpoint and requests JSON-schema structured outputs. It retries once with JSON Object Mode if a model/schema combination rejects strict structured output.
+
+### AI fairness
+
+`AiGameViewBuilder` constructs a player-specific view before any opponent prompt is sent.
+
+The AI may see:
+
+- its own hand
+- its own exact resources
+- its own Kingdom
+- cards that player has actually discovered
+- public cards
+- contracts that player participates in
+- visible/owned access routes
+- relevant obligations
+
+The AI is not given:
+
+- opponents' hidden hands
+- unknown hidden Kingdom cards
+- exact opponent resources
+- secret contracts it is not part of
+
+The strategist proposes several ranked moves. Java checks them in order and selects the first legal one. If all proposals fail validation, the fallback is Draw when possible, otherwise Pass.
+
+## Parameterized custom Official Contracts
+
+Official Contracts can now contain AI-translated custom prohibition clauses.
+
+A custom clause can filter by:
+
+- restricted actor(s)
+- action type(s)
+- target player(s)
+- related player(s)
+- recipient(s)
+- protected topic key
+- consent exceptions
+
+Example:
+
+```text
+Michelle may not investigate, spy on, question others about, disclose,
+trade, spread or deliberately discuss information concerning Yusuf's
+relationship with Brian unless Yusuf and Brian both consent.
+```
+
+can become a clause protecting:
+
+```text
+RELATIONSHIP:YUSUF:BRIAN
+```
+
+against the specified information actions.
+
+Java, not the language model, ultimately enforces the translated clause.
+
+## AI next steps
+
+- execute accepted AI proposals through one orchestration service
+- richer creative-action translation beyond one capability verb
+- AI negotiation and bluff generation
+- opponent memory/event history
+- information-confidence tracking
+- tactical simulations before selecting a move
+- multiplayer-safe AI queues and rate limiting
