@@ -11,6 +11,9 @@ public final class PlayerState {
     private final Map<String,CardInstance> graveyard = new LinkedHashMap<>();
     private final Set<String> knownCards = new LinkedHashSet<>();
 
+    private KingdomStatus kingdomStatus = KingdomStatus.INDEPENDENT;
+    private String overlordId;
+
     public PlayerState(String id, String name) {
         this.id = Objects.requireNonNull(id);
         this.name = Objects.requireNonNull(name);
@@ -22,6 +25,42 @@ public final class PlayerState {
     public List<CardInstance> hand() { return List.copyOf(hand); }
     public Collection<CardInstance> kingdom() { return List.copyOf(kingdom.values()); }
     public Collection<CardInstance> graveyard() { return List.copyOf(graveyard.values()); }
+    public KingdomStatus kingdomStatus() { return kingdomStatus; }
+    public Optional<String> overlordId() { return Optional.ofNullable(overlordId); }
+
+    public boolean isIndependent() {
+        return kingdomStatus == KingdomStatus.INDEPENDENT;
+    }
+
+    public boolean isEliminated() {
+        return kingdomStatus == KingdomStatus.CONQUERED
+                || kingdomStatus == KingdomStatus.ANNIHILATED;
+    }
+
+    public void becomeVassal(String overlordId) {
+        if (isEliminated()) throw new IllegalStateException("eliminated kingdom cannot become vassal");
+        if (id.equals(overlordId)) throw new IllegalArgumentException("kingdom cannot vassalize itself");
+        this.kingdomStatus = KingdomStatus.VASSAL;
+        this.overlordId = Objects.requireNonNull(overlordId);
+    }
+
+    public void becomeConquered(String conquerorId) {
+        if (id.equals(conquerorId)) throw new IllegalArgumentException("kingdom cannot conquer itself");
+        this.kingdomStatus = KingdomStatus.CONQUERED;
+        this.overlordId = Objects.requireNonNull(conquerorId);
+    }
+
+    public void becomeAnnihilated() {
+        this.kingdomStatus = KingdomStatus.ANNIHILATED;
+        this.overlordId = null;
+    }
+
+    public void restoreIndependence() {
+        if (kingdomStatus == KingdomStatus.ANNIHILATED)
+            throw new IllegalStateException("annihilated kingdom cannot be restored directly");
+        this.kingdomStatus = KingdomStatus.INDEPENDENT;
+        this.overlordId = null;
+    }
 
     public void addToHand(CardInstance card) {
         removeFromWorld(card.id());
