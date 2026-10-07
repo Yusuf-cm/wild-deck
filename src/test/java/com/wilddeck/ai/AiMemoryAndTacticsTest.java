@@ -72,12 +72,21 @@ class AiMemoryAndTacticsTest {
                 "enemy",Zone.KINGDOM,Visibility.HIDDEN);
         enemy.deploy(hidden,true);
 
+        CardInstance visible = new CardInstance(
+                new CardDefinition(
+                        "visible","Public Militia","Military",
+                        Set.of("HUMAN","ARMY"),Set.of("ATTACK","DEFEND"),4,Map.of(),""),
+                "enemy",Zone.KINGDOM,Visibility.PUBLIC);
+        enemy.deploy(visible,false);
+
         GameState game = new GameState(
                 GameRules.alphaV1(),List.of(ai,enemy),List.of(),"ai");
 
         String tactical = new TacticalAnalyzer().analyze(game,"ai");
 
         assertTrue(tactical.contains(attacker.id()));
+        assertTrue(tactical.contains(visible.id()));
+        assertTrue(tactical.contains("Public Militia"));
         assertFalse(tactical.contains(hidden.id()));
         assertFalse(tactical.contains("Secret Guard"));
     }
