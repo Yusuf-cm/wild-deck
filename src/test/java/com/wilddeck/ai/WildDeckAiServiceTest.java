@@ -76,7 +76,14 @@ class WildDeckAiServiceTest {
               "strategic_summary":"Draw for options.",
               "confidence":0.8
             }
-          ]
+          ],
+          "memory_update":{
+            "summary":"No reliable enemy pattern yet.",
+            "trust_by_player":{"enemy":0.4},
+            "threat_by_player":{"enemy":0.5},
+            "suspicions":[],
+            "plans":["Build a board before committing."]
+          }
         }
         """;
 
