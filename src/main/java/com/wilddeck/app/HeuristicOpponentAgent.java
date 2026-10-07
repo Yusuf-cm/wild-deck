@@ -63,8 +63,13 @@ public final class HeuristicOpponentAgent {
                     if (!reach.allowed()) continue;
 
                     int dealt = rules.strikeDamage(attacker.definition().strength());
-                    int retaliation = target.definition().strength() == null ? 0
-                            : rules.strikeDamage(target.definition().strength());
+                    boolean fightsBack = target.definition().strength() != null
+                            && (target.definition().hasCapability("ATTACK")
+                            || target.definition().hasCapability("DEFEND")
+                            || target.definition().hasCapability("GUARD"));
+                    int retaliation = fightsBack
+                            ? rules.strikeDamage(target.definition().strength())
+                            : 0;
                     boolean kill = target.damage() + dealt >= target.vitality();
                     boolean die = attacker.damage() + retaliation >= attacker.vitality();
 
