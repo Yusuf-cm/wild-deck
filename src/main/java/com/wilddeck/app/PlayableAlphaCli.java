@@ -26,6 +26,10 @@ public final class PlayableAlphaCli {
                 PlayerState ai = session.state().player(session.currentPlayerId());
                 System.out.println("\n--- " + ai.name() + "'s turn ---");
                 ActionExecutionResult result = session.runCurrentAiTurn();
+                System.out.println("AI source: " + session.lastAiDecisionSource());
+                if (!session.lastAiDiagnostic().isBlank()) {
+                    System.out.println("AI diagnostic: " + session.lastAiDiagnostic());
+                }
                 System.out.println(result.message());
                 session.endTurn();
                 continue;
