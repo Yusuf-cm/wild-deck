@@ -113,7 +113,7 @@ public final class WildDeckAiService {
                 config.strategicModel(),STRATEGY_SYSTEM_PROMPT,user,
                 AiSchemas.strategicPlan(),"wild_deck_strategic_plan","high",0.2));
 
-        AiStrategicPlan plan = read(json,AiStrategicPlan.class);
+        AiStrategicPlan plan = read(json,AiStrategicPlanWire.class).toDomain();
         memory.put(playerId,plan.memoryUpdate().toState(state.round()));
 
         for (AiActionProposal candidate : plan.candidates()) {

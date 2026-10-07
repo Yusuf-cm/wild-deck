@@ -60,8 +60,30 @@ public final class AiSchemas {
               "type":"object",
               "properties":{
                 "summary":{"type":"string"},
-                "trust_by_player":{"type":"object","additionalProperties":{"type":"number"}},
-                "threat_by_player":{"type":"object","additionalProperties":{"type":"number"}},
+                "trust_by_player":{
+                  "type":"array",
+                  "items":{
+                    "type":"object",
+                    "properties":{
+                      "player_id":{"type":"string"},
+                      "score":{"type":"number","minimum":0,"maximum":1}
+                    },
+                    "required":["player_id","score"],
+                    "additionalProperties":false
+                  }
+                },
+                "threat_by_player":{
+                  "type":"array",
+                  "items":{
+                    "type":"object",
+                    "properties":{
+                      "player_id":{"type":"string"},
+                      "score":{"type":"number","minimum":0,"maximum":1}
+                    },
+                    "required":["player_id","score"],
+                    "additionalProperties":false
+                  }
+                },
                 "suspicions":{"type":"array","items":{"type":"string"}},
                 "plans":{"type":"array","items":{"type":"string"}}
               },
