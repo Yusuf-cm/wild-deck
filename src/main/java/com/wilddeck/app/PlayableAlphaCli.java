@@ -207,7 +207,7 @@ public final class PlayableAlphaCli {
         System.out.println("Tip: type a number or card name. Example: 3 or Mana Shrine.");
     }
 
-    private static Optional<CardInstance> findHandCardByName(
+    static Optional<CardInstance> findHandCardByName(
             List<CardInstance> hand,String input
     ) {
         String wanted = input.trim().toLowerCase(Locale.ROOT);
