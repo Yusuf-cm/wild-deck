@@ -1,0 +1,106 @@
+Card,Category,Properties / Tags,Capabilities,Established Notes
+Hydra,Creature,Biological; Monstrous; Regenerative,ATTACK; BITE; REGENERATE,8 in Match 4
+Roc,Creature,Biological; Flying; Massive,FLY; ATTACK; CARRY,7
+Salamander,Creature,Biological; Fire-Adapted,ATTACK; RESIST HEAT; BREATHE FIRE,5
+Dragon Egg,Creature,Biological; Draconic; Dormant,HATCH; GROW,Development can be influenced
+Engineered Psionic Dragon,Creature,Biological; Draconic; Flying; Fire-Adapted; Regenerative; Psionic,ATTACK; BITE; CLAW; FLY; BREATHE FIRE; RESIST HEAT; REGENERATE; PROJECT THOUGHT; TRANSMIT THOUGHT; AMPLIFY THOUGHT; PSIONIC INFLUENCE,Emergent Match 4 creation; juvenile 4
+Basilisk,Creature,Biological; Monstrous,ATTACK; PETRIFY/GAZE,Match 3
+Wyvern,Creature,Biological; Flying,FLY; ATTACK,Match 1
+Storm Drake,Creature,Biological; Draconic; Flying,FLY; ATTACK,Match 3; later undead 8
+Bone Colossus,Creature/Construct,Undead; Bone; Construct; Massive,ATTACK; SIEGE; REASSEMBLE,9; dispersed/reformed
+Burrower Queen,Creature,Biological; Subterranean,BURROW; DIG; SPAWN,6
+Tunnel Leeches,Creature,Biological; Subterranean; Parasitic,BURROW; ATTACH; DRAIN,3 initially
+Root Serpent,Creature,Biological; Subterranean,BURROW; CONSTRICT; AMBUSH,7
+Venomtail,Creature,Biological,ATTACK; STING; CLIMB,6
+Webweaver,Creature,Biological; Climbing,SPIN WEB; TRAP; CLIMB,Match 4
+Night Ravens,Scout Creature,Biological; Flying; Scout,SCOUT; OBSERVE; FOLLOW,Observable info only
+Tunnel Hounds,Creature,Biological; Tracking,TRACK; SCENT; DIG,4
+Pack Oxen,Logistics Creature,Biological; Domestic,CARRY; HAUL; PULL,No Wealth generation
+War Elephants,Military,Biological; Army; Massive,ATTACK; DEFEND; CHARGE,7 in Match 3
+Cavalry,Military,Army; Human; Mounted,ATTACK; DEFEND; OCCUPY; CHARGE,Capture capable
+Royal Guards,Military,Human; Army,DEFEND; ATTACK; GUARD,Match 1
+Militia,Military,Human; Army,ATTACK; DEFEND,Match 1
+Longbowmen,Military,Human; Army; Ranged,ATTACK; RANGED ATTACK,Match 3
+Undead Longbowmen,Military,Undead; Army; Ranged,ATTACK; RANGED ATTACK,4
+Undead Royal Guard,Military,Undead; Army,ATTACK; DEFEND; GUARD,7
+Undead Scorpion Riders,Military,Undead; Army; Mounted,ATTACK,Match 3
+Griffin Riders,Military,Biological; Flying; Mounted,FLY; ATTACK,Match 3
+Iron Sentinel,Construct,Construct; Metal; Guard,DEFEND; ATTACK; GUARD,7; ordinary venom ineffective
+Siege Walker,Construct,Construct; Metal; Heavy,ATTACK; SIEGE; ADVANCE,8
+Necromancer,Specialist,Human; Specialist; Magic,RAISE DEAD; COMMAND UNDEAD,Match 3
+Alchemist,Specialist,Human; Specialist,BREW; MIX; TREAT/ALTER CHEMICALS,Matches 1/3
+Blacksmith,Specialist,Human; Specialist; Crafting,FORGE; REPAIR; UPGRADE,Match 1
+Herbalist,Specialist,Human; Specialist; Biological,GATHER HERBS; TREAT; BREW,Match 1
+Engineer,Specialist,Human; Specialist; Engineering,REPAIR; BUILD/MODIFY MACHINERY,Match 4
+Assassin,Specialist,Human; Specialist,ASSASSINATE; INFILTRATE,Access required
+Mercenary Assassin,Specialist,Human; Specialist; Hired,ASSASSINATE; INFILTRATE,Match 3
+Beastmaster,Specialist,Human; Specialist; Animal Handling,TAME; TRAIN; COMMAND BEAST,Dragon bond
+Bio-Architect,Specialist,Human; Specialist; Biological Science,ANALYZE BIOLOGY; ENGINEER TRAITS; STABILIZE MUTATION,Needs legitimate templates
+Illusionist,Specialist,Human; Specialist; Magic,ILLUSION; DISGUISE; MISDIRECT,"False perception, not matter"
+Doppelgänger,Infiltrator,Shapeshifter; Biological,MIMIC FORM; IMITATE VOICE; INFILTRATE,Needs observation; no memories/powers
+Deep Listener,Specialist,Human; Specialist; Subterranean,LISTEN; LOCATE VIBRATION; MAP MOVEMENT,Physical vibration only
+Raincaller,Specialist,Human; Specialist; Atmospheric,GATHER MOISTURE; CREATE RAIN; REDIRECT WATER,Non-magic in Match 4
+Flesh Mender,Specialist,Human; Specialist; Medical,TREAT; STABILIZE; HEAL BIOLOGICAL,Healing takes time
+Whisper Broker,Specialist,Human; Specialist; Intelligence,GATHER RUMORS; TRADE INFORMATION; SPREAD DISINFORMATION,No magical hidden knowledge
+Bounty Hunter,Specialist,Human; Specialist; Armed,TRACK; HUNT; CAPTURE,5
+Stormcaller,Specialist,Human; Specialist; Weather/Magic,CALL/REDIRECT STORMS,Exact final tags pending
+Warlock,Specialist,Human; Specialist; Magic,CURSE,Match 3
+Smuggler,Specialist,Human; Specialist; Covert,SMUGGLE; INFILTRATE/TRANSPORT,Match 3
+Field Medic,Specialist,Human; Specialist; Medical,TREAT; STABILIZE,Match 3
+Gravity Well,Magic/Field,Magic; Spatial; Field,PULL; ANCHOR; INCREASE WEIGHT,Not automatic crushing
+Volcanic Shard,Material,Mineral; Volcanic; Hot,HEAT; IGNITE; STORE HEAT,Incubation heat
+Oil,Material,Flammable; Liquid,COAT; FUEL; BURN,Needs delivery/ignition
+Mutagen,Chemical,Chemical; Biological; Unstable,MUTATE; ALTER BIOLOGY,Expertise stabilizes
+Psionic Crystal,Artifact,Mineral; Psychic; Artifact,AMPLIFY THOUGHT; TRANSMIT THOUGHT; STORE MENTAL IMPRESSION,Dragon psionic template
+Binding Seal,Artifact,Magic; Artifact,BIND; SEAL; SUPPRESS,Match 4
+Soul Lantern,Artifact,Magical; Spiritual,CAPTURE ESSENCE; STORE ESSENCE; RELEASE ESSENCE,Accessible essence required
+Shadow Cloak,Artifact,Magic; Concealment,CONCEAL; MUTE PRESENCE; SHROUD,Physical traces can reveal
+Storm Core,Artifact,Elemental; Electrical; Charged,GENERATE ELECTRICITY; STORE CHARGE; DISCHARGE,No automatic lightning immunity
+Lodestone Core,Artifact,Mineral; Magnetic,ATTRACT METAL; MAGNETIZE,Match 4
+Mana Crystal,Artifact/Resource,Crystal; Magic; Mana,STORE/PROVIDE MANA,Matches 1/3
+Iron Shield,Equipment,Metal; Defensive,BLOCK; DEFEND,Match 1
+Grounding Spikes,Equipment,Metal; Anchoring,GROUND; ANCHOR,Do not negate gravity
+Chain Launcher,Equipment,Mechanical; Metal,LAUNCH; PULL; RETRACT,Match 4
+Resonance Bells,Detection,Acoustic; Detection,VIBRATE; SIGNAL; DETECT DISTURBANCE,Match 4
+Smoke Bombs,Material,Chemical; Concealment,OBSCURE; SCREEN; CHOKE,Match 4
+Blast Powder,Material,Explosive,DETONATE; FRACTURE; BLAST,Match 4
+Corrosive Slime,Material,Corrosive; Clinging,CORRODE; DISSOLVE; CLING,Match 4
+Abandoned Mine,Structure,Underground,SHELTER; EXTRACT; TUNNEL,No guaranteed deposit
+Underground Spring,Structure/Terrain,Underground; Water Source,PRODUCE WATER; FLOW,Match 4
+Worldroot Sapling,Biological Structure,Biological; Plant; Rooted,GROW; ROOT; ABSORB,Match 4
+Mycelium Network,Biological Structure,Biological; Fungal; Underground,SPREAD; DECOMPOSE; CONNECT,Match 4
+Spore Bloom,Biological Asset,Biological; Fungal,RELEASE SPORES; GROW; IRRITATE BIOLOGICAL,Match 4
+Echo Chamber,Structure,Underground; Acoustic,AMPLIFY SOUND; DISTORT DIRECTION; ECHO,Match 4
+Foundry,Structure,Industrial,SMELT; FORGE; PROCESS METAL,Match 4
+Iron Vein,Resource/Terrain,Mineral; Iron Deposit,EXTRACT IRON,"Material, not Gold/Wealth"
+Iron Barricade,Structure,Metal; Fortification,BLOCK; FORTIFY; ANCHOR,Match 4
+Gold Mine,Structure,Resource,PRODUCE/EXTRACT GOLD,Earlier matches
+Black Market,Structure,Trade; Illicit,TRADE; ACQUIRE/EXCHANGE,Match 3
+Farmland,Structure,Agricultural,PRODUCE FOOD; SUPPORT GROWTH,Match 1
+Village,Structure,Settlement,HOUSE; DEVELOP,Match 1
+Settlement,Structure,Settlement,DEVELOP; SUPPORT POPULATION,Match 1
+Town,Structure,Settlement,DEVELOP; ECONOMIC CAPACITY,Match 1
+Keep / Stone Keep,Structure,Stone; Fortification,FORTIFY; DEFEND; SHELTER,Not infectable by disease
+Walls,Structure,Fortification,BLOCK; DEFEND,Match 1
+Citadel,Structure,Fortification,FORTIFY; DEFEND,Match 3
+Sky Tower,Structure,Tower,OBSERVE; HEIGHT,Capabilities not final
+Crimson Fever,Disease,Biological Agent; Disease,INFECT BIOLOGICAL,Match 3
+Black Plague,Disease,Biological Agent; Disease,INFECT BIOLOGICAL,Match 1
+Poison,Chemical,Toxic,POISON BIOLOGICAL,Delivery/access required
+Blight,Chaos,Biological; Decay,BLIGHT; DAMAGE GROWTH,Match 1
+Cave-In,Chaos/Terrain,Collapse; Underground,COLLAPSE; BURY; BLOCK,Match 4
+Blood Moon,World Effect,Magic; Celestial; Dark,EMPOWER UNDEAD; DISRUPT HEALING; AMPLIFY DARK MAGIC,Match 3
+Mana Eclipse,World Effect,Magic; Mana Suppression,SUPPRESS/DISRUPT MANA,Match 1
+Thunderstorm,Weather,Weather; Electrical,STORM; LIGHTNING/DAMAGE,Match 1
+Lightning Spell,Spell,Magic; Electrical,STRIKE; ELECTRIFY,Match 3
+Fire Spell,Spell,Magic; Fire,IGNITE; BURN,Match 1
+Void Gate / Portal,Magic/Spatial,Magic; Spatial; Portal,LINK LOCATIONS; OPEN GATE; CLOSE GATE,Needs endpoints/anchors
+Blood Pact,Magic/Contract,Magic; Contract; Ritual,BIND OATH; EXCHANGE VITALITY; SHARE BURDEN,Cannot create vitality
+Official Contract,Contract,Binding; Political,BIND TERMS; ENFORCE AGREEMENT,Mechanically binding
+Merchant Caravan,Trade,People; Trade; Mobile,TRADE; BARTER; TRANSPORT GOODS,No Gold generation
+Battle Tonic,Consumable,Biological; Consumable,ENHANCE COMBAT/STIMULATE,Exact effect pending
+Arcane Antidote,Consumable,Magic; Remedy,REMOVE/COUNTER MAGICAL AILMENT,Removed Frostbind
+Frostbind,Status/Magic,Magic; Cold; Binding,BIND; SLOW; FREEZE,Match 1
+Headwind,Weather/Effect,Weather; Air,IMPEDE FLIGHT/MOVEMENT,Match 1
+Tunnel Map,Tool,Map; Underground,NAVIGATE TUNNELS; PROVIDE ROUTE,Match 3
+Mirror,Tool,Reflective; Object,REFLECT; SHOW IMAGE,Final capabilities pending
