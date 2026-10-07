@@ -261,3 +261,77 @@ Java, not the language model, ultimately enforces the translated clause.
 - information-confidence tracking
 - tactical simulations before selecting a move
 - multiplayer-safe AI queues and rate limiting
+
+
+## Playable Alpha
+
+Wild Deck is now playable as a terminal alpha while engine development continues.
+
+Run:
+
+```bash
+mvn test
+mvn -q exec:java
+```
+
+Optional deterministic seed:
+
+```bash
+mvn -q exec:java -Dexec.args="12345"
+```
+
+The executable uses a dedicated explicit alpha deck in:
+
+```text
+src/main/resources/data/alpha-playtest-deck-v1.json
+```
+
+This keeps playtest balance data separate from the larger canonical card-history CSV.
+
+The playable loop currently supports:
+
+- 3-player seeded matches
+- 7-card random opening hands
+- public/hidden deployment
+- Draw OR Play main action
+- combat and reactions via existing protection relationships
+- wounds, death, corpses/wrecks
+- healing and regeneration
+- Gold Mine / Mana Shrine resource production
+- occupation and automatic later-round capture
+- tunnel and infiltration routes
+- equipment attachments
+- conquest and annihilation
+- visible/private event history
+- Groq natural-language commands when configured
+- offline deterministic AI fallback when Groq is unavailable
+
+See:
+
+```text
+docs/PLAYTESTING.md
+```
+
+for commands, known limitations and the test-as-we-build workflow.
+
+## AI memory and tactical planning
+
+Groq opponents now receive three grounded inputs:
+
+1. a redacted player-specific world view,
+2. compact persistent memory,
+3. deterministic Java tactical rollouts.
+
+Persistent memory stores:
+
+- trust by player
+- threat by player
+- suspicions
+- current plans
+- a compact strategic summary
+
+The strategic Groq call updates memory and proposes ranked moves in the same request.
+
+Java independently estimates immediate legal attacks before the model decides, including expected damage, retaliation and likely deaths. These estimates are advisory only; the real engine still resolves the action.
+
+This design lets the AI remember betrayal, rising threats and ongoing plans without giving it access to omniscient game state.
