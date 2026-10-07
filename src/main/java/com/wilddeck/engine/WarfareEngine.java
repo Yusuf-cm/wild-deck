@@ -110,11 +110,10 @@ public final class WarfareEngine {
             throw new IllegalStateException("defender became unable to fight");
 
         int attackerStrength = strength(attacker);
-        int defenderStrength = strength(defender);
 
         int damageToDefender = rules.strikeDamage(attackerStrength);
         int damageToAttacker = canFightBack(defender)
-                ? rules.strikeDamage(defenderStrength)
+                ? rules.strikeDamage(strength(defender))
                 : 0;
 
         defender.addDamage(damageToDefender);
