@@ -76,7 +76,12 @@ public final class GameState {
     }
 
     public boolean blocksHostility(String attackerId, String targetId) {
-        return contracts.stream().anyMatch(c ->
+        PlayerState attacker = player(attackerId);
+
+        boolean vassalDutyBlocksAttack = attacker.kingdomStatus() == KingdomStatus.VASSAL
+                && attacker.overlordId().map(targetId::equals).orElse(false);
+
+        return vassalDutyBlocksAttack || contracts.stream().anyMatch(c ->
                 c.binds(attackerId, targetId, ContractTerm.NON_AGGRESSION, round));
     }
 
