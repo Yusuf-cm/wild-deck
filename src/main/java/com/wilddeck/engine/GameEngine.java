@@ -19,6 +19,7 @@ public final class GameEngine {
 
     public void advanceRound(GameState state, String firstPlayerId) {
         state.nextRound();
+        new ContractEngine().auditOverdue(state);
         startRound(state, firstPlayerId);
     }
 
@@ -56,7 +57,7 @@ public final class GameEngine {
     }
 
     public void addContract(GameState state, Contract contract) {
-        state.addContract(contract);
+        new ContractEngine().registerContract(state, contract);
     }
 
     private void requireActive(GameState state, String playerId) {
