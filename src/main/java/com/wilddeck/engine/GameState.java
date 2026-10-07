@@ -7,6 +7,8 @@ public final class GameState {
     private final Map<String,PlayerState> players = new LinkedHashMap<>();
     private final List<Contract> contracts = new ArrayList<>();
     private final Map<String,Occupation> occupations = new LinkedHashMap<>();
+    private final Map<String,CardRelation> cardRelations = new LinkedHashMap<>();
+    private final Map<String,AccessRoute> accessRoutes = new LinkedHashMap<>();
     private final Deque<CardInstance> deck = new ArrayDeque<>();
     private String activePlayerId;
     private boolean mainActionUsed;
@@ -26,6 +28,8 @@ public final class GameState {
     public Collection<PlayerState> players() { return List.copyOf(players.values()); }
     public List<Contract> contracts() { return List.copyOf(contracts); }
     public Collection<Occupation> occupations() { return List.copyOf(occupations.values()); }
+    public Collection<CardRelation> cardRelations() { return List.copyOf(cardRelations.values()); }
+    public Collection<AccessRoute> accessRoutes() { return List.copyOf(accessRoutes.values()); }
 
     public PlayerState player(String id) {
         PlayerState player = players.get(id);
@@ -66,6 +70,28 @@ public final class GameState {
 
     public Optional<Occupation> occupation(String id) {
         return Optional.ofNullable(occupations.get(id));
+    }
+
+    public void addCardRelation(CardRelation relation) {
+        cardRelations.put(relation.id(), relation);
+    }
+
+    public void removeCardRelation(String relationId) {
+        cardRelations.remove(relationId);
+    }
+
+    public void addAccessRoute(AccessRoute route) {
+        accessRoutes.put(route.id(), route);
+    }
+
+    public Optional<AccessRoute> accessRoute(String id) {
+        return Optional.ofNullable(accessRoutes.get(id));
+    }
+
+    public List<CardRelation> relationsTo(String targetCardId, CardRelationType type) {
+        return cardRelations.values().stream()
+                .filter(r -> r.targetCardId().equals(targetCardId) && r.type() == type)
+                .toList();
     }
 
     public boolean hasCompletedOccupation(String occupierId, String defenderId) {
