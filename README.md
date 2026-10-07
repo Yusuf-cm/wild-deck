@@ -98,6 +98,51 @@ Forced conquest, annihilation, and vassalage currently require:
 
 That second rule represents a real physical foothold instead of letting a player conquer a Kingdom from across the table.
 
+## Access and relationships v1
+
+The world model now supports explicit card relationships instead of adding large map subsystems:
+
+- `ATTACHED_TO`
+- `PROTECTS`
+- `CONTAINS`
+
+Enemy access can be established through:
+
+- tunnels
+- portals
+- infiltration routes
+- public surface access
+- state-based physical breaches
+
+Examples now represented by engine rules:
+
+- Smuggler + Tunnel Map can establish mapped tunnel access.
+- A Void Gate-style card needs both location-linking and gate-opening capability.
+- A hidden enemy asset must first be discovered.
+- A contained target cannot simply be selected from outside.
+- A `BONE` construct with `REASSEMBLE` can exploit a `BREACHED` containing structure without hard-coding "Bone Colossus".
+
+## Official Contract enforcement v1
+
+Official Contracts are no longer just stored metadata.
+
+Hard prohibitions can be mechanically rejected:
+
+- `NON_AGGRESSION`
+- `NO_PROXY_ATTACKS`
+- `NO_HOSTILE_COOPERATION`
+- `ALLIANCE_SECRECY`
+- vassal hostility against the overlord
+
+Positive promises become tracked obligations:
+
+- `MUTUAL_DEFENSE`
+- `INTELLIGENCE_SHARING`
+
+An attack on a protected participant can create a Mutual Defense obligation. Confirmed threat intelligence can create an Intelligence Sharing obligation. Obligations can be fulfilled or become recorded breaches if their deadline passes.
+
+The natural-language AI will eventually translate custom negotiated clauses into structured contract rules; the Java engine remains the enforcing authority.
+
 ## Next engine layers
 
-Richer combat reactions, attachment relationships, tunnels/portals/access, resource-producing structures, scouting/information events, and the AI natural-language translator.
+Richer combat reactions, resource-producing structures, scouting/information events, parameterized custom contract clauses, and the AI natural-language translator.
