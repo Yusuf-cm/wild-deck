@@ -71,8 +71,11 @@ public final class PlayableSession {
         }
 
         int checked = 0;
+        boolean wrapped = false;
         do {
+            int previous = turnIndex;
             turnIndex = (turnIndex + 1) % turnOrder.size();
+            if (turnIndex <= previous) wrapped = true;
             checked++;
         } while (checked <= turnOrder.size()
                 && state.player(turnOrder.get(turnIndex)).isEliminated());
@@ -81,7 +84,7 @@ public final class PlayableSession {
             return ActionExecutionResult.fail("No active players remain.");
         }
 
-        boolean newRound = turnIndex == 0;
+        boolean newRound = wrapped;
         String next = turnOrder.get(turnIndex);
 
         if (newRound) {
