@@ -76,14 +76,22 @@ public final class AccessEngine {
         }
 
         Optional<CardInstance> container = new RelationshipEngine().containerOf(state, target.id());
-        if (container.isPresent() && !hasRoute(state, actorId, targetPlayerId)) {
-            return AccessDecision.deny("target is contained and no route reaches its Kingdom");
-        }
 
         for (AccessRoute route : state.accessRoutes()) {
             if (route.connects(actorId, targetPlayerId) && routeStillSupported(state, route)) {
                 return AccessDecision.allow("reachable through " + route.type(), route.id());
             }
+        }
+
+        if (container.isPresent()) {
+            if (breachTraversalPossible(source, container.get())) {
+                return AccessDecision.allow("source can pass through a breach in the containing asset");
+            }
+            return AccessDecision.deny("target is contained and no legitimate route bypasses containment");
+        }
+
+        if (target.visibility() == Visibility.PUBLIC) {
+            return AccessDecision.allow("target is publicly reachable on the battlefield");
         }
 
         if (breachTraversalPossible(source, target)) {
