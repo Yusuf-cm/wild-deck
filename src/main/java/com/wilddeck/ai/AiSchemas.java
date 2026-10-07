@@ -29,23 +29,54 @@ public final class AiSchemas {
         """);
     }
 
-    public static JsonNode plan() {
-        JsonNode action = actionProposal();
-        try {
-            var root = MAPPER.createObjectNode();
-            root.put("type","object");
-            var props = root.putObject("properties");
-            var candidates = props.putObject("candidates");
-            candidates.put("type","array");
-            candidates.put("minItems",1);
-            candidates.put("maxItems",5);
-            candidates.set("items",action);
-            root.putArray("required").add("candidates");
-            root.put("additionalProperties",false);
-            return root;
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
+    public static JsonNode strategicPlan() {
+        return parse("""
+        {
+          "type":"object",
+          "properties":{
+            "candidates":{
+              "type":"array",
+              "minItems":1,
+              "maxItems":5,
+              "items":{
+                "type":"object",
+                "properties":{
+                  "kind":{"type":"string","enum":["DRAW","PLAY","WORLD_ACTION","NEGOTIATE","PASS"]},
+                  "verb":{"type":["string","null"]},
+                  "source_card_ids":{"type":"array","items":{"type":"string"}},
+                  "target_card_ids":{"type":"array","items":{"type":"string"}},
+                  "target_player_id":{"type":["string","null"]},
+                  "card_id":{"type":["string","null"]},
+                  "hidden_play":{"type":"boolean"},
+                  "message":{"type":"string"},
+                  "strategic_summary":{"type":"string"},
+                  "confidence":{"type":"number"}
+                },
+                "required":["kind","verb","source_card_ids","target_card_ids","target_player_id","card_id","hidden_play","message","strategic_summary","confidence"],
+                "additionalProperties":false
+              }
+            },
+            "memory_update":{
+              "type":"object",
+              "properties":{
+                "summary":{"type":"string"},
+                "trust_by_player":{"type":"object","additionalProperties":{"type":"number"}},
+                "threat_by_player":{"type":"object","additionalProperties":{"type":"number"}},
+                "suspicions":{"type":"array","items":{"type":"string"}},
+                "plans":{"type":"array","items":{"type":"string"}}
+              },
+              "required":["summary","trust_by_player","threat_by_player","suspicions","plans"],
+              "additionalProperties":false
+            }
+          },
+          "required":["candidates","memory_update"],
+          "additionalProperties":false
         }
+        """);
+    }
+
+    public static JsonNode plan() {
+        return strategicPlan();
     }
 
     public static JsonNode contractTranslation() {

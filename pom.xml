@@ -45,7 +45,7 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.5.0</version>
-        <configuration><mainClass>com.wilddeck.engine.WildDeckDemo</mainClass></configuration>
+        <configuration><mainClass>com.wilddeck.app.PlayableAlphaCli</mainClass></configuration>
       </plugin>
     </plugins>
   </build>

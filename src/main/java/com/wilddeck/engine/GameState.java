@@ -10,6 +10,7 @@ public final class GameState {
     private final Map<String,CardRelation> cardRelations = new LinkedHashMap<>();
     private final Map<String,AccessRoute> accessRoutes = new LinkedHashMap<>();
     private final Map<String,ContractObligation> contractObligations = new LinkedHashMap<>();
+    private final List<GameEvent> events = new ArrayList<>();
     private final Deque<CardInstance> deck = new ArrayDeque<>();
     private String activePlayerId;
     private boolean mainActionUsed;
@@ -33,6 +34,7 @@ public final class GameState {
     public Collection<CardRelation> cardRelations() { return List.copyOf(cardRelations.values()); }
     public Collection<AccessRoute> accessRoutes() { return List.copyOf(accessRoutes.values()); }
     public Collection<ContractObligation> contractObligations() { return List.copyOf(contractObligations.values()); }
+    public List<GameEvent> events() { return List.copyOf(events); }
 
     public PlayerState player(String id) {
         PlayerState player = players.get(id);
@@ -97,6 +99,19 @@ public final class GameState {
 
     public Optional<ContractObligation> contractObligation(String id) {
         return Optional.ofNullable(contractObligations.get(id));
+    }
+
+    public void addEvent(GameEvent event) {
+        events.add(Objects.requireNonNull(event));
+    }
+
+    public List<GameEvent> visibleEvents(String playerId, int limit) {
+        if (limit < 1) return List.of();
+        List<GameEvent> visible = events.stream()
+                .filter(e -> e.visibleTo(playerId))
+                .toList();
+        int from = Math.max(0, visible.size() - limit);
+        return List.copyOf(visible.subList(from,visible.size()));
     }
 
     public List<CardRelation> relationsTo(String targetCardId, CardRelationType type) {
