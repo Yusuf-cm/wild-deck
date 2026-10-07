@@ -96,8 +96,8 @@ class PlayableSessionTest {
                   }],
                   "memory_update": {
                     "summary": "Opening turn.",
-                    "trust_by_player": {},
-                    "threat_by_player": {},
+                    "trust_by_player": [],
+                    "threat_by_player": [],
                     "suspicions": [],
                     "plans": []
                   }
