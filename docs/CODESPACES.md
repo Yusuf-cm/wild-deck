@@ -13,7 +13,16 @@ GitHub will create the machine from `.devcontainer/devcontainer.json`.
 
 ## Verify the engine
 
-In the Codespaces terminal run:
+The devcontainer now installs Maven automatically. If you opened the Codespace before this fix, run the one-time repair below or rebuild the container.
+
+One-time repair:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y maven
+```
+
+Then run:
 
 ```bash
 java -version
