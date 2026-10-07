@@ -1671,3 +1671,247 @@ Highly specific contracts such as the Match #4 "Brian Silence Clause" need struc
 - mutual-consent exceptions
 
 The current engine hard-enforces the reusable general clauses above. Parameterized custom clauses are the next contract milestone so natural-language negotiated terms can be translated into precise Java-enforceable rules.
+
+
+---
+
+# 30. Parameterized contracts and Groq AI v1
+
+## Why custom clauses were necessary
+
+Reusable terms such as `NON_AGGRESSION` and `MUTUAL_DEFENSE` cover common agreements, but Match #4 demonstrated that Wild Deck diplomacy can become much more specific.
+
+The strongest example was the Brian Silence Clause:
+
+> Michelle may not investigate, spy on, question others about, disclose, trade, spread, or deliberately discuss information concerning Yusuf's relationship with Brian unless the relevant consent exception is satisfied.
+
+A single `ALLIANCE_SECRECY` flag is too broad for this.
+
+The engine therefore now supports parameterized custom restriction clauses.
+
+## Custom clause selectors
+
+A `CustomContractClause` can restrict behavior using:
+
+- bound actor IDs
+- action types
+- target player IDs
+- related player IDs
+- recipient player IDs
+- a normalized topic key
+- required consent-givers
+
+Empty selector sets mean "any", allowing a clause to be narrow or broad without creating a new Java class for every negotiated deal.
+
+Example topic:
+
+```text
+RELATIONSHIP:YUSUF:BRIAN
+```
+
+Example restricted actions:
+
+```text
+INVESTIGATE_INFORMATION
+SPY_INFORMATION
+QUESTION_OTHERS
+DISCLOSE_INFORMATION
+TRADE_INFORMATION
+SPREAD_INFORMATION
+DISCUSS_INFORMATION
+```
+
+The contract engine blocks matching actions unless all required consent-givers are present in the action context.
+
+This makes custom diplomacy mechanically enforceable while still allowing an AI translator to understand natural-language contract wording.
+
+## Groq AI design
+
+Wild Deck now includes a real provider integration built against Groq's OpenAI-compatible Chat Completions API.
+
+The integration does not make Groq authoritative.
+
+The architecture is:
+
+```text
+Human command / opponent planning
+          ↓
+Groq language model
+          ↓
+strict structured proposal
+          ↓
+Java engine validation
+          ↓
+legal state transition
+```
+
+The model never receives direct permission to mutate:
+
+- resources
+- card ownership
+- damage
+- visibility
+- contracts
+- victory state
+- access routes
+
+## Model split
+
+Two default models are configured.
+
+### Fast model
+
+```text
+openai/gpt-oss-20b
+```
+
+Used for frequent structured tasks:
+
+- translating player commands
+- translating natural-language contract clauses
+- classifying contract-relevant actions
+
+### Strategic model
+
+```text
+openai/gpt-oss-120b
+```
+
+Used for lower-frequency tasks that benefit more from reasoning:
+
+- opponent turn planning
+- candidate move ranking
+
+Both model IDs are environment-configurable.
+
+## Structured output
+
+The Groq client requests JSON Schema output.
+
+Wild Deck defines schemas for:
+
+- one player action proposal
+- a ranked opponent plan
+- custom contract clause translation
+- contract-action classification
+
+If strict JSON Schema mode is rejected by a selected model/schema combination, the client performs one fallback request using JSON Object Mode.
+
+The returned JSON is then parsed into Java records.
+
+## Fair opponent knowledge
+
+The AI does not receive the full `GameState`.
+
+`AiGameViewBuilder` constructs a player-specific redacted view.
+
+The opponent AI sees:
+
+- its own exact hand
+- its own resources
+- its own deployed assets
+- its own graveyard
+- cards it personally knows
+- public cards
+- its own Official Contracts
+- its own contract obligations
+- routes it owns or routes that are public
+- card relationships it can actually know
+
+The opponent AI does not see:
+
+- hidden enemy hand cards
+- undiscovered hidden Kingdom assets
+- exact enemy resources
+- contracts it is not part of
+
+This is essential because hidden information is one of Wild Deck's core strategic resources.
+
+## Opponent move selection
+
+The strategic model does not return one unquestioned command.
+
+It produces several ranked candidates.
+
+Java checks them in order.
+
+For each candidate:
+
+- Draw is checked against turn state and deck availability.
+- Play is checked against actual hand ownership and affordability.
+- World actions are passed through `InteractionEngine`.
+- Negotiation and Pass are treated as non-mutating proposals.
+
+The first legal candidate is selected.
+
+If all generated candidates are illegal, the deterministic fallback is:
+
+1. Draw if legal.
+2. Otherwise Pass.
+
+This prevents the language model from inventing a convenient counter and having it silently accepted.
+
+## Contract language translation
+
+Natural-language custom clauses can now be sent through the fast Groq model.
+
+The model outputs normalized selectors.
+
+Java converts those selectors into `CustomContractClause` objects.
+
+The same AI layer can classify a proposed information/diplomatic action into a `ContractActionRequest`.
+
+That allows the workflow:
+
+```text
+natural language contract
+→ structured custom clause
+→ Java stores clause
+
+later:
+
+natural language action
+→ structured contract action
+→ Java tests clause
+→ ALLOW or BLOCK
+```
+
+The LLM interprets language; Java enforces law.
+
+## Secret management
+
+Groq credentials are read from environment variables.
+
+The repository contains only `.env.example`.
+
+The actual `.env` file is ignored.
+
+Current environment settings:
+
+```text
+GROQ_API_KEY
+GROQ_BASE_URL
+GROQ_FAST_MODEL
+GROQ_STRATEGIC_MODEL
+```
+
+No provider API key should ever be committed to Git.
+
+## Next AI milestones
+
+The current AI layer is the first production-shaped foundation, not the final opponent intelligence system.
+
+Next milestones include:
+
+- an execution/orchestration layer that applies accepted proposals
+- multi-step creative commands
+- strategic event memory
+- opponent beliefs and confidence values
+- negotiation generation
+- lies and bluff tracking
+- short tactical rollouts before move selection
+- threat assessment
+- coalition reasoning
+- resource valuation
+- rate-limit/cost controls
+- multiplayer-safe request queues
