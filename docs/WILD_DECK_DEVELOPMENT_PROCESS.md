@@ -1413,3 +1413,105 @@ That means two matches using the same deck may develop completely differently.
 This is the intended identity of Wild Deck:
 
 > **A card-driven strategy warfare sandbox where creativity is legal only when the world supports it.**
+
+
+---
+
+# 28. Kingdom warfare v1 implementation
+
+The second warfare milestone implements Kingdom-level outcomes on top of the basic combat engine.
+
+## Occupation and capture
+
+A card with `OCCUPY` may begin occupying an enemy asset once that asset is secured enough to be occupied.
+
+Current alpha conditions:
+
+- non-combat infrastructure may be occupied directly if legally reached
+- military assets must be incapacitated, petrified, or critically wounded
+- occupation is public
+- the occupier receives the state `OCCUPYING`
+- the target receives the state `OCCUPIED`
+- capture does not resolve immediately
+
+The occupation must survive into a later round.
+
+This creates the counterattack window discovered during the early playtests:
+
+```text
+successful assault
+→ occupation
+→ defender gets time to counterattack
+→ occupier survives
+→ ownership transfers
+```
+
+If the occupying unit dies before the later round, the occupation breaks and the target remains with the defender.
+
+## Conquest
+
+Conquest is a forced Kingdom-level outcome.
+
+Current alpha requirements:
+
+1. defender has no effective deployed military defense
+2. attacker has completed at least one occupation against that Kingdom
+3. no rule/contract currently blocks hostility
+
+On conquest:
+
+- surviving deployed assets transfer to the conqueror
+- asset owner/controller changes
+- remaining Gold, Wealth and Mana transfer
+- target Kingdom becomes `CONQUERED`
+
+Hidden cards in hand are not currently inherited.
+
+## Annihilation
+
+Annihilation uses the same military prerequisites as conquest but destroys rather than inherits.
+
+Surviving Kingdom assets become:
+
+- `CORPSE` if biological
+- `WRECK` if construct
+- `RUINED` otherwise
+
+The target becomes `ANNIHILATED`.
+
+This preserves the strategic distinction established in playtesting:
+
+> **Conquest takes value. Annihilation denies value.**
+
+## Vassalage
+
+Two paths exist.
+
+### Voluntary vassalage
+
+A surviving Kingdom may consensually become another Kingdom's vassal without military defeat.
+
+### Forced vassalage
+
+A player may impose vassalage only when the same prerequisites as forced conquest are satisfied.
+
+The vassal:
+
+- keeps its deployed assets
+- continues to exist as a Kingdom
+- becomes politically subordinate
+- cannot legally attack its overlord
+
+Future versions will add richer direct-command, protection and war-obligation terms.
+
+## Victory detection
+
+The engine now detects the Wild Deck victory condition:
+
+> **Last surviving independent Kingdom wins.**
+
+A vassal does not count as independent.
+
+Conquered and annihilated Kingdoms are eliminated.
+
+This means a player may win while one or more vassal Kingdoms still exist.

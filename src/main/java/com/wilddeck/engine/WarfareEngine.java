@@ -35,8 +35,8 @@ public final class WarfareEngine {
             throw new IllegalStateException("attacker is not controlled by acting player");
         if (!attacker.isCombatCapable())
             throw new IllegalStateException("attacker is not combat capable");
-        if (!target.isCombatCapable())
-            throw new IllegalStateException("target is not combat capable");
+        if (target.zone() != Zone.KINGDOM || target.isDead())
+            throw new IllegalStateException("target is not a valid battlefield target");
         if (target.controllerId().equals(attackerPlayerId))
             throw new IllegalStateException("cannot attack your own card");
 
@@ -106,8 +106,8 @@ public final class WarfareEngine {
 
         if (!attacker.isCombatCapable())
             throw new IllegalStateException("attacker became unable to fight");
-        if (!defender.isCombatCapable())
-            throw new IllegalStateException("defender became unable to fight");
+        if (defender.zone() != Zone.KINGDOM || defender.isDead())
+            throw new IllegalStateException("defender is no longer a valid target");
 
         int attackerStrength = strength(attacker);
 
