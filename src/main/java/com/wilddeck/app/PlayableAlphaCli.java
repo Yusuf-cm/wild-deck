@@ -17,7 +17,7 @@ public final class PlayableAlphaCli {
         System.out.println(groq == null
                 ? "AI: offline deterministic fallback (set GROQ_API_KEY for Groq)"
                 : "AI: Groq enabled");
-        System.out.println("Type 'help' for commands.\n");
+        System.out.println("Play naturally: type a card number/name, 'draw', or describe an action. Type 'help' for advanced commands.\n");
 
         Scanner scanner = new Scanner(System.in);
 
@@ -36,12 +36,21 @@ public final class PlayableAlphaCli {
             }
 
             System.out.println("\n--- Your turn | Round " + session.state().round() + " ---");
+            printTurnDashboard(session.state(),session.state().player(session.humanPlayerId()));
             boolean end = false;
             while (!end && session.state().winner().isEmpty()) {
                 System.out.print("> ");
                 if (!scanner.hasNextLine()) return;
                 String line = scanner.nextLine().trim();
-                if (line.isBlank()) continue;
+                if (line.isBlank()) {
+                    if (session.state().mainActionUsed()) {
+                        print(session.endTurn());
+                        end = true;
+                    } else {
+                        System.out.println("Choose a card, draw, or describe what you want to do.");
+                    }
+                    continue;
+                }
 
                 try {
                     end = handle(session,line,groq);
@@ -64,18 +73,38 @@ public final class PlayableAlphaCli {
         String command = parts[0].toLowerCase(Locale.ROOT);
         PlayerState human = session.state().player(session.humanPlayerId());
 
+        if (line.matches("\\d+")) {
+            CardInstance card = at(human.hand(),integer(line));
+            printWithTurnHint(
+                    session.executor().play(session.state(),human.id(),card.id(),false),
+                    session.state());
+            return false;
+        }
+
+        Optional<CardInstance> namedCard = findHandCardByName(human.hand(),line);
+        if (namedCard.isPresent()) {
+            printWithTurnHint(
+                    session.executor().play(
+                            session.state(),human.id(),namedCard.get().id(),false),
+                    session.state());
+            return false;
+        }
+
         switch (command) {
             case "help" -> printHelp();
             case "status" -> printStatus(session.state(),human);
             case "hand" -> printCards("HAND",human.hand());
             case "board" -> printBoard(session.state(),human);
             case "events" -> printEvents(session.state(),human.id());
-            case "draw" -> print(session.executor().draw(session.state(),human.id()));
+            case "draw" -> printWithTurnHint(
+                    session.executor().draw(session.state(),human.id()),session.state());
             case "play" -> {
                 require(parts.length >= 2,"play <hand-index> [hidden]");
                 CardInstance card = at(human.hand(),integer(parts[1]));
                 boolean hidden = parts.length >= 3 && parts[2].equalsIgnoreCase("hidden");
-                print(session.executor().play(session.state(),human.id(),card.id(),hidden));
+                printWithTurnHint(
+                        session.executor().play(session.state(),human.id(),card.id(),hidden),
+                        session.state());
             }
             case "attack" -> {
                 require(parts.length >= 4,"attack <your-board-index> <opponent-id> <target-index>");
@@ -147,23 +176,82 @@ public final class PlayableAlphaCli {
                     print(session.executor().execute(session.state(),human.id(),proposal));
                 }
             }
-            case "end" -> {
+            case "end", "done" -> {
                 print(session.endTurn());
                 return true;
             }
             case "quit", "exit" -> System.exit(0);
-            default -> System.out.println("Unknown command. Type 'help'.");
+            default -> {
+                if (groq != null) {
+                    AiActionProposal proposal = groq.translatePlayerCommand(
+                            session.state(),human.id(),line);
+                    System.out.println("Understood as: " + proposal.kind()
+                            + (proposal.verb() == null ? "" : " / " + proposal.verb()));
+                    printWithTurnHint(
+                            session.executor().execute(session.state(),human.id(),proposal),
+                            session.state());
+                } else {
+                    System.out.println("I did not understand that. Type a card number/name or 'help'.");
+                }
+            }
         }
         return false;
     }
 
+
+    private static void printTurnDashboard(GameState state,PlayerState human) {
+        System.out.println("Resources " + human.resources().snapshot()
+                + " | Deck " + state.deckSize()
+                + (state.mainActionUsed() ? " | MAIN ACTION USED" : ""));
+        printCards("YOUR HAND",human.hand());
+        System.out.println("Tip: type a number or card name. Example: 3 or Mana Shrine.");
+    }
+
+    static Optional<CardInstance> findHandCardByName(
+            List<CardInstance> hand,String input
+    ) {
+        String wanted = input.trim().toLowerCase(Locale.ROOT);
+        List<CardInstance> exact = hand.stream()
+                .filter(card -> card.definition().name().equalsIgnoreCase(input.trim()))
+                .toList();
+        if (exact.size() == 1) return Optional.of(exact.get(0));
+
+        List<CardInstance> matches = hand.stream()
+                .filter(card -> card.definition().name()
+                        .toLowerCase(Locale.ROOT).startsWith(wanted))
+                .toList();
+        return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
+    }
+
+    private static String formatCost(Map<ResourceType,Integer> cost) {
+        if (cost == null || cost.isEmpty()) return "free";
+        return cost.toString();
+    }
+
+    private static void printWithTurnHint(ActionExecutionResult result,GameState state) {
+        print(result);
+        if (result.success() && state.mainActionUsed()) {
+            System.out.println("Main action used. Press Enter or type 'end' when you are ready.");
+        }
+    }
+
     private static void printHelp() {
         System.out.println("""
-            status
-            hand
-            board
-            events
-            draw
+            EASY PLAY
+              <number>                  play that card from your hand
+              <card name>               play that card by name
+              <natural language>        Groq translates what you mean
+              draw                      draw instead of playing
+              <Enter>                   end turn after your main action
+              end / done                end turn
+
+            INSPECTION
+              status
+              hand
+              board
+              events
+
+            ADVANCED
             play <hand-index> [hidden]
             attack <your-board-index> <opponent-id> <target-index>
             regen <your-board-index>
@@ -212,8 +300,8 @@ public final class PlayableAlphaCli {
         for (int i=0;i<cards.size();i++) {
             CardInstance c = cards.get(i);
             System.out.printf(
-                    "  [%d] %s | STR %s | dmg %d | %s | %s%n",
-                    i,c.definition().name(),
+                    "  [%d] %s | cost %s | STR %s | dmg %d | %s | %s%n",
+                    i,c.definition().name(),formatCost(c.definition().cost()),
                     c.definition().strength() == null ? "-" : c.definition().strength(),
                     c.damage(),c.definition().capabilities(),c.states());
         }
