@@ -25,5 +25,19 @@ public final class ResourcePool {
         cost.forEach((type, amount) -> values.put(type, get(type) - amount));
     }
 
+    public int drain(ResourceType type) {
+        int amount = get(type);
+        values.put(type, 0);
+        return amount;
+    }
+
+    public Map<ResourceType,Integer> drainAll() {
+        EnumMap<ResourceType,Integer> out = new EnumMap<>(ResourceType.class);
+        for (ResourceType type : ResourceType.values()) {
+            out.put(type, drain(type));
+        }
+        return Map.copyOf(out);
+    }
+
     public Map<ResourceType,Integer> snapshot() { return Map.copyOf(values); }
 }
