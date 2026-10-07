@@ -35,6 +35,32 @@ public final class CardInstance {
     public void setVisibility(Visibility value) { visibility = Objects.requireNonNull(value); }
     public void addState(String value) { states.add(value.trim().toUpperCase()); }
     public void removeState(String value) { states.remove(value.trim().toUpperCase()); }
+    public boolean hasState(String value) { return states.contains(value.trim().toUpperCase()); }
     public void addDamage(int amount) { damage += Math.max(0, amount); }
     public void healDamage(int amount) { damage = Math.max(0, damage - Math.max(0, amount)); }
+
+    public int vitality() {
+        Integer strength = definition.strength();
+        return strength == null ? 1 : Math.max(1, strength);
+    }
+
+    public boolean isDead() {
+        return zone == Zone.GRAVEYARD || hasState("DEAD");
+    }
+
+    public boolean isCombatCapable() {
+        return zone == Zone.KINGDOM && !isDead()
+                && !hasState("PETRIFIED") && !hasState("INCAPACITATED");
+    }
+
+    public void refreshWoundState() {
+        if (isDead()) return;
+        removeState("WOUNDED");
+        removeState("CRITICALLY_WOUNDED");
+        if (damage <= 0) return;
+
+        double ratio = damage / (double)vitality();
+        if (ratio >= 0.67) addState("CRITICALLY_WOUNDED");
+        else addState("WOUNDED");
+    }
 }

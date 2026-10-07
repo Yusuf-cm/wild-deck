@@ -57,6 +57,25 @@ The complete design history, playtest lessons, rule evolution, engine architectu
 
 `docs/WILD_DECK_DEVELOPMENT_PROCESS.md`
 
+## Warfare engine v1
+
+The first warfare layer now supports:
+
+- attack declarations
+- a reaction window
+- GUARD / DEFEND interception
+- deterministic simultaneous damage
+- WOUNDED and CRITICALLY_WOUNDED states
+- death and graveyards
+- BIOLOGICAL -> CORPSE
+- CONSTRUCT -> WRECK
+- gradual REGENERATE recovery
+- biological healing validation
+- retreat before resolution
+- contract-aware attack legality
+
+Combat arithmetic is deliberately isolated in `WarfareRules` so playtesting can rebalance numbers without rewriting the combat lifecycle.
+
 ## Next engine layers
 
-Combat reactions, capture/occupation, conquest/annihilation/vassalage, richer contracts, resource-producing structures, attachment relationships, access/path logic, and the AI natural-language translator.
+Capture/occupation, conquest/annihilation/vassalage, richer reactions, resource-producing structures, attachment relationships, access/path logic, and the AI natural-language translator.
