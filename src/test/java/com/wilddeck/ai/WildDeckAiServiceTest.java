@@ -79,8 +79,8 @@ class WildDeckAiServiceTest {
           ],
           "memory_update":{
             "summary":"No reliable enemy pattern yet.",
-            "trust_by_player":{"enemy":0.4},
-            "threat_by_player":{"enemy":0.5},
+            "trust_by_player":[{"player_id":"enemy","score":0.4}],
+            "threat_by_player":[{"player_id":"enemy","score":0.5}],
             "suspicions":[],
             "plans":["Build a board before committing."]
           }
