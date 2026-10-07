@@ -1,0 +1,10 @@
+package com.wilddeck.engine;
+public enum ContractTerm {
+    NON_AGGRESSION,
+    MUTUAL_DEFENSE,
+    INTELLIGENCE_SHARING,
+    ALLIANCE_SECRECY,
+    NO_PROXY_ATTACKS,
+    NO_HOSTILE_COOPERATION,
+    OFFENSIVE_SUPPORT_OPTIONAL
+}
