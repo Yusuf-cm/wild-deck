@@ -8,14 +8,24 @@ public final class KingdomReplayHarness {
  public KingdomReplayHarness(){
   // Initial cards and unplaced early-round actions were preserved, but not their exact cycle.
   for(String name:List.of("Gold Mine","Hydra","Militia","Necromancer","Soul Lantern","Mana Shrine",
-      "Blacksmith","Beastmaster","Royal Trade Caravan","Stormcaller","Arcane Militia",
+      "Blacksmith","Beastmaster","Royal Trade Caravan","Stormcaller",
       "Treasure Hunter"))engine.giveCard("player",name);
   for(String name:List.of("Gold Mine","Hydra","Militia","Necromancer","Soul Lantern","Mana Shrine",
-      "Blacksmith","Beastmaster","Royal Trade Caravan","Stormcaller","Arcane Militia","Treasure Hunter"))
+      "Blacksmith","Beastmaster","Royal Trade Caravan","Stormcaller","Treasure Hunter"))
       must(engine.deploy("player",name));
+  must(engine.combine("player","Necromancer","Soul Lantern","Soulkeeper Necromancer",
+      Set.of("RAISE DEAD","STORE SPIRIT")));
+  // Early purchases preceded surviving cycle-number records. Fixture liquidity is only used
+  // to exercise actual transaction rules, then replaced by the recorded Cycle 17 checkpoint.
+  engine.kingdom("player").gold=9;
+  engine.kingdom("asha").goods.put("Iron",10);
+  must(engine.trade("player","asha","Iron",10,5));
+  must(engine.hire("player","Arcane Militia",4));
+  must(engine.forgeUpgrade("player","Militia","Blacksmith","Iron",2,1));
   // Late-cycle board cards derive from earlier combat/recruitment: these events currently
   // require a historical fixture because the exact prior turns are unavailable.
   engine.giveCard("player","Undead Cavalry");must(engine.deploy("player","Undead Cavalry"));
+  must(engine.forgeUpgrade("player","Undead Cavalry","Blacksmith","Iron",2,1));
   for(String resource:List.of("Copper","Magic Crystal","Silver","Gemstone","Sapphire","Mithril"))
       must(engine.discover("player",resource));
   for(String creature:List.of("Dire Wolf","Stoneburrower","Griffin","River Serpent")){
@@ -32,14 +42,14 @@ public final class KingdomReplayHarness {
       int yield=Map.of("Copper",2,"Magic Crystal",1,"Silver",2,"Gemstone",1,"Sapphire",1).get(id);
       engine.kingdom("player").mines.put(id,new KingdomRulesEngine.Mine(id,yield,18));
   }
-  for(var item:Map.of("Copper",4,"Magic Crystal",1,"Silver",4,"Gemstone",1,"Sapphire",0,"Iron",6).entrySet())
+  for(var item:Map.of("Copper",4,"Magic Crystal",1,"Silver",4,"Gemstone",1,"Sapphire",0).entrySet())
       engine.checkpointStock("player",item.getKey(),item.getValue());
   engine.kingdom("brian").gold=30;engine.kingdom("asha").gold=30;
   // NPC balance is only test-fixture liquidity, NOT claimed historical cash.
   engine.treaty(Set.of("player","asha","brian"),25);
   gaps.add("Exact chronological commands for Cycles 1-16 were not preserved; replay begins with documented unplaced actions then the Cycle 17 checkpoint.");
   gaps.add("Asha and Brian have test-fixture balances because their actual treasuries are unknown.");
-  gaps.add("Combat, spell outcomes, forge STR upgrades and capture success still require generic resolvers.");
+  gaps.add("Combat outcomes and resurrection still need generic resolvers; fusion, forge upgrades, and material transfers are now executed.");
   // Cycle 18: production, Mithril development and actual transfers.
   engine.advanceCycle();
   must(engine.develop("player","Mithril"));
