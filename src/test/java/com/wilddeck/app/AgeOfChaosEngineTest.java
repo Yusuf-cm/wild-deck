@@ -4,6 +4,19 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AgeOfChaosEngineTest {
+ @Test void openingWitchAndEmberfallResponse(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
+  assertEquals(1,g.kingdom("thornveil").wealth);
+  assertEquals(2,g.kingdom("thornveil").mana);
+  assertTrue(g.pass("thornveil").success());
+  assertEquals("emberfall",g.turn());
+  assertTrue(g.play("emberfall","Ashen Treasury").success());
+  assertTrue(g.pass("emberfall").success());
+  assertEquals("sunspire",g.turn());
+  assertEquals(6,g.kingdom("thornveil").hand.size());
+  System.out.println("AGE_OF_CHAOS_R1: "+g.history());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
