@@ -113,6 +113,28 @@ class AgeOfChaosEngineTest {
   assertEquals(3,g.kingdom("emberfall").gold);
   System.out.println("AGE_OF_CHAOS_ROUND3: "+g.history());
  }
+ @Test void roundThreeOrchardAndMutualDefenseTreaty(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());g.pass("thornveil");
+  assertTrue(g.play("emberfall","Ashen Treasury").success());g.pass("emberfall");
+  assertTrue(g.play("sunspire","The Seven Oathbreakers").success());g.pass("sunspire");
+  assertTrue(g.play("dreadhaven","Saltbone Corsairs").success());g.pass("dreadhaven");
+  assertTrue(g.draw("thornveil").success());
+  assertTrue(g.orderWildScouts("thornveil").success());g.pass("thornveil");
+  assertTrue(g.play("emberfall","Coal Drake").success());g.pass("emberfall");
+  assertTrue(g.play("sunspire","Crown of Borrowed Kings").success());g.pass("sunspire");
+  assertTrue(g.play("dreadhaven","Smuggler's Ledger").success());g.pass("dreadhaven");
+  assertEquals(3,g.round());
+  assertTrue(g.play("thornveil","Orchard of Second Chances").success());
+  assertTrue(g.signMutualTreaty("thornveil","sunspire").success());
+  assertTrue(g.allied("thornveil","sunspire"));
+  assertEquals(5,g.kingdom("thornveil").wealth);
+  assertEquals(2,g.kingdom("thornveil").board.size());
+  assertFalse(g.attack("thornveil","sunspire").success());
+  assertTrue(g.attack("thornveil","sunspire").message().contains("Treaty prohibits"));
+  assertFalse(g.signMutualTreaty("thornveil","sunspire").success());
+  System.out.println("AGE_OF_CHAOS_R3_TREATY: "+g.history());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
