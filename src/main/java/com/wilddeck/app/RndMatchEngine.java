@@ -77,6 +77,23 @@ public final class RndMatchEngine {
     String effect=PRODUCTION_EFFECTS.containsKey(c.name()) ? " (passive: +1 Mana at each completed round)" : "";
     return ok(id+" deployed "+c.name()+" for free"+effect);
    }
+   case "SCRY" -> {
+    if(mainActionSpent.contains(id))return fail("main action already spent this turn");
+    Card spell=find(actor.hand,"Scrying");
+    if(spell==null)return fail("Scrying must be in hand");
+    if(actor.mana<2)return fail("Scrying requires 2 Mana");
+    String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
+    if(!seats.containsKey(target)||target.equals(id))return fail("specify another valid kingdom");
+    actor.mana-=2;
+    actor.hand.remove(spell.id());
+    mainActionSpent.add(id);
+    Seat other=seat(target);
+    // Reveal only to caster; do not place private identities in the public log.
+    events.add("R"+round+": "+id+" cast Scrying on "+target+" (-2 Mana)");
+    return ok("Scrying reveals "+target+"'s "+other.hand.size()+" cards: "+
+      other.hand.values().stream().map(c->c.name()+" ["+c.id()+"]").toList()+
+      ". Mana remaining: "+actor.mana);
+   }
    case "ORDER" -> {
     Card c=find(actor.board,order.cardId());if(c==null)return fail("source not deployed");
     if(order.intent()==null||order.intent().isBlank())return fail("empty instruction");
@@ -160,6 +177,7 @@ public final class RndMatchEngine {
   if(low.equals("draw")||low.equals("draw a card"))return new Order(actor,"DRAW",null,null,null,Map.of());
   if(low.equals("pass")||low.equals("end turn"))return new Order(actor,"PASS",null,null,null,Map.of());
   if(low.startsWith("deploy ")||low.startsWith("play "))return new Order(actor,"PLAY",null,null,null,Map.of());
+  if(low.startsWith("scry ")||low.startsWith("use scrying on "))return new Order(actor,"SCRY","WD-088",low.startsWith("scry ")?cmd.substring(5).trim():cmd.substring(15).trim(),null,Map.of("MANA",2));
   if(low.startsWith("assign ")){
    int x=low.indexOf(" to ");if(x>7)return new Order(actor,"ORDER",cmd.substring(7,x),null,cmd.substring(x+4),Map.of());
   }
