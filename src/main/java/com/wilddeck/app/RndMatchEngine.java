@@ -193,36 +193,41 @@ public final class RndMatchEngine {
     execute(new Order(id,"PASS",null,null,null,Map.of()));
     continue;
    }
-   // Personality and board-driven strategic management, independent of draw RNG.
-   String rival=id.equals("asha")?"brian":id.equals("brian")?"asha":"player";
-   String objective=id.equals("asha")?"secure trade routes and defensive alliances":id.equals("brian")?"take control of strategic assets":"seek relics and exploit weak opponents";
-   Result diplomacy=execute(new Order(id,"NEGOTIATE",null,rival,objective,Map.of()));
-   if(diplomacy.success())reports.add(id+": "+diplomacy.message());
-   int force=npc.board.values().stream().mapToInt(Card::strength).sum();
-   int enemyForce=seat(rival).board.values().stream().mapToInt(Card::strength).sum();
-   if(force>enemyForce && !npc.board.isEmpty()){
+   // R&D referee: variable choices, no permanent NPC character class or objective.
+   // Seeded only to make bug reports reproducible. Chat referee may choose freely.
+   Random choice=new Random(20261010L + 7919L*round + 101L*turns.indexOf(id));
+   List<String> rivals=new ArrayList<>(turns);
+   rivals.remove(id);
+   String rival=rivals.get(choice.nextInt(rivals.size()));
+   int mood=choice.nextInt(5);
+   if(mood==0 || mood==3){
+    String offer=mood==0?"Shall we exchange information?":"I offer a temporary ceasefire; name your price.";
+    Result proposal=execute(new Order(id,"NEGOTIATE",null,rival,offer,Map.of()));
+    if(proposal.success())reports.add(id+": "+proposal.message());
+   }
+   if(mood==1 || mood==4){
     Result raid=execute(new Order(id,"ATTACK",null,rival,null,Map.of()));
     if(raid.success())reports.add(id+": "+raid.message());
    }
-   // Persistent domestic orders are management actions, not free card plays.
-   String worker=id.equals("asha")?"Blacksmith":id.equals("brian")?"Healer":"Necromancer";
-   Card operator=npc.board.values().stream().filter(c->c.name().equals(worker)).findFirst().orElse(null);
-   if(operator!=null){
-    String job=id.equals("asha")?"prepare armor for Mercenaries":id.equals("brian")?"tend wounded units":"search for viable remains";
-    Result ordered=execute(new Order(id,"ORDER",operator.id(),null,job,Map.of()));
-    if(ordered.success())reports.add(id+" assigned "+worker+": "+job+" (standing order)");
+   List<Card> operators=new ArrayList<>(npc.board.values());
+   if(!operators.isEmpty() && choice.nextBoolean()){
+    Card unit=operators.get(choice.nextInt(operators.size()));
+    String[] jobs={"guard our stores","scout neighboring territory","prepare a surprise","investigate ruins","gather intelligence"};
+    String job=jobs[choice.nextInt(jobs.length)];
+    Result ordered=execute(new Order(id,"ORDER",unit.id(),null,job,Map.of()));
+    if(ordered.success())reports.add(id+" ordered "+unit.name()+": "+job);
    }
-   // Main-action policy chooses military/production when possible, otherwise draws.
-   Card selected=npc.hand.values().stream()
-      .sorted(Comparator.comparingInt((Card c)->c.strength()>0?0:
-       c.category().equals("Structure")?1:c.category().equals("Specialist")?2:3))
-      .findFirst().orElse(null);
+   Card selected=null;
+   if(!npc.hand.isEmpty() && choice.nextInt(4)!=0){
+    List<Card> choices=new ArrayList<>(npc.hand.values());
+    selected=choices.get(choice.nextInt(choices.size()));
+   }
    if(selected!=null){
-    Result deployed=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
-    if(deployed.success())reports.add(deployed.message());
+    Result played=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
+    if(played.success())reports.add(played.message());
    }else{
-    Result drew=execute(new Order(id,"DRAW",null,null,null,Map.of()));
-    if(drew.success())reports.add(id+" drew one private card");
+    Result drawn=execute(new Order(id,"DRAW",null,null,null,Map.of()));
+    if(drawn.success())reports.add(id+" drew one private card");
    }
    Result passed=execute(new Order(id,"PASS",null,null,null,Map.of()));
    if(!passed.success())throw new IllegalStateException(passed.message());
