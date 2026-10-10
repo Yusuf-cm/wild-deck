@@ -18,6 +18,27 @@ class AgeOfChaosEngineTest {
   assertEquals(6,g.kingdom("thornveil").hand.size());
   System.out.println("AGE_OF_CHAOS_R1: "+g.history());
  }
+ @Test void roundOneOathbreakersAndDreadhavenMove(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Ashen Treasury").success());
+  assertTrue(g.pass("emberfall").success());
+  assertTrue(g.play("sunspire","The Seven Oathbreakers").success());
+  assertEquals(3,g.kingdom("sunspire").wealth);
+  assertEquals(2,g.kingdom("sunspire").mana);
+  assertTrue(g.pass("sunspire").success());
+  assertTrue(g.play("dreadhaven","Saltbone Corsairs").success());
+  assertTrue(g.pass("dreadhaven").success());
+  assertEquals(2,g.round());
+  assertEquals("thornveil",g.turn());
+  assertEquals(4,g.kingdom("sunspire").wealth);
+  assertEquals(4,g.kingdom("thornveil").wealth);
+  assertEquals(4,g.kingdom("dreadhaven").wealth);
+  assertEquals(4,g.kingdom("emberfall").wealth);
+  assertEquals(2,g.kingdom("emberfall").gold);
+  System.out.println("AGE_OF_CHAOS_R2: "+g.history());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
