@@ -178,6 +178,18 @@ public final class RndMatchEngine {
   while(!activeSeat().equals("player")){
    String id=activeSeat();
    Seat npc=seat(id);
+   // Preserve recorded R0-R4 opponent actions for the active match;
+   // new adversarial strategy is enabled beginning with the current Round 5.
+   if(round<5){
+    Card c=npc.hand.values().stream().findFirst().orElse(null);
+    if(c!=null){Result play=execute(new Order(id,"PLAY",c.id(),null,null,Map.of()));
+      if(play.success())reports.add(play.message());
+    }else{Result draw=execute(new Order(id,"DRAW",null,null,null,Map.of()));
+      if(draw.success())reports.add(id+" drew a private card");
+    }
+    execute(new Order(id,"PASS",null,null,null,Map.of()));
+    continue;
+   }
    // Personality and board-driven strategic management, independent of draw RNG.
    String rival=id.equals("asha")?"brian":id.equals("brian")?"asha":"player";
    String objective=id.equals("asha")?"secure trade routes and defensive alliances":id.equals("brian")?"take control of strategic assets":"seek relics and exploit weak opponents";
