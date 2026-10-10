@@ -36,10 +36,10 @@ public final class RndContinent {
          """;
  }
  public static String atlas(){
-  StringBuilder out=new StringBuilder("CONTINENT ATLAS (geography only; travel not yet resolved)\\n");
+  StringBuilder out=new StringBuilder("CONTINENT ATLAS (geography only; travel not yet resolved)\n");
   for(Region r:REGIONS)out.append(r.id()).append("  ").append(r.name())
     .append("  ").append(r.terrain()).append("  ").append(r.resource())
-    .append("  owner=").append(r.owner()).append("  borders=").append(r.borders()).append('\\n');
+    .append("  owner=").append(r.owner()).append("  borders=").append(r.borders()).append('\n');
   return out.toString();
  }
 }
