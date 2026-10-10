@@ -59,6 +59,27 @@ public final class AgeOfChaosEngine {
  }
  private final LinkedHashMap<String,Kingdom> kingdoms=new LinkedHashMap<>();
  private final List<String> history=new ArrayList<>();
+ // Small extensible draw pile: new cards are appended between matches, not fabricated on demand.
+ private final Deque<Card> drawPile=new ArrayDeque<>(List.of(
+  new Card("The Mirror Fox","Creature",0,0,3,"Once each round, mimic the appearance of one visible creature; disguise does not copy Strength or abilities"),
+  new Card("Stormglass Compass","Artifact",0,0,0,"Detect one hidden route or weather hazard in an adjacent region"),
+  new Card("The Bone Collector","Specialist",0,0,2,"Gather one Bone from a battlefield containing actual remains"),
+  new Card("Gilded Spider","Creature",0,0,2,"Weave one trap in a controlled region; trap becomes visible when triggered"),
+  new Card("The Wandering Market","Event",0,0,0,"Offer a public trade fair; trades require bilateral consent"),
+  new Card("Griffin Hatchling","Creature",0,0,3,"May mature after two completed rounds if properly fed")
+ ));
+ public int drawPileSize(){return drawPile.size();}
+ public Result draw(String actor){
+  if(!turn().equals(actor))return new Result(false,"It is "+turn()+"'s turn");
+  if(spent.contains(actor))return new Result(false,"Main action already used");
+  if(drawPile.isEmpty())return new Result(false,"Draw pile empty");
+  Card c=drawPile.removeFirst();
+  kingdom(actor).hand.put(c.name(),c);
+  spent.add(actor);
+  history.add("Round "+round+": "+actor+" drew one private card");
+  return new Result(true,"Drew "+c.name()+" — "+c.ability());
+ }
+
  private int round=1,turnIndex=0;
  private final Set<String> spent=new HashSet<>();
  private AgeOfChaosEngine(){
