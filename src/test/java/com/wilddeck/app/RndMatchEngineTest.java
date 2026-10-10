@@ -115,6 +115,20 @@ class RndMatchEngineTest {
   assertEquals(3,g.seat("player").mana);
   assertEquals(170,g.deckSize());
  }
+ @Test void roundThreePlayerDrawAfterOpponentTurns(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals("Drew Magic Crystal [WD-146]",g.command("player","draw").message());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals(3,g.round());
+  var result=g.command("player","draw");
+  assertTrue(result.success());
+  System.out.println("RND_ROUND3_DRAW: "+result.message());
+  assertFalse(g.command("player","deploy Mind Veil").success());
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
