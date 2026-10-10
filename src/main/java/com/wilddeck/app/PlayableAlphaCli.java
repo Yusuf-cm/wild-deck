@@ -43,7 +43,7 @@ public final class PlayableAlphaCli {
                 if (!scanner.hasNextLine()) return;
                 String line = scanner.nextLine().trim();
                 if (line.isBlank()) {
-                    if (session.state().mainActionUsed()) {
+                    if (session.state().cardDrawUsed()) {
                         print(session.endTurn());
                         end = true;
                     } else {
@@ -202,7 +202,7 @@ public final class PlayableAlphaCli {
     private static void printTurnDashboard(GameState state,PlayerState human) {
         System.out.println("Resources " + human.resources().snapshot()
                 + " | Deck " + state.deckSize()
-                + (state.mainActionUsed() ? " | MAIN ACTION USED" : ""));
+                + (state.cardDrawUsed() ? " | DRAW USED" : ""));
         printCards("YOUR HAND",human.hand());
         System.out.println("Tip: type a number or card name. Example: 3 or Mana Shrine.");
     }
@@ -230,8 +230,8 @@ public final class PlayableAlphaCli {
 
     private static void printWithTurnHint(ActionExecutionResult result,GameState state) {
         print(result);
-        if (result.success() && state.mainActionUsed()) {
-            System.out.println("Main action used. Press Enter or type 'end' when you are ready.");
+        if (result.success() && state.cardDrawUsed()) {
+            System.out.println("Draw used for this turn; you may still deploy cards and manage your kingdom.");
         }
     }
 
@@ -241,8 +241,8 @@ public final class PlayableAlphaCli {
               <number>                  play that card from your hand
               <card name>               play that card by name
               <natural language>        Groq translates what you mean
-              draw                      draw instead of playing
-              <Enter>                   end turn after your main action
+              draw                      draw once per turn (can still play cards)
+              <Enter>                   end turn after drawing
               end / done                end turn
 
             INSPECTION
