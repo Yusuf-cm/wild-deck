@@ -21,7 +21,7 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
- public static final int FOUNDING_TRUCE_ROUNDS=6;
+ public static final int FOUNDING_TRUCE_ROUNDS=0;
  private static final Set<String> HOSTILE_ACTIONS=Set.of("ATTACK","RAID","SIEGE","STEAL","SABOTAGE","DESTROY","INVADE","CAPTURE","PLUNDER");
  public boolean foundingTruceActive(){return round<FOUNDING_TRUCE_ROUNDS;}
  private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*\\b(?:attack|raid|siege|steal|sabotage|destroy|invade|plunder)\\b.*");}
@@ -66,6 +66,44 @@ public final class RndMatchEngine {
   if(foundingTruceActive() && (HOSTILE_ACTIONS.contains(type) || (type.equals("ABILITY") && offensiveInstruction(order.intent()) && order.target()!=null && !order.target().equalsIgnoreCase(id))))
    return fail("Founding Truce: hostile actions against other kingdoms are prohibited until Round 6");
   switch(type){
+   case "ATTACK" -> {
+    String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
+    if(!seats.containsKey(target)||target.equals(id))return fail("choose a different kingdom");
+    Seat enemy=seat(target);
+    List<Card> soldiers=actor.board.values().stream().filter(c->c.strength()>0).toList();
+    if(soldiers.isEmpty())return fail("no deployed attacking forces");
+    int attack=soldiers.stream().mapToInt(Card::strength).sum();
+    int defense=enemy.board.values().stream().mapToInt(Card::strength).sum();
+    Card attacker=soldiers.get(0);
+    if(attack>defense){
+     // A raid occupies a single target asset; destroying a kingdom is a separate victory mechanic.
+     Card prize=enemy.board.values().stream().filter(c->c.strength()==0).findFirst().orElse(null);
+     if(prize!=null){enemy.board.remove(prize.id());actor.board.put(prize.id(),prize);
+      events.add("R"+round+": "+id+" captured "+prize.name()+" from "+target+" (attack "+attack+" vs "+defense+")");
+      return ok("Victory: captured "+prize.name()+"; "+target+" remains in the game");
+     }
+     events.add("R"+round+": "+id+" won a raid against "+target+"; no unsecured asset to capture");
+     return ok("Won the raid; opponent survives, no asset available");
+    }
+    events.add("R"+round+": "+target+" repelled "+id+" (attack "+attack+" vs "+defense+")");
+    return ok("Attack repelled; no cards destroyed");
+   }
+   case "NEGOTIATE" -> {
+    String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
+    if(!seats.containsKey(target)||target.equals(id))return fail("choose another kingdom");
+    if(order.intent()==null||order.intent().isBlank())return fail("missing terms");
+    actor.orders.put("proposal:"+target,order.intent());
+    events.add("R"+round+": "+id+" proposed terms to "+target);
+    return ok("Proposal delivered to "+target+": "+order.intent()+" (not accepted yet)");
+   }
+   case "TRADE" -> {
+    String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
+    if(!seats.containsKey(target)||target.equals(id))return fail("choose another kingdom");
+    if(order.intent()==null||order.intent().isBlank())return fail("missing offer");
+    actor.orders.put("trade:"+target,order.intent());
+    events.add("R"+round+": "+id+" offered a trade to "+target);
+    return ok("Trade proposed, pending other ruler's acceptance");
+   }
    case "LOOK" -> {return ok(view(id));}
    case "DRAW" -> {
     if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
@@ -139,19 +177,30 @@ public final class RndMatchEngine {
   List<String> reports=new ArrayList<>();
   while(!activeSeat().equals("player")){
    String id=activeSeat();
-   Seat seat=seat(id);
-   // Public action uses only a card the opponent actually owns.
-   Card selected=seat.hand.values().stream().findFirst().orElse(null);
+   Seat npc=seat(id);
+   // Personality and board-driven strategic management, independent of draw RNG.
+   String rival=id.equals("asha")?"brian":id.equals("brian")?"asha":"player";
+   String objective=id.equals("asha")?"secure trade routes and defensive alliances":id.equals("brian")?"take control of strategic assets":"seek relics and exploit weak opponents";
+   Result diplomacy=execute(new Order(id,"NEGOTIATE",null,rival,objective,Map.of()));
+   if(diplomacy.success())reports.add(id+": "+diplomacy.message());
+   int force=npc.board.values().stream().mapToInt(Card::strength).sum();
+   int enemyForce=seat(rival).board.values().stream().mapToInt(Card::strength).sum();
+   if(force>enemyForce && !npc.board.isEmpty()){
+    Result raid=execute(new Order(id,"ATTACK",null,rival,null,Map.of()));
+    if(raid.success())reports.add(id+": "+raid.message());
+   }
+   // Main-action policy chooses military/production when possible, otherwise draws.
+   Card selected=npc.hand.values().stream()
+      .sorted(Comparator.comparingInt((Card c)->c.strength()>0?0:
+       c.category().equals("Structure")?1:c.category().equals("Specialist")?2:3))
+      .findFirst().orElse(null);
    if(selected!=null){
     Result deployed=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
     if(deployed.success())reports.add(deployed.message());
-   }
-   // A player chooses either to deploy one card OR to draw one card.
-   if(selected==null){
+   }else{
     Result drew=execute(new Order(id,"DRAW",null,null,null,Map.of()));
-    if(!drew.success())reports.add(id+" could not draw.");
+    if(drew.success())reports.add(id+" drew one private card");
    }
-   // Draw identities stay private. The public observer sees only deployment.
    Result passed=execute(new Order(id,"PASS",null,null,null,Map.of()));
    if(!passed.success())throw new IllegalStateException(passed.message());
   }
@@ -184,6 +233,10 @@ public final class RndMatchEngine {
   if(low.equals("draw")||low.equals("draw a card"))return new Order(actor,"DRAW",null,null,null,Map.of());
   if(low.equals("pass")||low.equals("end turn"))return new Order(actor,"PASS",null,null,null,Map.of());
   if(low.startsWith("deploy ")||low.startsWith("play "))return new Order(actor,"PLAY",null,null,null,Map.of());
+  if(low.startsWith("negotiate ")||low.startsWith("trade ")){
+   String[] parts=cmd.split(" ",3);
+   if(parts.length==3)return new Order(actor,parts[0].equalsIgnoreCase("trade")?"TRADE":"NEGOTIATE",null,parts[1],parts[2],Map.of());
+  }
   if(low.startsWith("attack ")||low.startsWith("raid ")||low.startsWith("siege ")||low.startsWith("steal ")||low.startsWith("sabotage ")||low.startsWith("invade "))return new Order(actor,low.split(" ")[0].toUpperCase(Locale.ROOT),null,cmd.substring(cmd.indexOf(" ")+1).trim(),cmd,Map.of());
   if(low.startsWith("scry ")||low.startsWith("use scrying on "))return new Order(actor,"SCRY","WD-088",low.startsWith("scry ")?cmd.substring(5).trim():cmd.substring(15).trim(),null,Map.of("MANA",2));
   if(low.startsWith("assign ")){
