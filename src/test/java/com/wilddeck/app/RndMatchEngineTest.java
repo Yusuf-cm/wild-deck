@@ -88,6 +88,18 @@ class RndMatchEngineTest {
   assertEquals("player",g.activeSeat());
   assertEquals(171,g.deckSize());
  }
+ @Test void seededRoundTwoDrawIsStable(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  var result=g.command("player","draw");
+  assertTrue(result.success());
+  System.out.println("RND_ROUND2_DRAW: "+result.message());
+  assertFalse(g.command("player","draw").success());
+  assertFalse(g.command("player","deploy Gemstone").success());
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
