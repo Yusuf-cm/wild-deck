@@ -18,6 +18,10 @@ public final class KingdomManagement {
     private final Map<String,Deposit> deposits = new LinkedHashMap<>();
     private final Map<String,Integer> stocks = new LinkedHashMap<>();
     private final List<String> journal = new ArrayList<>();
+    private final Map<String,Integer> hires = new LinkedHashMap<>();
+    private final Map<String,Integer> marketPrices = new LinkedHashMap<>();
+    private int caravanTrips;
+    private boolean caravanEnabled;
     private boolean autoMining;
     private boolean exploring;
     private int lastSurveyRound;
@@ -30,6 +34,65 @@ public final class KingdomManagement {
         if (low.equals("kingdom") || low.equals("dashboard") || low.equals("inventory")
                 || low.equals("discoveries") || low.equals("orders")) {
             System.out.println(dashboard(state,playerId));
+            return true;
+        }
+        if (low.equals("open market") || low.equals("establish trade caravan")) {
+            caravanEnabled=true;
+            log("Royal Caravan active: 1 Gold charged to clients per completed transport trip.");
+            return true;
+        }
+        if (low.startsWith("hire ")) {
+            String rest=line.substring(5).trim();
+            int at=rest.toLowerCase(Locale.ROOT).lastIndexOf(" for ");
+            if (at<1) { System.out.println("Use: hire <specialist> for <gold>"); return true; }
+            String role=rest.substring(0,at).trim();
+            int price;
+            try { price=Integer.parseInt(rest.substring(at+5).replaceAll("[^0-9]","")); }
+            catch (NumberFormatException ex) { System.out.println("Specify an integer Gold price."); return true; }
+            if(role.isBlank() || price<=0) { System.out.println("Invalid hiring order."); return true; }
+            PlayerState player=state.player(playerId);
+            Map<ResourceType,Integer> cost=Map.of(ResourceType.GOLD,price);
+            if(!player.resources().canAfford(cost)) { System.out.println("Not enough Gold."); return true; }
+            player.resources().spend(cost);
+            hires.merge(role,1,Integer::sum);
+            log("Hired "+role+" for "+price+" Gold.");
+            return true;
+        }
+        if (low.startsWith("list ")) {
+            String[] fields=line.substring(5).split(" for ");
+            if(fields.length!=2) { System.out.println("Use: list <resource name> for <gold price>"); return true; }
+            int price;
+            try { price=Integer.parseInt(fields[1].trim().split(" ")[0]); }
+            catch(NumberFormatException ex){ System.out.println("Gold price must be a number."); return true; }
+            if(price<=0 || !stocks.containsKey(fields[0]) && stocks.keySet().stream().noneMatch(k->k.equalsIgnoreCase(fields[0].trim()))) {
+                System.out.println("Unknown stored commodity or invalid price."); return true;
+            }
+            String resource=stocks.keySet().stream().filter(k->k.equalsIgnoreCase(fields[0].trim())).findFirst().orElse(fields[0].trim());
+            marketPrices.put(resource,price);
+            log("Listed "+resource+" at "+price+" Gold/unit. No sale has occurred.");
+            return true;
+        }
+        if (low.startsWith("sell ")) {
+            String[] words=line.substring(5).trim().split("\\s+",2);
+            if(words.length<2) {System.out.println("Use: sell <quantity> <commodity>");return true;}
+            int count;
+            try {count=Integer.parseInt(words[0]);}catch(NumberFormatException ex){System.out.println("Quantity must be numeric.");return true;}
+            String resource=stocks.keySet().stream().filter(k->k.equalsIgnoreCase(words[1].trim())).findFirst().orElse(null);
+            if(resource==null || count<=0 || stocks.get(resource)<count || !marketPrices.containsKey(resource)){
+                System.out.println("Insufficient listed stock. Set price with: list <commodity> for <gold price>");return true;
+            }
+            // This is an explicit local buyer transaction, not a speculative automatic sale.
+            stocks.put(resource,stocks.get(resource)-count);
+            int proceeds=count*marketPrices.get(resource);
+            state.player(playerId).resources().add(ResourceType.GOLD,proceeds);
+            log("Sold "+count+" "+resource+" for "+proceeds+" Gold to the local market.");
+            return true;
+        }
+        if (low.equals("caravan trip")) {
+            if(!caravanEnabled) {System.out.println("Establish trade caravan first.");return true;}
+            caravanTrips++;
+            state.player(playerId).resources().add(ResourceType.GOLD,1);
+            log("Completed paid client transport trip #"+caravanTrips+" (+1 Gold).");
             return true;
         }
         if (low.equals("auto mine on") || low.equals("automatically develop discoveries")) {
