@@ -7,8 +7,9 @@ class AgeOfChaosEngineTest {
  @Test void openingWitchAndEmberfallResponse(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
-  assertEquals(1,g.kingdom("thornveil").wealth);
+  assertEquals(3,g.kingdom("thornveil").wealth);
   assertEquals(2,g.kingdom("thornveil").mana);
+  assertEquals(3,g.kingdom("emberfall").wealth);
   assertTrue(g.pass("thornveil").success());
   assertEquals("emberfall",g.turn());
   assertTrue(g.play("emberfall","Ashen Treasury").success());
@@ -38,7 +39,7 @@ class AgeOfChaosEngineTest {
   assertFalse(g.play("emberfall","Cinderbound Captain").success());
   assertTrue(g.play("thornveil","Lantern Thief").success());
   assertFalse(g.play("thornveil","Whispermoth Swarm").success());
-  assertEquals(2,g.kingdom("thornveil").wealth);
+  assertEquals(4,g.kingdom("thornveil").wealth);
   assertTrue(g.pass("thornveil").success());
   assertEquals("emberfall",g.turn());
  }
@@ -54,8 +55,8 @@ class AgeOfChaosEngineTest {
   assertEquals(2,g.round());
   assertEquals("thornveil",g.turn());
   assertEquals(2,g.kingdom("thornveil").wealth);
-  assertEquals(2,g.kingdom("emberfall").wealth);
-  assertEquals(2,g.kingdom("sunspire").wealth);
+  assertEquals(4,g.kingdom("emberfall").wealth);
+  assertEquals(4,g.kingdom("sunspire").wealth);
   assertEquals(4,g.kingdom("dreadhaven").wealth);
   assertEquals(1,g.kingdom("thornveil").inventory.get("Timber"));
   assertEquals(1,g.kingdom("sunspire").inventory.get("Iron"));
