@@ -9,7 +9,8 @@ public final class PlayableAlphaCli {
 
     public static void main(String[] args) {
         long seed = parseSeed(args);
-        WildDeckAiService groq = buildGroqIfConfigured();
+        boolean humanOnly = Arrays.asList(args).contains("--human-only");
+        WildDeckAiService groq = humanOnly ? null : buildGroqIfConfigured();
         PlayableSession session = PlayableSession.standard(seed,groq);
 
         System.out.println("Wild Deck Playable Alpha");
@@ -19,9 +20,14 @@ public final class PlayableAlphaCli {
                 : "AI: Groq enabled");
         System.out.println("Play naturally: type a card number/name, 'draw', or describe an action. Type 'help' for advanced commands.\n");
 
+        if (humanOnly) System.out.println("Human-only sandbox: other players do not act.\n");
         Scanner scanner = new Scanner(System.in);
 
         while (session.state().winner().isEmpty()) {
+            if (!session.humanTurn() && humanOnly) {
+                session.endTurn();
+                continue;
+            }
             if (!session.humanTurn()) {
                 PlayerState ai = session.state().player(session.currentPlayerId());
                 System.out.println("\n--- " + ai.name() + "'s turn ---");
@@ -256,7 +262,12 @@ public final class PlayableAlphaCli {
             EASY PLAY
               <number>                  play that card from your hand
               <card name>               play that card by name
-              dashboard / kingdom       kingdom resources, mines, standing orders\n              assign <card> to <order>  persistent orders for deployed cards\n              explore                   run exploration surveys each new round\n              develop <deposit>         spend Wealth to establish a resource mine\n              auto mine on / off        develop discoveries whenever affordable\n              <natural language>        Groq translates other ideas when configured
+              dashboard / kingdom       kingdom resources, mines, standing orders\n              assign <card> to <order>  persistent orders for deployed cards\n              explore                   run exploration surveys each new round\n              develop <deposit>         spend Wealth to establish a resource mine\n              auto mine on / off        develop discoveries whenever affordable
+              hire <role> for <gold>    recruit a specialist for Gold
+              open market              activate local market
+              list <resource> for <gold> list commodity at sale price
+              sell <qty> <resource>    sell stock to local market
+              establish trade caravan activate caravan service\n              <natural language>        Groq translates other ideas when configured
               draw                      draw once per turn (can still play cards)
               <Enter>                   end turn after drawing
               end / done                end turn
