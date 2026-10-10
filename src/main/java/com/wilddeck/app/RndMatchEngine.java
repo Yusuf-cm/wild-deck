@@ -21,6 +21,9 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
+ // R&D card-effect registry: additive yields applied only at completed round boundaries.
+ private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
+   "Arcane Tower", Map.of("MANA",1));
  private final List<String> turns=List.of("player","asha","brian","mira");
  private final Map<String,String> aliases=Map.of("you","player","player1","player","asha","asha","brian","brian","mira","mira");
  private RndMatchEngine(){for(String id:turns)seats.put(id,new Seat(id));}
@@ -68,7 +71,8 @@ public final class RndMatchEngine {
     Card c=find(actor.hand,order.cardId());if(c==null)return fail("card not in hand");
     actor.hand.remove(c.id());actor.board.put(c.id(),c);
     events.add("R"+round+": "+id+" deployed "+c.name());
-    return ok(id+" deployed "+c.name()+" for free");
+    String effect=PRODUCTION_EFFECTS.containsKey(c.name()) ? " (passive: +1 Mana at each completed round)" : "";
+    return ok(id+" deployed "+c.name()+" for free"+effect);
    }
    case "ORDER" -> {
     Card c=find(actor.board,order.cardId());if(c==null)return fail("source not deployed");
@@ -87,10 +91,20 @@ public final class RndMatchEngine {
    }
    case "PASS" -> {
     events.add("R"+round+": "+id+" passed");active=(active+1)%turns.size();
-    if(active==0){round++;events.add("R"+round+": production phase reached");}
+    if(active==0){round++; settleRoundProduction();events.add("R"+round+": production phase settled");}
     return ok("Turn passed. Active: "+activeSeat()+"; round "+round);
    }
    default -> {return fail("unsupported action: "+type);}
+  }
+ }
+ private void settleRoundProduction(){
+  for(Seat seat:seats.values())for(Card card:seat.board.values()){
+   Map<String,Integer> effect=PRODUCTION_EFFECTS.get(card.name());
+   if(effect==null)continue;
+   seat.gold+=effect.getOrDefault("GOLD",0);
+   seat.wealth+=effect.getOrDefault("WEALTH",0);
+   seat.mana+=effect.getOrDefault("MANA",0);
+   events.add("R"+round+": "+seat.id+" "+card.name()+" produced "+effect);
   }
  }
  /** Offline simulation for the three non-human seats; no AI key or hidden-hand leakage. */
@@ -129,6 +143,7 @@ public final class RndMatchEngine {
    b.append(" | hand ").append(id.equals(s.id)?p.hand.values().stream().map(c->c.name()+" ["+c.id()+"]").toList():"["+p.hand.size()+" hidden cards]");
    b.append("\n");
   }
+  b.append("Your resources: GOLD ").append(s.gold).append(", WEALTH ").append(s.wealth).append(", MANA ").append(s.mana).append("\n");
   b.append("Your orders: ").append(s.orders).append("\n");
   return b.toString();
  }
