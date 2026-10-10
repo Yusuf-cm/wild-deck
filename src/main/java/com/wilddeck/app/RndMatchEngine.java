@@ -26,6 +26,7 @@ public final class RndMatchEngine {
  public boolean foundingTruceActive(){return round<FOUNDING_TRUCE_ROUNDS;}
  private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*\\b(?:attack|raid|siege|steal|sabotage|destroy|invade|plunder)\\b.*");}
  private final Set<String> mainActionSpent=new HashSet<>();
+ private final Set<String> hostileActionSpent=new HashSet<>();
  // R&D card-effect registry: additive yields applied only at completed round boundaries.
  private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
    "Arcane Tower", Map.of("MANA",1));
@@ -67,6 +68,7 @@ public final class RndMatchEngine {
    return fail("Founding Truce: hostile actions against other kingdoms are prohibited until Round 6");
   switch(type){
    case "ATTACK" -> {
+    if(hostileActionSpent.contains(id))return fail("only one raid or attack per turn");
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
     if(!seats.containsKey(target)||target.equals(id))return fail("choose a different kingdom");
     Seat enemy=seat(target);
@@ -75,6 +77,7 @@ public final class RndMatchEngine {
     int attack=soldiers.stream().mapToInt(Card::strength).sum();
     int defense=enemy.board.values().stream().mapToInt(Card::strength).sum();
     Card attacker=soldiers.get(0);
+    hostileActionSpent.add(id);
     if(attack>defense){
      // A raid occupies a single target asset; destroying a kingdom is a separate victory mechanic.
      Card prize=enemy.board.values().stream().filter(c->c.strength()==0).findFirst().orElse(null);
@@ -155,7 +158,7 @@ public final class RndMatchEngine {
     return fail("ability validated; no target-specific outcome resolver for "+verb+" yet; state unchanged");
    }
    case "PASS" -> {
-    events.add("R"+round+": "+id+" passed");mainActionSpent.remove(id);active=(active+1)%turns.size();
+    events.add("R"+round+": "+id+" passed");mainActionSpent.remove(id);hostileActionSpent.remove(id);active=(active+1)%turns.size();
     if(active==0){round++; settleRoundProduction();events.add("R"+round+": production phase settled");}
     return ok("Turn passed. Active: "+activeSeat()+"; round "+round);
    }
@@ -200,6 +203,14 @@ public final class RndMatchEngine {
    if(force>enemyForce && !npc.board.isEmpty()){
     Result raid=execute(new Order(id,"ATTACK",null,rival,null,Map.of()));
     if(raid.success())reports.add(id+": "+raid.message());
+   }
+   // Persistent domestic orders are management actions, not free card plays.
+   String worker=id.equals("asha")?"Blacksmith":id.equals("brian")?"Healer":"Necromancer";
+   Card operator=npc.board.values().stream().filter(c->c.name().equals(worker)).findFirst().orElse(null);
+   if(operator!=null){
+    String job=id.equals("asha")?"prepare armor for Mercenaries":id.equals("brian")?"tend wounded units":"search for viable remains";
+    Result ordered=execute(new Order(id,"ORDER",operator.id(),null,job,Map.of()));
+    if(ordered.success())reports.add(id+" assigned "+worker+": "+job+" (standing order)");
    }
    // Main-action policy chooses military/production when possible, otherwise draws.
    Card selected=npc.hand.values().stream()
