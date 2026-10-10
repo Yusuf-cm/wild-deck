@@ -34,4 +34,7 @@ jobs:
           curl -fsS http://localhost:18080/ | grep -q "World round"
           curl -fsS -X POST --data-urlencode 'command=auto mine on' http://localhost:18080/action -o /dev/null
           curl -fsS http://localhost:18080/ | grep -q "Automatic mining: ON"
-          echo "Human web smoke tests passed"
+          curl -fsS -X POST --data-urlencode 'command=replay rounds 0-18' http://localhost:18080/action -o /dev/null
+          curl -fsS http://localhost:18080/ | grep -q "Historical Replay"
+          curl -fsS http://localhost:18080/ | grep -q "21.4"
+          echo "Human web smoke and historical replay tests passed"
