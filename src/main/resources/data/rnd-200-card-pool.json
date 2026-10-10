@@ -1,0 +1,2887 @@
+{
+  "version": "rnd-alpha-1",
+  "seededDraw": true,
+  "notes": "Experimental card definitions; abilities are tags to be validated by rules, not all implemented effects.",
+  "cards": [
+    {
+      "id": "WD-001",
+      "name": "Hydra",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-002",
+      "name": "Ancient Titan",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-003",
+      "name": "Griffin",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 5,
+      "copies": 1
+    },
+    {
+      "id": "WD-004",
+      "name": "Basilisk",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 6,
+      "copies": 1
+    },
+    {
+      "id": "WD-005",
+      "name": "Wyvern",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 7,
+      "copies": 1
+    },
+    {
+      "id": "WD-006",
+      "name": "Frost Giant",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 8,
+      "copies": 1
+    },
+    {
+      "id": "WD-007",
+      "name": "River Serpent",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 9,
+      "copies": 1
+    },
+    {
+      "id": "WD-008",
+      "name": "Dire Wolf",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 10,
+      "copies": 1
+    },
+    {
+      "id": "WD-009",
+      "name": "Stoneburrower",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 11,
+      "copies": 1
+    },
+    {
+      "id": "WD-010",
+      "name": "Phoenix",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-011",
+      "name": "Thunder Roc",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-012",
+      "name": "Cave Wyrm",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 5,
+      "copies": 1
+    },
+    {
+      "id": "WD-013",
+      "name": "Ash Drake",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 6,
+      "copies": 1
+    },
+    {
+      "id": "WD-014",
+      "name": "Manticore",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 7,
+      "copies": 1
+    },
+    {
+      "id": "WD-015",
+      "name": "Moon Stag",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 8,
+      "copies": 1
+    },
+    {
+      "id": "WD-016",
+      "name": "Leviathan",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 9,
+      "copies": 1
+    },
+    {
+      "id": "WD-017",
+      "name": "Rock Troll",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 10,
+      "copies": 1
+    },
+    {
+      "id": "WD-018",
+      "name": "Sand Serpent",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 11,
+      "copies": 1
+    },
+    {
+      "id": "WD-019",
+      "name": "Bone Dragon",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-020",
+      "name": "Forest Guardian",
+      "category": "Creature",
+      "properties": [
+        "CREATURE"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "ROAM",
+        "TAMEABLE"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-021",
+      "name": "Militia",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-022",
+      "name": "Royal Guard",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-023",
+      "name": "Cavalry",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 5,
+      "copies": 1
+    },
+    {
+      "id": "WD-024",
+      "name": "Longbowmen",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 6,
+      "copies": 1
+    },
+    {
+      "id": "WD-025",
+      "name": "War Elephants",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 7,
+      "copies": 1
+    },
+    {
+      "id": "WD-026",
+      "name": "Arcane Militia",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 8,
+      "copies": 1
+    },
+    {
+      "id": "WD-027",
+      "name": "Undead Cavalry",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 9,
+      "copies": 1
+    },
+    {
+      "id": "WD-028",
+      "name": "Spearmen",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 10,
+      "copies": 1
+    },
+    {
+      "id": "WD-029",
+      "name": "Siege Infantry",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 11,
+      "copies": 1
+    },
+    {
+      "id": "WD-030",
+      "name": "Royal Lancers",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-031",
+      "name": "Shieldbearers",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-032",
+      "name": "Sappers",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 5,
+      "copies": 1
+    },
+    {
+      "id": "WD-033",
+      "name": "Sky Riders",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 6,
+      "copies": 1
+    },
+    {
+      "id": "WD-034",
+      "name": "Mercenaries",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 7,
+      "copies": 1
+    },
+    {
+      "id": "WD-035",
+      "name": "Desert Scouts",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 8,
+      "copies": 1
+    },
+    {
+      "id": "WD-036",
+      "name": "Pikemen",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 9,
+      "copies": 1
+    },
+    {
+      "id": "WD-037",
+      "name": "Heavy Knights",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 10,
+      "copies": 1
+    },
+    {
+      "id": "WD-038",
+      "name": "War Chariots",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 11,
+      "copies": 1
+    },
+    {
+      "id": "WD-039",
+      "name": "Crossbowmen",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 3,
+      "copies": 1
+    },
+    {
+      "id": "WD-040",
+      "name": "Temple Guards",
+      "category": "Military",
+      "properties": [
+        "MILITARY"
+      ],
+      "capabilities": [
+        "ATTACK",
+        "DEFEND",
+        "OCCUPY"
+      ],
+      "strength": 4,
+      "copies": 1
+    },
+    {
+      "id": "WD-041",
+      "name": "Blacksmith",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-042",
+      "name": "Beastmaster",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-043",
+      "name": "Treasure Hunter",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-044",
+      "name": "Geologist",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-045",
+      "name": "Enchanter",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-046",
+      "name": "Master Armorer",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-047",
+      "name": "Necromancer",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-048",
+      "name": "Alchemist",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-049",
+      "name": "Engineer",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-050",
+      "name": "Diplomat",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-051",
+      "name": "Spy",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-052",
+      "name": "Assassin",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-053",
+      "name": "Smuggler",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-054",
+      "name": "Herbalist",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-055",
+      "name": "Merchant",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-056",
+      "name": "Cartographer",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-057",
+      "name": "Architect",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-058",
+      "name": "Healer",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-059",
+      "name": "Beast Tracker",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-060",
+      "name": "Sage",
+      "category": "Specialist",
+      "properties": [
+        "SPECIALIST"
+      ],
+      "capabilities": [
+        "OPERATE",
+        "LEARN"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-061",
+      "name": "Gold Mine",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-062",
+      "name": "Mana Shrine",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-063",
+      "name": "Foundry",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-064",
+      "name": "Watchtower",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-065",
+      "name": "Stone Keep",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-066",
+      "name": "Harbor",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-067",
+      "name": "Barracks",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-068",
+      "name": "Forge",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-069",
+      "name": "Crystal Workshop",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-070",
+      "name": "Treasury",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-071",
+      "name": "Trading Post",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-072",
+      "name": "Stable",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-073",
+      "name": "Arcane Tower",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-074",
+      "name": "Granary",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-075",
+      "name": "Library",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-076",
+      "name": "Underground Vault",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-077",
+      "name": "Bridge",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-078",
+      "name": "Outpost",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-079",
+      "name": "Siege Factory",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-080",
+      "name": "Temple",
+      "category": "Structure",
+      "properties": [
+        "STRUCTURE"
+      ],
+      "capabilities": [
+        "BUILD",
+        "PRODUCE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-081",
+      "name": "Fireball",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-082",
+      "name": "Thunderstorm",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-083",
+      "name": "Blizzard",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-084",
+      "name": "Blood Moon",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-085",
+      "name": "Earthquake",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-086",
+      "name": "Healing Rain",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-087",
+      "name": "Mind Veil",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-088",
+      "name": "Scrying",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-089",
+      "name": "Teleport",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-090",
+      "name": "Binding Circle",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-091",
+      "name": "Flame Wall",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-092",
+      "name": "Flood",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-093",
+      "name": "Petrify",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-094",
+      "name": "Illusory Army",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-095",
+      "name": "Lightning Chain",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-096",
+      "name": "Soul Recall",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-097",
+      "name": "Poison Mist",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-098",
+      "name": "Protective Ward",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-099",
+      "name": "Time Echo",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-100",
+      "name": "Nature's Grasp",
+      "category": "Spell",
+      "properties": [
+        "SPELL"
+      ],
+      "capabilities": [
+        "CAST",
+        "MAGIC"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-101",
+      "name": "Mirror",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-102",
+      "name": "Mirror of Revelation",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-103",
+      "name": "Soul Lantern",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-104",
+      "name": "Ancient Command Tablet",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-105",
+      "name": "Storm Core",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-106",
+      "name": "Psionic Crystal",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-107",
+      "name": "Crown of Ash",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-108",
+      "name": "Orb of Tides",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-109",
+      "name": "Binding Seal",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-110",
+      "name": "Warden's Key",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-111",
+      "name": "Sunstone",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-112",
+      "name": "Moon Dial",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-113",
+      "name": "Ember Pearl",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-114",
+      "name": "Void Compass",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-115",
+      "name": "Spirit Bell",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-116",
+      "name": "Runed Obelisk",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-117",
+      "name": "Scepter of Roots",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-118",
+      "name": "Eye of the Deep",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-119",
+      "name": "Horn of Giants",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-120",
+      "name": "Chronicle Stone",
+      "category": "Artifact",
+      "properties": [
+        "ARTIFACT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "ACTIVATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-121",
+      "name": "Iron Sword",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-122",
+      "name": "Mithril Plate",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-123",
+      "name": "Crystal Staff",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-124",
+      "name": "Silver Dagger",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-125",
+      "name": "Reinforced Shield",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-126",
+      "name": "Dragonhide Armor",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-127",
+      "name": "Chain Launcher",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-128",
+      "name": "Grounding Spikes",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-129",
+      "name": "Shadow Cloak",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-130",
+      "name": "Rune Bow",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-131",
+      "name": "Siege Hammer",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-132",
+      "name": "Cavalry Lance",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-133",
+      "name": "Fireproof Mail",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-134",
+      "name": "Wing Harness",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-135",
+      "name": "Grappling Hook",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-136",
+      "name": "Portable Ballista",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-137",
+      "name": "Sapphire Ring",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-138",
+      "name": "Emerald Amulet",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-139",
+      "name": "Beast Saddle",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-140",
+      "name": "Shield of Dawn",
+      "category": "Equipment",
+      "properties": [
+        "EQUIPMENT"
+      ],
+      "capabilities": [
+        "ATTACH",
+        "EQUIP"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-141",
+      "name": "Iron Ore",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-142",
+      "name": "Copper Ore",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-143",
+      "name": "Silver Ore",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-144",
+      "name": "Gold Ore",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-145",
+      "name": "Mithril Ore",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-146",
+      "name": "Magic Crystal",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-147",
+      "name": "Sapphire",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-148",
+      "name": "Gemstone",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-149",
+      "name": "Timber",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-150",
+      "name": "Stone",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-151",
+      "name": "Water",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-152",
+      "name": "Herbs",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-153",
+      "name": "Oil",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-154",
+      "name": "Coal",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-155",
+      "name": "Salt",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-156",
+      "name": "Wool",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-157",
+      "name": "Leather",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-158",
+      "name": "Bone",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-159",
+      "name": "Obsidian",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-160",
+      "name": "Dragon Scale",
+      "category": "Resource",
+      "properties": [
+        "RESOURCE"
+      ],
+      "capabilities": [
+        "STORE",
+        "TRADE",
+        "CRAFT"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-161",
+      "name": "Black Plague",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-162",
+      "name": "Volcano",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-163",
+      "name": "Meteor Shower",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-164",
+      "name": "Drought",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-165",
+      "name": "Great Flood",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-166",
+      "name": "Solar Eclipse",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-167",
+      "name": "Ancient Awakening",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-168",
+      "name": "Bandit Raid",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-169",
+      "name": "Trade Boom",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-170",
+      "name": "Famine",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-171",
+      "name": "Wildfire",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-172",
+      "name": "Migration",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-173",
+      "name": "Lost Caravan",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-174",
+      "name": "Rebellion",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-175",
+      "name": "Royal Festival",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-176",
+      "name": "Earth Rift",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-177",
+      "name": "Magical Surge",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-178",
+      "name": "Winter Siege",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-179",
+      "name": "Treasure Storm",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-180",
+      "name": "Cursed Harvest",
+      "category": "Event",
+      "properties": [
+        "EVENT"
+      ],
+      "capabilities": [
+        "WORLD_EFFECT",
+        "RESOLVE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-181",
+      "name": "Tunnel Map",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-182",
+      "name": "Royal Trade Caravan",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-183",
+      "name": "Merchant Fleet",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-184",
+      "name": "Smoke Bomb",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-185",
+      "name": "War Banner",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-186",
+      "name": "Portal Scroll",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-187",
+      "name": "Secret Treaty",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-188",
+      "name": "Supply Wagon",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-189",
+      "name": "Pack Oxen",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-190",
+      "name": "Hidden Passage",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-191",
+      "name": "Signal Beacon",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-192",
+      "name": "Diplomatic Letter",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-193",
+      "name": "Treasure Map",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-194",
+      "name": "Spyglass",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-195",
+      "name": "Contract Seal",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-196",
+      "name": "Fishing Boat",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-197",
+      "name": "Airship",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-198",
+      "name": "Road Charter",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-199",
+      "name": "Ancient Route",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    },
+    {
+      "id": "WD-200",
+      "name": "Explorer's Journal",
+      "category": "Utility",
+      "properties": [
+        "UTILITY"
+      ],
+      "capabilities": [
+        "MOVE",
+        "EXPLORE",
+        "NEGOTIATE"
+      ],
+      "strength": null,
+      "copies": 1
+    }
+  ]
+}
