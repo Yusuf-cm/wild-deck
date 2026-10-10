@@ -106,6 +106,14 @@ public final class AgeOfChaosEngine {
   history.add("Round "+round+": "+actor+" deployed "+card);
   return new Result(true,actor+" deployed "+card+" for free (Wealth "+k.wealth+", Mana "+k.mana+")");
  }
+ public Result orderWildScouts(String actor){
+  if(!turn().equals(actor))return new Result(false,"It is "+turn()+"'s turn");
+  Kingdom k=kingdom(actor);
+  if(!k.board.containsKey("The Witch of Hollow Roots"))return new Result(false,"The Witch is not deployed");
+  k.orders.put("The Witch of Hollow Roots","Ask wild animals to search controlled territory for natural resources");
+  history.add("Round "+round+": "+actor+" commissioned wild animal resource scouts");
+  return new Result(true,"Wild animals begin surveying Thornveil. Findings arrive at round settlement.");
+ }
  public Result pass(String actor){
   if(!turn().equals(actor))return new Result(false,"It is "+turn()+"'s turn");
   spent.remove(actor);history.add("Round "+round+": "+actor+" passed");
@@ -113,6 +121,11 @@ public final class AgeOfChaosEngine {
   if(turnIndex==0){
    for(Kingdom k:kingdoms.values()){
     k.wealth++;
+    if(k.board.containsKey("The Witch of Hollow Roots") && k.orders.containsKey("The Witch of Hollow Roots")){
+     // Seeded first discovery: woodland scouts report accessible fallen timber.
+     k.inventory.merge("Timber",1,Integer::sum);
+     history.add("Round "+(round+1)+": "+k.id+" wild scouts recovered 1 Timber");
+    }
     if(k.board.containsKey("Heartforge"))k.inventory.merge("Iron",1,Integer::sum);
     if(k.board.containsKey("Orchard of Second Chances"))k.inventory.merge("Timber",1,Integer::sum);
     if(k.board.containsKey("Ashen Treasury"))k.gold++;
