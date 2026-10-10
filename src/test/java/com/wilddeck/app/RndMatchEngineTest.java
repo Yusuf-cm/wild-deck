@@ -45,6 +45,18 @@ class RndMatchEngineTest {
    assertEquals(7,g.seat(id).hand.size());
   }
  }
+ @Test void arcaneTowerDeploysFreeAndGeneratesManaOnlyAtRoundBoundary(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertEquals(0,g.seat("player").mana);
+  assertFalse(g.seat("player").hand.values().stream().anyMatch(c->c.name().equals("Arcane Tower")));
+  assertTrue(g.seat("player").board.values().stream().anyMatch(c->c.name().equals("Arcane Tower")));
+  assertTrue(g.command("player","pass").success());
+  assertEquals(0,g.seat("player").mana);
+  g.takeOpponentTurns();
+  assertEquals(1,g.round());
+  assertEquals(1,g.seat("player").mana);
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
