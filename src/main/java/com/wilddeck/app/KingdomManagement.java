@@ -209,6 +209,9 @@ public final class KingdomManagement {
             out.append("  ").append(d.name).append(": ").append(d.developed ? "MINE (+"
                 + d.yield+"/round starting R"+d.firstRound+")" : "UNDEVELOPED ("+d.cost+" Wealth)").append("\n");
         out.append("Stored goods: ").append(stocks).append("\n");
+        out.append("Hired specialists: ").append(hires).append("\n");
+        out.append("Market prices: ").append(marketPrices).append("\n");
+        out.append("Caravan: ").append(caravanEnabled ? "ACTIVE" : "INACTIVE").append("\n");
         out.append("Standing orders:\n");
         for (var entry:assignments.entrySet())
             out.append("  ").append(state.findCard(entry.getKey()).map(c->c.definition().name()).orElse(entry.getKey()))
