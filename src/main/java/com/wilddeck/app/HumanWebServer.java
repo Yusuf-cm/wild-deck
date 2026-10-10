@@ -15,6 +15,7 @@ public final class HumanWebServer {
     private ThreeKingdomScenario scenario;
     private HistoricalReplay historicalReplay;
     private KingdomReplayHarness actualReplay;
+    private RndMatchEngine rndMatch;
     private final Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
@@ -65,6 +66,11 @@ public final class HumanWebServer {
 
     private String act(String input) {
         if(input.isBlank()) return "Type an order.";
+        if (input.equalsIgnoreCase("new four player game")) {
+            rndMatch = RndMatchEngine.start(20261010L);
+            return "New four-player table opened at Round 0. You control Player 1.";
+        }
+        if (rndMatch != null) return rndMatch.command("player",input).message();
         if (input.equalsIgnoreCase("run rules replay")) {
             actualReplay = new KingdomReplayHarness();
             return "Rule-resolved historical replay validated; inspect the reconstructed ledger.";
@@ -129,6 +135,14 @@ public final class HumanWebServer {
             </style></head><body><main><h1>Wild Deck</h1><p>Human-play alpha · World round
             """);
         html.append(state.round()).append(" · Single shared demo session (no accounts)</p>");
+        if (rndMatch != null) {
+            html.append("<section class='panel'><h2>Wild Deck R&D — Four Player Table</h2>")
+                .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Your command: draw, deploy <card>, assign <card> to ..., pass'><button>Issue order</button></form>")
+                .append("<pre>").append(esc(lastMessage)).append("</pre>")
+                .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
+                .append("<p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+            return html.append("</main></body></html>").toString();
+        }
         if (actualReplay != null) {
             html.append("<section class='panel'><h2>Rules-Engine Regression Replay</h2><pre>")
                 .append(esc(actualReplay.report())).append("</pre></section>");
@@ -147,6 +161,7 @@ public final class HumanWebServer {
                 .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
             return html.append("</main></body></html>").toString();
         }
+        html.append("<p>Type <b>new four player game</b> to start the fresh R&D match.</p>");
         html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, <b>run rules replay</b> to execute conserved mechanics, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
         html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
         player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
