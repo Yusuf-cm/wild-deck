@@ -61,6 +61,28 @@ class AgeOfChaosEngineTest {
   assertFalse(g.dashboard("sunspire").contains("The Mirror Fox"));
   System.out.println("AGE_OF_CHAOS_R2_DRAW: "+result.message());
  }
+ @Test void thornveilAnimalScoutsAndEmberfallRoundTwoMove(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Ashen Treasury").success());
+  assertTrue(g.pass("emberfall").success());
+  assertTrue(g.play("sunspire","The Seven Oathbreakers").success());
+  assertTrue(g.pass("sunspire").success());
+  assertTrue(g.play("dreadhaven","Saltbone Corsairs").success());
+  assertTrue(g.pass("dreadhaven").success());
+  assertTrue(g.draw("thornveil").success());
+  assertTrue(g.orderWildScouts("thornveil").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Coal Drake").success());
+  assertTrue(g.pass("emberfall").success());
+  assertEquals("sunspire",g.turn());
+  assertEquals(2,g.round());
+  assertEquals(0,g.kingdom("thornveil").inventory.getOrDefault("Timber",0));
+  assertEquals(7,g.kingdom("thornveil").hand.size());
+  assertEquals(4,g.kingdom("thornveil").wealth);
+  System.out.println("AGE_SCOUTS_ROUND2: "+g.history());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
