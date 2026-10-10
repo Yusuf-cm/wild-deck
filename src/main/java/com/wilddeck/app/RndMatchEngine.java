@@ -24,7 +24,7 @@ public final class RndMatchEngine {
  public static final int FOUNDING_TRUCE_ROUNDS=6;
  private static final Set<String> HOSTILE_ACTIONS=Set.of("ATTACK","RAID","SIEGE","STEAL","SABOTAGE","DESTROY","INVADE","CAPTURE","PLUNDER");
  public boolean foundingTruceActive(){return round<FOUNDING_TRUCE_ROUNDS;}
- private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*(?:\\\\battack\\\\b|\\\\braid\\\\b|\\\\bsiege\\\\b|\\\\bsteal\\\\b|\\\\bsabotage\\\\b|\\\\bdestroy\\\\b|\\\\binvade\\\\b|\\\\bplunder\\\\b).*");}
+ private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*\\b(?:attack|raid|siege|steal|sabotage|destroy|invade|plunder)\\b.*");}
  private final Set<String> mainActionSpent=new HashSet<>();
  // R&D card-effect registry: additive yields applied only at completed round boundaries.
  private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
