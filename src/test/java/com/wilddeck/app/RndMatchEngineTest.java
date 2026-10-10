@@ -33,6 +33,18 @@ class RndMatchEngineTest {
   assertTrue(g.command("mira","pass").success());
   assertEquals(1,g.round());
  }
+ @Test void threeOpponentsActFromOwnedHandsAfterHumanPass(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","pass").success());
+  var messages=g.takeOpponentTurns();
+  assertEquals(3,messages.size());
+  assertEquals(1,g.round());
+  assertEquals("player",g.activeSeat());
+  for(String id:List.of("asha","brian","mira")){
+   assertEquals(1,g.seat(id).board.size());
+   assertEquals(7,g.seat(id).hand.size());
+  }
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
