@@ -70,7 +70,14 @@ public final class HumanWebServer {
             rndMatch = RndMatchEngine.start(20261010L);
             return "New four-player table opened at Round 0. You control Player 1.";
         }
-        if (rndMatch != null) return rndMatch.command("player",input).message();
+        if (rndMatch != null) {
+            RndMatchEngine.Result result = rndMatch.command("player",input);
+            if (result.success() && input.trim().matches("(?i)pass|end turn")) {
+                List<String> actions = rndMatch.takeOpponentTurns();
+                return result.message()+"\\nOpponent moves: "+actions;
+            }
+            return result.message();
+        }
         if (input.equalsIgnoreCase("run rules replay")) {
             actualReplay = new KingdomReplayHarness();
             return "Rule-resolved historical replay validated; inspect the reconstructed ledger.";
