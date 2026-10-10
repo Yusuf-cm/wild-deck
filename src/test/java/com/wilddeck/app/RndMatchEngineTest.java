@@ -202,6 +202,24 @@ class RndMatchEngineTest {
   assertFalse(g.foundingTruceActive());
   assertEquals(169,g.deckSize());
  }
+ @Test void roundFiveRivalsNegotiateRaidAndChooseActualCards(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  for(int i=0;i<3;i++){
+    assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+    assertTrue(g.command("player","draw").success());
+  }
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","scry asha").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals(5,g.round());
+  assertTrue(g.command("player","pass").success());
+  var moves=g.takeOpponentTurns();
+  System.out.println("RND_ROUND5_STRATEGIC_RIVALS: "+moves);
+  assertEquals(6,g.round());
+  assertTrue(moves.stream().anyMatch(m->m.contains("Proposal delivered")));
+  assertTrue(moves.stream().anyMatch(m->m.contains("deployed")));
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
