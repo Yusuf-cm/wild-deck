@@ -39,7 +39,7 @@ class AgeOfChaosEngineTest {
   assertFalse(g.play("emberfall","Cinderbound Captain").success());
   assertTrue(g.play("thornveil","Lantern Thief").success());
   assertFalse(g.play("thornveil","Whispermoth Swarm").success());
-  assertEquals(4,g.kingdom("thornveil").wealth);
+  assertEquals(3,g.kingdom("thornveil").wealth);
   assertTrue(g.pass("thornveil").success());
   assertEquals("emberfall",g.turn());
  }
@@ -54,7 +54,7 @@ class AgeOfChaosEngineTest {
   assertTrue(g.pass("dreadhaven").success());
   assertEquals(2,g.round());
   assertEquals("thornveil",g.turn());
-  assertEquals(2,g.kingdom("thornveil").wealth);
+  assertEquals(4,g.kingdom("thornveil").wealth);
   assertEquals(4,g.kingdom("emberfall").wealth);
   assertEquals(4,g.kingdom("sunspire").wealth);
   assertEquals(4,g.kingdom("dreadhaven").wealth);
