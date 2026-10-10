@@ -5,6 +5,7 @@ import java.util.*;
 /** Fresh Age of Chaos R&D match, entirely separate from the old 200-card seed. */
 public final class AgeOfChaosEngine {
  public record Card(String name,String type,int wealthCost,int manaCost,int strength,String ability){}
+ // Legacy wealthCost/manaCost fields are now intended activation-cost metadata, never deployment charges.
  public record Result(boolean success,String message){}
  public static final List<String> TURN_ORDER=List.of("thornveil","emberfall","sunspire","dreadhaven");
  public static final Set<String> HUMAN_KINGDOMS=Set.of("thornveil","sunspire");
@@ -79,11 +80,10 @@ public final class AgeOfChaosEngine {
   Kingdom k=kingdom(actor);
   Card c=k.hand.get(card);
   if(c==null)return new Result(false,"Card not in hand");
-  if(k.wealth<c.wealthCost()||k.mana<c.manaCost())return new Result(false,"Insufficient resources");
-  k.wealth-=c.wealthCost();k.mana-=c.manaCost();
+  // Deployment is always free. Resources pay for activated abilities, crafting and other effects.
   k.hand.remove(card);k.board.put(card,c);spent.add(actor);
   history.add("Round "+round+": "+actor+" deployed "+card);
-  return new Result(true,actor+" deployed "+card+" (Wealth "+k.wealth+", Mana "+k.mana+")");
+  return new Result(true,actor+" deployed "+card+" for free (Wealth "+k.wealth+", Mana "+k.mana+")");
  }
  public Result pass(String actor){
   if(!turn().equals(actor))return new Result(false,"It is "+turn()+"'s turn");
