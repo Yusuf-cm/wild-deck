@@ -79,6 +79,20 @@ class PlayableSessionTest {
         assertNull(leaked);
     }
     @Test
+    void offlineAiUsesItsDrawOrPlayActionEachTurn() {
+        PlayableSession session = PlayableSession.standard(42,null);
+        for (int i = 0; i < 9 && session.state().winner().isEmpty(); i++) {
+            if (!session.humanTurn()) {
+                ActionExecutionResult result = session.runCurrentAiTurn();
+                assertTrue(result.success(), result.message());
+                assertTrue(session.state().mainActionUsed(),
+                        "Offline AI should draw or deploy, not only attack");
+            }
+            assertTrue(session.endTurn().success());
+        }
+    }
+
+    @Test
     void reportsGroqSourceWhenStrategicProposalExecutes() {
         AiModelClient client = request -> """
                 {
