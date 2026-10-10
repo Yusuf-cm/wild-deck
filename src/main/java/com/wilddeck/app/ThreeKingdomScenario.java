@@ -166,8 +166,17 @@ public final class ThreeKingdomScenario {
         String[] bDraw={"Volcano","Dragon","Crystal Staff"};
         String a=aDraw[(cycle-18)%aDraw.length],b=bDraw[(cycle-18)%bDraw.length];
         kingdoms.get("asha").hand.add(a);kingdoms.get("brian").hand.add(b);
-        history.add("Asha drew "+a+" and kept it in hand.");
-        history.add("Brian drew "+b+" and kept it in hand.");
+        // Opponents actually draw into their own hidden hands before choosing actions.
+        // Fixed policies during this human-play prototype, not model-generated decisions.
+        Kingdom asha=kingdoms.get("asha"), brian=kingdoms.get("brian");
+        if(a.equals("Trickster") || a.equals("Frost Giant")) {
+            asha.hand.remove(a); asha.deployed.add(a);
+            history.add("Asha played "+a+" from hand.");
+        } else history.add("Asha passed after drawing a private card.");
+        if(b.equals("Dragon") || b.equals("Crystal Staff")) {
+            brian.hand.remove(b); brian.deployed.add(b);
+            history.add("Brian played "+b+" from hand.");
+        } else history.add("Brian passed after drawing a private card.");
         cycle++;
         player().gold+=1;
         player().wealth+=4;
