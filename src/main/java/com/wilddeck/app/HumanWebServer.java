@@ -13,6 +13,7 @@ public final class HumanWebServer {
     private final PlayableSession session = PlayableSession.standard(42L,null);
     private String lastMessage = "Welcome to your kingdom.";
     private ThreeKingdomScenario scenario;
+    private HistoricalReplay historicalReplay;
     private final Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
@@ -63,6 +64,10 @@ public final class HumanWebServer {
 
     private String act(String input) {
         if(input.isBlank()) return "Type an order.";
+        if (input.equalsIgnoreCase("replay rounds 0-18")) {
+            historicalReplay = new HistoricalReplay();
+            return "Historical replay validated; see audit report below.";
+        }
         if (input.equalsIgnoreCase("load cycle 18")) {
             scenario = new ThreeKingdomScenario();
             return "Loaded Cycle 18 historical scenario. Type hand, cards, draw, deploy, assign, inspect, trade, break treaty, or next round.";
@@ -119,6 +124,11 @@ public final class HumanWebServer {
             </style></head><body><main><h1>Wild Deck</h1><p>Human-play alpha · World round
             """);
         html.append(state.round()).append(" · Single shared demo session (no accounts)</p>");
+        if (historicalReplay != null) {
+            html.append("<section class='panel'><h2>Round 0–18 Historical Replay</h2><pre>")
+                .append(esc(historicalReplay.report())).append("</pre></section>");
+            return html.append("</main></body></html>").toString();
+        }
         if (scenario != null) {
             html.append("<section class='panel'><h2>Three Kingdoms — Cycle 18 Scenario</h2>")
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' placeholder='Give an order'><button>Issue order</button></form>")
@@ -127,7 +137,7 @@ public final class HumanWebServer {
                 .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
             return html.append("</main></body></html>").toString();
         }
-        html.append("<p>Type <b>load cycle 18</b> to try the historic three-kingdom scenario.</p>");
+        html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
         html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
         player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
         html.append("</div></section><section class='panel wide'><h2>Give an order</h2><form method='POST' action='/action'>")
