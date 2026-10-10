@@ -163,6 +163,42 @@ class RndMatchEngineTest {
   assertEquals(2,g.seat("player").mana);
   assertFalse(g.command("player","draw").success());
  }
+ @Test void foundingTruceBlocksHostilityButAllowsDevelopmentAndScrying(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.foundingTruceActive());
+  assertFalse(g.command("player","attack asha").success());
+  assertFalse(g.command("player","raid brian").success());
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertFalse(g.command("player","assign Arcane Tower to destroy Brian").success());
+  assertTrue(g.command("player","assign Arcane Tower to protect our kingdom").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals(1,g.round());
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals(4,g.round());
+  assertTrue(g.command("player","scry asha").success());
+  assertEquals(2,g.seat("player").mana);
+  assertFalse(g.command("player","raid brian").success());
+ }
+ @Test void foundingTruceExpiresAtRoundSixNotFive(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  for(int i=0;i<6;i++){
+   assertEquals(i,g.round());
+   assertTrue(g.foundingTruceActive());
+   assertFalse(g.command("player","attack brian").success());
+   assertTrue(g.command("player","pass").success());
+   g.takeOpponentTurns();
+  }
+  assertEquals(6,g.round());
+  assertFalse(g.foundingTruceActive());
+  var result=g.command("player","attack brian");
+  assertFalse(result.success());
+  assertTrue(result.message().contains("unsupported action"));
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
