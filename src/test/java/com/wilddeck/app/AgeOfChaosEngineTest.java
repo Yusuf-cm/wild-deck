@@ -39,6 +39,28 @@ class AgeOfChaosEngineTest {
   assertEquals(2,g.kingdom("emberfall").gold);
   System.out.println("AGE_OF_CHAOS_R2: "+g.history());
  }
+ @Test void thornveilRoundTwoDrawIsPrivateAndUsesMainAction(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Ashen Treasury").success());
+  assertTrue(g.pass("emberfall").success());
+  assertTrue(g.play("sunspire","The Seven Oathbreakers").success());
+  assertTrue(g.pass("sunspire").success());
+  assertTrue(g.play("dreadhaven","Saltbone Corsairs").success());
+  assertTrue(g.pass("dreadhaven").success());
+  assertEquals(2,g.round());
+  var result=g.draw("thornveil");
+  assertTrue(result.success(),result.message());
+  assertTrue(result.message().contains("The Mirror Fox"));
+  assertTrue(g.kingdom("thornveil").hand.containsKey("The Mirror Fox"));
+  assertEquals(7,g.kingdom("thornveil").hand.size());
+  assertEquals(5,g.drawPileSize());
+  assertFalse(g.play("thornveil","Lantern Thief").success());
+  assertFalse(g.draw("thornveil").success());
+  assertFalse(g.dashboard("sunspire").contains("The Mirror Fox"));
+  System.out.println("AGE_OF_CHAOS_R2_DRAW: "+result.message());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
