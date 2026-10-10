@@ -91,6 +91,21 @@ public final class PlayableAlphaCli {
             return false;
         }
 
+        if (line.equalsIgnoreCase("draw a card") || line.equalsIgnoreCase("draw new card")) {
+            print(session.executor().draw(session.state(),human.id()));
+            return false;
+        }
+        if (line.toLowerCase(Locale.ROOT).startsWith("deploy ")) {
+            String requested = line.substring(7).trim();
+            Optional<CardInstance> deployment = findHandCardByName(human.hand(),requested);
+            if (deployment.isEmpty()) {
+                System.out.println("No matching card in your hand: " + requested);
+            } else {
+                print(session.executor().play(session.state(),human.id(),deployment.get().id(),false));
+            }
+            return false;
+        }
+
         switch (command) {
             case "help" -> printHelp();
             case "status" -> printStatus(session.state(),human);
