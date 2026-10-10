@@ -24,7 +24,7 @@ class WildDeckEngineTest {
     }
 
     @Test
-    void drawAndPlayShareOneMainAction() {
+    void drawingDoesNotPreventPlayingCards() {
         CardDefinition hydra = card("hydra","Hydra",Set.of("BIOLOGICAL"),Set.of("ATTACK"),8);
         CardDefinition roc = card("roc","Roc",Set.of("BIOLOGICAL"),Set.of("ATTACK"),7);
 
@@ -38,8 +38,9 @@ class WildDeckEngineTest {
         GameEngine engine = new GameEngine();
         engine.draw(game,"p");
 
-        assertThrows(IllegalStateException.class,
-                () -> engine.playFromHand(game,"p",hydraInHand.id(),false));
+        assertDoesNotThrow(() -> engine.playFromHand(game,"p",hydraInHand.id(),false));
+        assertTrue(p.hand().stream().noneMatch(c -> c.id().equals(hydraInHand.id())));
+        assertThrows(IllegalStateException.class, () -> engine.draw(game,"p"));
     }
 
     @Test
