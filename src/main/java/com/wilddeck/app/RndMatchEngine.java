@@ -21,6 +21,7 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
+ private final Set<String> mainActionSpent=new HashSet<>();
  // R&D card-effect registry: additive yields applied only at completed round boundaries.
  private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
    "Arcane Tower", Map.of("MANA",1));
@@ -61,15 +62,17 @@ public final class RndMatchEngine {
   switch(type){
    case "LOOK" -> {return ok(view(id));}
    case "DRAW" -> {
+    if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
     if(deck.isEmpty())return fail("deck empty");
     // No more than one draw per visit to the current seat.
     if(events.stream().anyMatch(x->x.equals("DRAW_TURN:"+round+":"+id)))return fail("already drew this turn");
-    Card c=deck.removeFirst();actor.hand.put(c.id,c);events.add("DRAW_TURN:"+round+":"+id);
+    Card c=deck.removeFirst();actor.hand.put(c.id,c);mainActionSpent.add(id);events.add("DRAW_TURN:"+round+":"+id);
     return ok("Drew "+c.name()+" ["+c.id()+"]");
    }
    case "PLAY" -> {
+    if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
     Card c=find(actor.hand,order.cardId());if(c==null)return fail("card not in hand");
-    actor.hand.remove(c.id());actor.board.put(c.id(),c);
+    actor.hand.remove(c.id());actor.board.put(c.id(),c);mainActionSpent.add(id);
     events.add("R"+round+": "+id+" deployed "+c.name());
     String effect=PRODUCTION_EFFECTS.containsKey(c.name()) ? " (passive: +1 Mana at each completed round)" : "";
     return ok(id+" deployed "+c.name()+" for free"+effect);
@@ -90,7 +93,7 @@ public final class RndMatchEngine {
     return fail("ability validated; no target-specific outcome resolver for "+verb+" yet; state unchanged");
    }
    case "PASS" -> {
-    events.add("R"+round+": "+id+" passed");active=(active+1)%turns.size();
+    events.add("R"+round+": "+id+" passed");mainActionSpent.remove(id);active=(active+1)%turns.size();
     if(active==0){round++; settleRoundProduction();events.add("R"+round+": production phase settled");}
     return ok("Turn passed. Active: "+activeSeat()+"; round "+round);
    }
@@ -119,8 +122,11 @@ public final class RndMatchEngine {
     Result deployed=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
     if(deployed.success())reports.add(deployed.message());
    }
-   Result drew=execute(new Order(id,"DRAW",null,null,null,Map.of()));
-   if(!drew.success())reports.add(id+" could not draw.");
+   // A player chooses either to deploy one card OR to draw one card.
+   if(selected==null){
+    Result drew=execute(new Order(id,"DRAW",null,null,null,Map.of()));
+    if(!drew.success())reports.add(id+" could not draw.");
+   }
    // Draw identities stay private. The public observer sees only deployment.
    Result passed=execute(new Order(id,"PASS",null,null,null,Map.of()));
    if(!passed.success())throw new IllegalStateException(passed.message());
