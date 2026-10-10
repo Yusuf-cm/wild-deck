@@ -108,8 +108,7 @@ public final class HistoricalReplay {
         cycle=18;
         wealth+=4;
         produceMines(18);
-        goods.merge("Sapphire",1,Integer::sum);
-        // Production of preexisting 4 mines plus Sapphire; first yield of Sapphire only now.
+        // Sapphire produces exactly once this cycle.
         record(18,"World","Mines extract in Cycle 18","Gold +1; Wealth +4; Mana +1; Copper +2, Crystal +1, Silver +2, Gemstone +1, Sapphire +1.",true);
         if(wealth<4)throw new IllegalStateException("Mithril development unaffordable.");
         wealth-=4;mine("Mithril",1);
