@@ -40,4 +40,11 @@ jobs:
           curl -fsS -X POST --data-urlencode 'command=run rules replay' http://localhost:18080/action -o /dev/null
           curl -fsS http://localhost:18080/ | grep -q "Rules-Engine Regression Replay"
           curl -fsS http://localhost:18080/ | grep -q "Gold 21.4"
-          echo "Human web smoke, historical replay and rules replay tests passed"
+          curl -fsS -X POST --data-urlencode 'command=new four player game' http://localhost:18080/action -o /dev/null
+          curl -fsS http://localhost:18080/ | grep -q 'Four Player Table'
+          curl -fsS http://localhost:18080/ | grep -q 'Mind Veil'
+          curl -fsS -X POST --data-urlencode 'command=deploy Underground Vault' http://localhost:18080/action -o /dev/null
+          curl -fsS http://localhost:18080/ | grep -q 'deployed Underground Vault'
+          curl -fsS -X POST --data-urlencode 'command=pass' http://localhost:18080/action -o /dev/null
+          curl -fsS http://localhost:18080/ | grep -q 'Round 1'
+          echo "All smoke tests including fresh four-player table passed"
