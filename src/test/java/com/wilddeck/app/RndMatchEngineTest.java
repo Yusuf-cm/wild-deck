@@ -100,6 +100,21 @@ class RndMatchEngineTest {
   assertFalse(g.command("player","draw").success());
   assertFalse(g.command("player","deploy Gemstone").success());
  }
+ @Test void roundTwoAfterMagicCrystalDrawResolvesNpcTurns(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertTrue(g.command("player","draw").success());
+  assertTrue(g.command("player","pass").success());g.takeOpponentTurns();
+  assertEquals("Drew Magic Crystal [WD-146]",g.command("player","draw").message());
+  assertTrue(g.command("player","pass").success());
+  var moves=g.takeOpponentTurns();
+  System.out.println("RND_ROUND2_NPC_MOVES: "+moves);
+  System.out.println("RND_ROUND3_PLAYER_STATE: "+g.view("player"));
+  assertEquals(3,g.round());
+  assertEquals(3,g.seat("player").mana);
+  assertEquals(170,g.deckSize());
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
