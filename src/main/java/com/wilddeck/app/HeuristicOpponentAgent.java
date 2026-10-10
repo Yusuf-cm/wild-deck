@@ -17,6 +17,15 @@ public final class HeuristicOpponentAgent {
         AiActionProposal attack = bestAttack(state,player);
         if (attack != null) return attack;
 
+        return chooseMainAction(state, playerId);
+    }
+
+    /**
+     * Spend the draw-or-play action after an offline opponent's tactical move.
+     * Keeping these decisions separate prevents an attack-only economy stall.
+     */
+    public AiActionProposal chooseMainAction(GameState state, String playerId) {
+        PlayerState player = state.player(playerId);
         if (!state.mainActionUsed()) {
             Optional<CardInstance> bestPlayable = player.hand().stream()
                     .filter(c -> player.resources().canAfford(c.definition().cost()))
