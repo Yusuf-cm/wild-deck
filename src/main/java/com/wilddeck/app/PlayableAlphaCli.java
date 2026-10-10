@@ -69,6 +69,7 @@ public final class PlayableAlphaCli {
             String line,
             WildDeckAiService groq
     ) {
+        if (session.management().command(line,session.state(),session.humanPlayerId())) return false;
         String[] parts = line.split("\\s+");
         String command = parts[0].toLowerCase(Locale.ROOT);
         PlayerState human = session.state().player(session.humanPlayerId());
