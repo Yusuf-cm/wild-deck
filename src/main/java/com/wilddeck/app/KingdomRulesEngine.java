@@ -76,6 +76,33 @@ public final class KingdomRulesEngine {
   if(!succeeded)return fail("taming attempt unsuccessful");
   Card c=cards.getOrDefault(creature,new Card(creature,Set.of("BIOLOGICAL","ATTACK"),strength));
   k.board.put(creature,c);k.creatures.add(creature);history.add("R"+cycle+" tamed "+creature);return ok("tamed "+creature);}
+ public Result combine(String id,String left,String right,String output,Set<String> abilities){
+  Kingdom k=kingdom(id);if(left.equals(right)||!k.board.containsKey(left)||!k.board.containsKey(right))return fail("both component cards must be deployed");
+  Card a=k.board.get(left),b=k.board.get(right);
+  Set<String> combined=new LinkedHashSet<>(a.abilities());combined.addAll(b.abilities());
+  if(!combined.containsAll(abilities))return fail("combination invents unsupported capabilities");
+  k.board.remove(left);k.board.remove(right);
+  k.board.put(output,new Card(output,Set.copyOf(combined),Math.max(a.strength(),b.strength())));
+  history.add("R"+cycle+" combined "+left+" and "+right+" into "+output);return ok("combined "+output);
+ }
+ public Result forgeUpgrade(String id,String unit,String worker,String material,int units,int strengthBonus){
+  Kingdom k=kingdom(id);
+  if(units<=0||strengthBonus<0)return fail("invalid upgrade recipe");
+  if(!k.board.containsKey(worker)||!k.board.get(worker).abilities().contains("FORGE"))return fail("qualified Blacksmith required");
+  Card base=k.board.get(unit);if(base==null)return fail("target not deployed");
+  if(k.stock(material)<units)return fail("materials unavailable");
+  k.goods.put(material,k.stock(material)-units);
+  k.board.put(unit,new Card(base.name(),base.abilities(),base.strength()+strengthBonus));
+  history.add("R"+cycle+" forged "+unit+" +"+strengthBonus+" STR using "+units+" "+material);
+  return ok("equipment upgrade applied");
+ }
+ public Result cast(String id,String caster,String ability,int manaCost){
+  Kingdom k=kingdom(id);Card c=k.board.get(caster);
+  if(c==null||!c.abilities().contains(ability))return fail("caster lacks capability");
+  if(manaCost<0||k.mana<manaCost)return fail("insufficient Mana");
+  k.mana-=manaCost;history.add("R"+cycle+" "+caster+" used "+ability+" (-"+manaCost+" Mana)");
+  return ok("ability activated; targeting and outcome require appropriate resolver");
+ }
  public void treaty(Set<String> signatories,int end){for(String s:signatories)kingdom(s);treaty=new Treaty(Set.copyOf(signatories),end,true);history.add("R"+cycle+" signed treaty");}
  public Result withdraw(String id){if(treaty==null||!treaty.active()||!treaty.signatories().contains(id))return fail("no active agreement");treaty=new Treaty(treaty.signatories(),treaty.throughRound(),false);history.add("R"+cycle+" "+id+" withdrew from pact");return ok("withdrawal recorded");}
  public Result attack(String id,String other,String card){Kingdom a=kingdom(id);kingdom(other);
