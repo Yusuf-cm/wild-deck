@@ -136,6 +136,21 @@ public final class PlayableSession {
             lastAiDiagnostic = "Groq proposal failed Java execution; deterministic fallback used.";
         }
 
+        // Offline opponents may perform one tactical action before their
+        // draw-or-play action. This prevents endless attack-only turns.
+        if (result.success() && groqAi == null
+                && proposal.kind() == AiActionKind.WORLD_ACTION
+                && !state.mainActionUsed()) {
+            AiActionProposal mainAction = heuristic.chooseMainAction(state,playerId);
+            ActionExecutionResult economyResult = executor.execute(state,playerId,mainAction);
+            if (economyResult.success()) {
+                result = ActionExecutionResult.ok(result.message() + " " + economyResult.message());
+            } else {
+                result = ActionExecutionResult.fail(
+                        result.message() + " Follow-up action failed: " + economyResult.message());
+            }
+        }
+
         String aiName = state.player(playerId).name();
         state.addEvent(new GameEvent(
                 state.round(),"AI_DECISION",playerId,null,List.of(),
