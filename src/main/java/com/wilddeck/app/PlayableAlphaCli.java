@@ -204,7 +204,7 @@ public final class PlayableAlphaCli {
                 + " | Deck " + state.deckSize()
                 + (state.cardDrawUsed() ? " | DRAW USED" : ""));
         printCards("YOUR HAND",human.hand());
-        System.out.println("Tip: type a number or card name. Example: 3 or Mana Shrine.");
+        System.out.println("Tip: type a number/card name, 'dashboard', 'assign Hydra to patrol', or 'explore'.");
     }
 
     static Optional<CardInstance> findHandCardByName(
@@ -240,7 +240,7 @@ public final class PlayableAlphaCli {
             EASY PLAY
               <number>                  play that card from your hand
               <card name>               play that card by name
-              <natural language>        Groq translates what you mean
+              dashboard / kingdom       kingdom resources, mines, standing orders\n              assign <card> to <order>  persistent orders for deployed cards\n              explore                   run exploration surveys each new round\n              develop <deposit>         spend Wealth to establish a resource mine\n              auto mine on / off        develop discoveries whenever affordable\n              <natural language>        Groq translates other ideas when configured
               draw                      draw once per turn (can still play cards)
               <Enter>                   end turn after drawing
               end / done                end turn
@@ -301,7 +301,7 @@ public final class PlayableAlphaCli {
             CardInstance c = cards.get(i);
             System.out.printf(
                     "  [%d] %s | cost %s | STR %s | dmg %d | %s | %s%n",
-                    i,c.definition().name(),formatCost(c.definition().cost()),
+                    i,c.definition().name(),"free",
                     c.definition().strength() == null ? "-" : c.definition().strength(),
                     c.damage(),c.definition().capabilities(),c.states());
         }
