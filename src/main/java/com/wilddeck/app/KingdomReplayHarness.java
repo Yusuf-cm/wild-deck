@@ -37,6 +37,8 @@ public final class KingdomReplayHarness {
   must(engine.order("player","Treasure Hunter","Search ruins and treasure vaults"));
   // Checkpoint reconciling unavailable Cycles 1–16 transaction chronology.
   engine.setCycle(17);
+  engine.giveCard("asha","Merchant Fleet");must(engine.deploy("asha","Merchant Fleet"));
+  engine.giveCard("brian","Grand Alchemist");must(engine.deploy("brian","Grand Alchemist"));
   engine.checkpoint("player",12,2,7);
   for(String id:List.of("Copper","Magic Crystal","Silver","Gemstone","Sapphire")){
       int yield=Map.of("Copper",2,"Magic Crystal",1,"Silver",2,"Gemstone",1,"Sapphire",1).get(id);
@@ -50,8 +52,10 @@ public final class KingdomReplayHarness {
   gaps.add("Exact chronological commands for Cycles 1-16 were not preserved; replay begins with documented unplaced actions then the Cycle 17 checkpoint.");
   gaps.add("Asha and Brian have test-fixture balances because their actual treasuries are unknown.");
   gaps.add("Combat outcomes and resurrection still need generic resolvers; fusion, forge upgrades, and material transfers are now executed.");
-  // Cycle 18: production, Mithril development and actual transfers.
+  // Cycle 18: independently drawn opponent cards, production, mine and real payments.
   engine.advanceCycle();
+  engine.giveCard("asha","Royal Cartographer");must(engine.deploy("asha","Royal Cartographer"));
+  engine.giveCard("brian","Clockwork Golem");must(engine.deploy("brian","Clockwork Golem"));
   must(engine.develop("player","Mithril"));
   must(engine.trade("brian","player","Copper",2,2));
   must(engine.trade("brian","player","Magic Crystal",1,5));
