@@ -220,6 +220,15 @@ class RndMatchEngineTest {
   assertTrue(moves.stream().anyMatch(m->m.contains("Proposal delivered")));
   assertTrue(moves.stream().anyMatch(m->m.contains("deployed")));
  }
+ @Test void oneHostileActionPerTurnCannotCaptureEverything(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  g.seat("player").board.put("knight",new RndMatchEngine.Card("knight","Knight","Military",Set.of("ATTACK"),10));
+  g.seat("asha").board.put("a",new RndMatchEngine.Card("a","Forge","Structure",Set.of("BUILD"),0));
+  g.seat("asha").board.put("b",new RndMatchEngine.Card("b","Vault","Structure",Set.of("BUILD"),0));
+  assertTrue(g.command("player","attack asha").success());
+  assertFalse(g.command("player","attack asha").success());
+  assertEquals(1,g.seat("asha").board.size());
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
