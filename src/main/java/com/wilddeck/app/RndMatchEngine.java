@@ -93,6 +93,26 @@ public final class RndMatchEngine {
    default -> {return fail("unsupported action: "+type);}
   }
  }
+ /** Offline simulation for the three non-human seats; no AI key or hidden-hand leakage. */
+ public List<String> takeOpponentTurns(){
+  List<String> reports=new ArrayList<>();
+  while(!activeSeat().equals("player")){
+   String id=activeSeat();
+   Seat seat=seat(id);
+   // Public action uses only a card the opponent actually owns.
+   Card selected=seat.hand.values().stream().findFirst().orElse(null);
+   if(selected!=null){
+    Result deployed=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
+    if(deployed.success())reports.add(deployed.message());
+   }
+   Result drew=execute(new Order(id,"DRAW",null,null,null,Map.of()));
+   if(!drew.success())reports.add(id+" could not draw.");
+   // Draw identities stay private. The public observer sees only deployment.
+   Result passed=execute(new Order(id,"PASS",null,null,null,Map.of()));
+   if(!passed.success())throw new IllegalStateException(passed.message());
+  }
+  return reports;
+ }
  private static Card find(Map<String,Card> map,String cardId){
   if(cardId==null)return null;
   Card exact=map.get(cardId);if(exact!=null)return exact;
