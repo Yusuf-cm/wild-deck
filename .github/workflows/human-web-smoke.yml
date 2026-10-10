@@ -37,4 +37,7 @@ jobs:
           curl -fsS -X POST --data-urlencode 'command=replay rounds 0-18' http://localhost:18080/action -o /dev/null
           curl -fsS http://localhost:18080/ | grep -q "Historical Replay"
           curl -fsS http://localhost:18080/ | grep -q "21.4"
-          echo "Human web smoke and historical replay tests passed"
+          curl -fsS -X POST --data-urlencode 'command=run rules replay' http://localhost:18080/action -o /dev/null
+          curl -fsS http://localhost:18080/ | grep -q "Rules-Engine Regression Replay"
+          curl -fsS http://localhost:18080/ | grep -q "Gold 21.4"
+          echo "Human web smoke, historical replay and rules replay tests passed"
