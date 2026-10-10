@@ -21,6 +21,10 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
+ public static final int FOUNDING_TRUCE_ROUNDS=6;
+ private static final Set<String> HOSTILE_ACTIONS=Set.of("ATTACK","RAID","SIEGE","STEAL","SABOTAGE","DESTROY","INVADE","CAPTURE","PLUNDER");
+ public boolean foundingTruceActive(){return round<FOUNDING_TRUCE_ROUNDS;}
+ private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*(?:\\\\battack\\\\b|\\\\braid\\\\b|\\\\bsiege\\\\b|\\\\bsteal\\\\b|\\\\bsabotage\\\\b|\\\\bdestroy\\\\b|\\\\binvade\\\\b|\\\\bplunder\\\\b).*");}
  private final Set<String> mainActionSpent=new HashSet<>();
  // R&D card-effect registry: additive yields applied only at completed round boundaries.
  private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
@@ -59,6 +63,8 @@ public final class RndMatchEngine {
   String id=aliases.getOrDefault(order.actor().toLowerCase(Locale.ROOT),order.actor());
   if(!activeSeat().equals(id))return fail("not "+id+"'s turn (current: "+activeSeat()+")");
   Seat actor=seat(id);String type=order.type().toUpperCase(Locale.ROOT);
+  if(foundingTruceActive() && (HOSTILE_ACTIONS.contains(type) || (type.equals("ABILITY") && offensiveInstruction(order.intent()) && order.target()!=null && !order.target().equalsIgnoreCase(id))))
+   return fail("Founding Truce: hostile actions against other kingdoms are prohibited until Round 6");
   switch(type){
    case "LOOK" -> {return ok(view(id));}
    case "DRAW" -> {
@@ -97,6 +103,7 @@ public final class RndMatchEngine {
    case "ORDER" -> {
     Card c=find(actor.board,order.cardId());if(c==null)return fail("source not deployed");
     if(order.intent()==null||order.intent().isBlank())return fail("empty instruction");
+    if(foundingTruceActive() && offensiveInstruction(order.intent()))return fail("Founding Truce: hostile standing orders against other kingdoms cannot be issued before Round 6");
     actor.orders.put(c.id(),order.intent());events.add("R"+round+": "+id+" ordered "+c.name()+" to "+order.intent());
     return ok("Standing order saved for "+c.name());
    }
@@ -177,6 +184,7 @@ public final class RndMatchEngine {
   if(low.equals("draw")||low.equals("draw a card"))return new Order(actor,"DRAW",null,null,null,Map.of());
   if(low.equals("pass")||low.equals("end turn"))return new Order(actor,"PASS",null,null,null,Map.of());
   if(low.startsWith("deploy ")||low.startsWith("play "))return new Order(actor,"PLAY",null,null,null,Map.of());
+  if(low.startsWith("attack ")||low.startsWith("raid ")||low.startsWith("siege ")||low.startsWith("steal ")||low.startsWith("sabotage ")||low.startsWith("invade "))return new Order(actor,low.split(" ")[0].toUpperCase(Locale.ROOT),null,cmd.substring(cmd.indexOf(" ")+1).trim(),cmd,Map.of());
   if(low.startsWith("scry ")||low.startsWith("use scrying on "))return new Order(actor,"SCRY","WD-088",low.startsWith("scry ")?cmd.substring(5).trim():cmd.substring(15).trim(),null,Map.of("MANA",2));
   if(low.startsWith("assign ")){
    int x=low.indexOf(" to ");if(x>7)return new Order(actor,"ORDER",cmd.substring(7,x),null,cmd.substring(x+4),Map.of());
