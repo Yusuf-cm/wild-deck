@@ -89,10 +89,7 @@ public final class KingdomManagement {
             return true;
         }
         if (low.equals("caravan trip")) {
-            if(!caravanEnabled) {System.out.println("Establish trade caravan first.");return true;}
-            caravanTrips++;
-            state.player(playerId).resources().add(ResourceType.GOLD,1);
-            log("Completed paid client transport trip #"+caravanTrips+" (+1 Gold).");
+            System.out.println("A paying client and actual shipment are required before caravan income can be credited.");
             return true;
         }
         if (low.equals("auto mine on") || low.equals("automatically develop discoveries")) {
