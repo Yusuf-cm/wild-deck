@@ -61,6 +61,17 @@ class RndMatchEngineTest {
   assertEquals(1,g.round());
   assertEquals(1,g.seat("player").mana);
  }
+ @Test void roundOneDrawAfterArcaneTowerProducesReproducibleCard(){
+  RndMatchEngine g=RndMatchEngine.start(20261010);
+  assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertTrue(g.command("player","pass").success());
+  g.takeOpponentTurns();
+  assertEquals(1,g.round());
+  var draw=g.command("player","draw");
+  assertTrue(draw.success());
+  System.out.println("RND_ROUND1_PLAYER_DRAW: "+draw.message());
+  assertFalse(g.command("player","deploy Mind Veil").success());
+ }
  @Test void unimplementedAbilityCannotInventEffect(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   var card=g.seat("player").hand.values().iterator().next();
