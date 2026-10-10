@@ -7,6 +7,7 @@ public final class AgeOfChaosEngine {
  public record Card(String name,String type,int wealthCost,int manaCost,int strength,String ability){}
  // Legacy wealthCost/manaCost fields are now intended activation-cost metadata, never deployment charges.
  public record Result(boolean success,String message){}
+ public record Treaty(String first,String second,boolean trade,boolean nonAggression,boolean mutualDefense){}
  public static final List<String> TURN_ORDER=List.of("thornveil","emberfall","sunspire","dreadhaven");
  public static final Set<String> HUMAN_KINGDOMS=Set.of("thornveil","sunspire");
  public static final Set<String> AI_KINGDOMS=Set.of("emberfall","dreadhaven");
@@ -59,6 +60,22 @@ public final class AgeOfChaosEngine {
  }
  private final LinkedHashMap<String,Kingdom> kingdoms=new LinkedHashMap<>();
  private final List<String> history=new ArrayList<>();
+ private final List<Treaty> treaties=new ArrayList<>();
+ public List<Treaty> treaties(){return List.copyOf(treaties);}
+ public boolean allied(String a,String b){return treaties.stream().anyMatch(t->(t.first().equals(a)&&t.second().equals(b)||t.first().equals(b)&&t.second().equals(a))&&t.mutualDefense());}
+ public Result attack(String actor,String target){
+  if(!turn().equals(actor))return new Result(false,"Not your turn");
+  if(kingdoms.get(target)==null||actor.equals(target))return new Result(false,"Invalid target");
+  if(treaties.stream().anyMatch(t->t.nonAggression() && (t.first().equals(actor)&&t.second().equals(target)||t.first().equals(target)&&t.second().equals(actor))))return new Result(false,"Treaty prohibits conflict between "+actor+" and "+target);
+  return new Result(false,"Combat resolution requires a defender reaction; no damage applied");
+ }
+ public Result signMutualTreaty(String first,String second){
+  if(!HUMAN_KINGDOMS.contains(first)||!HUMAN_KINGDOMS.contains(second)||first.equals(second))return new Result(false,"Both rulers must authorize treaty");
+  if(allied(first,second))return new Result(false,"Treaty already active");
+  treaties.add(new Treaty(first,second,true,true,true));
+  history.add("Round "+round+": "+first+" and "+second+" signed a trade, non-aggression and mutual defense treaty");
+  return new Result(true,"Treaty signed: trade, non-aggression and mutual defense");
+ }
  // Small extensible draw pile: new cards are appended between matches, not fabricated on demand.
  private final Deque<Card> drawPile=new ArrayDeque<>(List.of(
   new Card("The Mirror Fox","Creature",0,0,3,"Once each round, mimic the appearance of one visible creature; disguise does not copy Strength or abilities"),
@@ -140,6 +157,7 @@ public final class AgeOfChaosEngine {
   for(Kingdom k:kingdoms.values())
    sb.append(k.id).append(" | board ").append(k.board.keySet())
      .append(" | hand ").append(k.id.equals(viewer)?k.hand.keySet():k.hand.size()+" hidden cards").append("\n");
+  sb.append("Active treaties: ").append(treaties).append("\\n");
   sb.append("YOUR "+viewer.toUpperCase(Locale.ROOT)).append(" | Wealth ").append(self.wealth)
     .append(" Mana ").append(self.mana).append(" Gold ").append(self.gold)
     .append(" | goods ").append(self.inventory).append(" | orders ").append(self.orders);
