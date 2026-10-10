@@ -83,6 +83,36 @@ class AgeOfChaosEngineTest {
   assertEquals(4,g.kingdom("thornveil").wealth);
   System.out.println("AGE_SCOUTS_ROUND2: "+g.history());
  }
+ @Test void roundTwoCrownAndDreadhavenResponse(){
+  AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
+  assertTrue(g.play("thornveil","The Witch of Hollow Roots").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Ashen Treasury").success());
+  assertTrue(g.pass("emberfall").success());
+  assertTrue(g.play("sunspire","The Seven Oathbreakers").success());
+  assertTrue(g.pass("sunspire").success());
+  assertTrue(g.play("dreadhaven","Saltbone Corsairs").success());
+  assertTrue(g.pass("dreadhaven").success());
+  assertTrue(g.draw("thornveil").success());
+  assertTrue(g.orderWildScouts("thornveil").success());
+  assertTrue(g.pass("thornveil").success());
+  assertTrue(g.play("emberfall","Coal Drake").success());
+  assertTrue(g.pass("emberfall").success());
+  assertTrue(g.play("sunspire","Crown of Borrowed Kings").success());
+  assertEquals(4,g.kingdom("sunspire").wealth);
+  assertEquals(2,g.kingdom("sunspire").mana);
+  assertEquals(2,g.kingdom("sunspire").board.size());
+  assertTrue(g.pass("sunspire").success());
+  assertTrue(g.play("dreadhaven","Smuggler's Ledger").success());
+  assertTrue(g.pass("dreadhaven").success());
+  assertEquals(3,g.round());
+  assertEquals("thornveil",g.turn());
+  assertEquals(1,g.kingdom("thornveil").inventory.getOrDefault("Timber",0));
+  assertEquals(5,g.kingdom("thornveil").wealth);
+  assertEquals(5,g.kingdom("sunspire").wealth);
+  assertEquals(3,g.kingdom("emberfall").gold);
+  System.out.println("AGE_OF_CHAOS_ROUND3: "+g.history());
+ }
  @Test void freshMatchStartsWithSevenForEveryKingdomAndEmptyBoards(){
   AgeOfChaosEngine g=AgeOfChaosEngine.newGame();
   assertEquals(1,g.round());
