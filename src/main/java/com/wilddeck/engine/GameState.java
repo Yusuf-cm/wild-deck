@@ -14,6 +14,7 @@ public final class GameState {
     private final Deque<CardInstance> deck = new ArrayDeque<>();
     private String activePlayerId;
     private boolean mainActionUsed;
+    private boolean cardDrawUsed;
     private int round = 1;
 
     public GameState(GameRules rules, Collection<PlayerState> players, Collection<CardInstance> deck, String firstPlayerId) {
@@ -27,6 +28,7 @@ public final class GameState {
     public int round() { return round; }
     public String activePlayerId() { return activePlayerId; }
     public boolean mainActionUsed() { return mainActionUsed; }
+    public boolean cardDrawUsed() { return cardDrawUsed; }
     public int deckSize() { return deck.size(); }
     public Collection<PlayerState> players() { return List.copyOf(players.values()); }
     public List<Contract> contracts() { return List.copyOf(contracts); }
@@ -59,11 +61,17 @@ public final class GameState {
     public void beginTurn(String playerId) {
         activePlayerId = playerId;
         mainActionUsed = false;
+        cardDrawUsed = false;
     }
 
     public void consumeMainAction() {
         if (mainActionUsed) throw new IllegalStateException("main action already used");
         mainActionUsed = true;
+    }
+
+    public void markCardDrawUsed() {
+        if (cardDrawUsed) throw new IllegalStateException("already drew a card this turn");
+        cardDrawUsed = true;
     }
 
     public void nextRound() { round++; }
