@@ -28,7 +28,7 @@ public final class AgeOfChaosCli {
  }
  public void run(){
   System.out.println("WILD DECK — AGE OF CHAOS | Two kingdoms per side, seven opening cards each");
-  System.out.println("Commands: hand, board, play <exact card name>, pass, quit");
+  System.out.println("Commands: hand, board, draw, play <exact card name>, pass, quit");
   System.out.println("No card drawn or deployed yet. This CLI currently supports opening-card deployment and round production.");
   while(true){
    runAiTurns();
@@ -39,6 +39,7 @@ public final class AgeOfChaosCli {
    String command=console.nextLine().trim();
    if(command.equalsIgnoreCase("quit"))break;
    if(command.equalsIgnoreCase("hand")||command.equalsIgnoreCase("board"))continue;
+   if(command.equalsIgnoreCase("draw")){System.out.println(game.draw(id).message());continue;}
    if(command.equalsIgnoreCase("pass")){System.out.println(game.pass(id).message());continue;}
    if(command.regionMatches(true,0,"play ",0,5)){
     System.out.println(game.play(id,command.substring(5).trim()).message());
