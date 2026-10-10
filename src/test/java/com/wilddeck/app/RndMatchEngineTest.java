@@ -22,7 +22,7 @@ class RndMatchEngineTest {
   String first=g.seat("player").hand.keySet().iterator().next();
   assertTrue(g.command("player","deploy "+first).success());
   assertEquals(1,g.seat("player").board.size());
-  assertTrue(g.command("player","draw a card").success());
+  assertFalse(g.command("player","draw a card").success());
   assertFalse(g.command("player","draw").success());
   assertFalse(g.command("asha","draw").success());
   assertTrue(g.command("player","pass").success());
@@ -40,14 +40,18 @@ class RndMatchEngineTest {
   assertEquals(3,messages.size());
   assertEquals(1,g.round());
   assertEquals("player",g.activeSeat());
+  System.out.println("RND_OPPONENT_ACTIONS: "+messages);
   for(String id:List.of("asha","brian","mira")){
    assertEquals(1,g.seat(id).board.size());
-   assertEquals(7,g.seat(id).hand.size());
+   assertEquals(6,g.seat(id).hand.size());
   }
  }
  @Test void arcaneTowerDeploysFreeAndGeneratesManaOnlyAtRoundBoundary(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   assertTrue(g.command("player","deploy Arcane Tower").success());
+  assertFalse(g.command("player","draw").success());
+  assertFalse(g.command("player","deploy Blood Moon").success());
+  assertTrue(g.command("player","assign Arcane Tower to guard the capital").success());
   assertEquals(0,g.seat("player").mana);
   assertFalse(g.seat("player").hand.values().stream().anyMatch(c->c.name().equals("Arcane Tower")));
   assertTrue(g.seat("player").board.values().stream().anyMatch(c->c.name().equals("Arcane Tower")));
