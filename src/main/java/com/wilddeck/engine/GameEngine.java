@@ -1,5 +1,7 @@
 package com.wilddeck.engine;
 
+import com.wilddeck.world.*;
+
 public final class GameEngine {
 
     public void initializeResources(GameState state) {
@@ -39,6 +41,9 @@ public final class GameEngine {
         if (card == null) throw new IllegalArgumentException("card is not in hand");
 
         player.deploy(card, hidden);
+        if (!state.hasWorld()) state.setWorld(new WorldGenerator().generate(0L,
+                state.players().stream().map(PlayerState::id).toList()));
+        new WorldEngine().deployAtHome(state, card);
 
         if (!hidden) {
             for (PlayerState observer : state.players()) observer.reveal(card.id());
