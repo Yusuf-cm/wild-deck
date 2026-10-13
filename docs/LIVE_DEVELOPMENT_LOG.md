@@ -295,3 +295,7 @@ No permanent storage, accounts, multiplayer isolation, general AI command transl
 - Regression exercises quick/full matches, historical scenario, both replay screens, restored world routing, and opening a new match after exit. Full Maven suite: 132 tests, zero failures/errors/skips.
 - Remaining product gaps: one shared in-memory session, no durable saves/accounts/multiplayer isolation; standing orders mainly record text; proposals/trades lack acceptance and settlement; deterministic opponents; most printed capabilities unresolved outside the supported quick slice.
 - Live exit retest pending deployment.
+
+### Mode-exit live retest VERIFIED
+
+Deployment dep-db7725a0p4hs73f65dj0 (5e6a8e7) reached live at 17:59:49 UTC. Browser reproduced the pre-fix unsupported reset command. After final deployment, new quick game 42 displayed exit instructions; reset sandbox returned the basic Kingdom Treasury/hand/management screen with the message "Previous match closed; sandbox state retained." WD-LIVE-004 is VERIFIED FIXED for quick-match exit; all five mode exits are covered by the 132-test automated suite. Other mode exits were not separately browser-tested.
