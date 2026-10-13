@@ -1,5 +1,7 @@
 package com.wilddeck.engine;
 
+import com.wilddeck.world.WorldEngine;
+
 public final class GameEngine {
 
     public void initializeResources(GameState state) {
@@ -47,6 +49,7 @@ public final class GameEngine {
 
         player.resources().spend(card.definition().cost());
         player.deploy(card, hidden);
+        new WorldEngine().deployAtHome(state, card);
 
         if (!hidden) {
             for (PlayerState observer : state.players()) observer.reveal(card.id());
