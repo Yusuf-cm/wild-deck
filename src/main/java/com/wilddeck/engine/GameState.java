@@ -32,6 +32,7 @@ public final class GameState {
         if (this.world != null) throw new IllegalStateException("world already initialized");
         this.world = Objects.requireNonNull(world);
     }
+    public boolean hasWorld() { return world != null; }
     public WorldMap world() {
         if (world == null) throw new IllegalStateException("world not initialized");
         return world;
