@@ -7,7 +7,8 @@ class HumanWebWorldTest {
   var app=new HumanWebServer();
   var act=HumanWebServer.class.getDeclaredMethod("act",String.class);act.setAccessible(true);
   var render=HumanWebServer.class.getDeclaredMethod("render");render.setAccessible(true);
-  act.invoke(app,"new four player game");
+  act.invoke(app,"new four player game 20261010");
+  assertTrue(((String)act.invoke(app,"new four player game invalid")).contains("current match unchanged"));
   assertTrue(((String)act.invoke(app,"world")).contains("W1 Runebank"));
   String result=(String)act.invoke(app,"pass");
   assertTrue(result.contains("Active: player; round 1"));

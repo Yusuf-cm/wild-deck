@@ -4,6 +4,20 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.*;
 
 class RndMatchEngineTest {
+ private RndMatchEngine raidFixture(List<RndMatchEngine.Card> assets){
+  var g=RndMatchEngine.start(20261010L);
+  g.seat("player").hand.put("knight",new RndMatchEngine.Card("knight","Knight","Military",Set.of("ATTACK"),10));
+  assertTrue(g.command("player","deploy knight").success());
+  assertTrue(g.command("player","move knight C1").success());
+  for(var asset:assets){
+   g.command("player","pass");g.seat("asha").hand.put(asset.id(),asset);
+   assertTrue(g.command("asha","deploy "+asset.id()).success());
+   for(String id:List.of("asha","brian","mira"))g.command(id,"pass");
+  }
+  assertTrue(g.command("player","move knight N1").success());
+  return g;
+ }
+
  @Test void fourSeatsStartEmptyWithSevenPrivateCardsAndTwoHundredCardDeck(){
   RndMatchEngine g=RndMatchEngine.start(20261010);
   assertEquals(172,g.deckSize());
@@ -173,9 +187,7 @@ class RndMatchEngineTest {
   assertTrue(g.command("player","assign Arcane Tower to defend kingdom").success());
  }
  @Test void raidingCanTransferAssetsWithoutEliminatingRuler(){
-  RndMatchEngine g=RndMatchEngine.start(20261010);
-  g.seat("player").board.put("war",new RndMatchEngine.Card("war","Knight","Military",Set.of("ATTACK"),8));
-  g.seat("asha").board.put("mine",new RndMatchEngine.Card("mine","Gold Mine","Structure",Set.of("PRODUCE"),0));
+  RndMatchEngine g=raidFixture(List.of(new RndMatchEngine.Card("mine","Gold Mine","Structure",Set.of("PRODUCE"),0)));
   var raid=g.command("player","attack asha");
   assertTrue(raid.success(),raid.message());
   assertTrue(g.seat("player").board.containsKey("mine"));
@@ -221,10 +233,7 @@ class RndMatchEngineTest {
   assertTrue(moves.stream().anyMatch(m->m.contains("deployed")));
  }
  @Test void oneHostileActionPerTurnCannotCaptureEverything(){
-  RndMatchEngine g=RndMatchEngine.start(20261010);
-  g.seat("player").board.put("knight",new RndMatchEngine.Card("knight","Knight","Military",Set.of("ATTACK"),10));
-  g.seat("asha").board.put("a",new RndMatchEngine.Card("a","Forge","Structure",Set.of("BUILD"),0));
-  g.seat("asha").board.put("b",new RndMatchEngine.Card("b","Vault","Structure",Set.of("BUILD"),0));
+  RndMatchEngine g=raidFixture(List.of(new RndMatchEngine.Card("a","Forge","Structure",Set.of("BUILD"),0),new RndMatchEngine.Card("b","Vault","Structure",Set.of("BUILD"),0)));
   assertTrue(g.command("player","attack asha").success());
   assertFalse(g.command("player","attack asha").success());
   assertEquals(1,g.seat("asha").board.size());

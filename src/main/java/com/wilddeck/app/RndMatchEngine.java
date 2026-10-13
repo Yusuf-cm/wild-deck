@@ -7,7 +7,9 @@ import java.util.*;
 
 /** Four-seat R&D match: deterministic cards and a strict translator/engine boundary. */
 public final class RndMatchEngine {
- public record Card(String id,String name,String category,Set<String> capabilities,int strength){}
+ public record Card(String id,String name,String category,Set<String> capabilities,int strength,Set<String> properties){
+  public Card(String id,String name,String category,Set<String> capabilities,int strength){this(id,name,category,capabilities,strength,Set.of());}
+ }
  public record Order(String actor,String type,String cardId,String target,String intent,Map<String,Integer> costs){}
  public record Result(boolean success,String message){}
  public static final class Seat {
@@ -24,13 +26,15 @@ public final class RndMatchEngine {
  private int round=0,active=0;
  private final WorldMap world = continentWorld();
  private final Map<String,String> locations = new LinkedHashMap<>();
+ private final Set<String> burning = new HashSet<>();
+ private final List<Card> discarded = new ArrayList<>();
  private final Set<String> movedThisRound = new HashSet<>();
  private static final Set<String> MOBILE = Set.of("MOVE","ROAM","ATTACK","OCCUPY","FLY","BURROW","INFILTRATE");
  private static WorldMap continentWorld(){
   List<WorldLocation> regions = new ArrayList<>();
   Map<String,Set<String>> links = new LinkedHashMap<>();
   for(var r:RndContinent.regions()){
-   regions.add(new WorldLocation(r.id(),r.name(),Set.of(r.terrain().toUpperCase(Locale.ROOT))));
+   regions.add(new WorldLocation(r.id(),r.name(),r.terrain().equals("Forest") ? Set.of("FOREST","FLAMMABLE") : Set.of(r.terrain().toUpperCase(Locale.ROOT))));
    links.put(r.id(),new LinkedHashSet<>(r.borders()));
   }
   return new WorldMap(regions,links);
@@ -42,7 +46,7 @@ public final class RndMatchEngine {
  public String worldView(String viewer){
   Seat owner=seat(viewer);
   StringBuilder out=new StringBuilder("World — round "+round+" | Current: "+activeSeat()+"\n");
-  for(var r:RndContinent.regions())out.append(r.id()).append(" ").append(r.name()).append(" [").append(r.terrain()).append("] owner=").append(r.owner()).append(" borders=").append(r.borders()).append('\n');
+  for(var r:RndContinent.regions())out.append(r.id()).append(" ").append(r.name()).append(" [").append(r.terrain()).append("] owner=").append(r.owner()).append(" borders=").append(r.borders()).append(burning.contains(r.id()) ? " BURNING" : "").append('\n');
   out.append("Your deployed cards (use IDs or full names):\n");
   for(Card c:owner.board.values())out.append(c.id()).append(" ").append(c.name()).append(" @ ").append(locations.getOrDefault(c.id(),"unplaced")).append('\n');
   return out.toString();
@@ -70,7 +74,8 @@ public final class RndMatchEngine {
     for(JsonNode c:n.get("capabilities"))caps.add(c.asText());
     bag.add(new Card(n.get("id").asText(),n.get("name").asText(),
      n.get("category").asText(),Set.copyOf(caps),
-     n.path("strength").isNumber()?n.get("strength").asInt():0));
+     n.path("strength").isNumber()?n.get("strength").asInt():0,
+     propertiesOf(n)));
    }
    if(bag.size()!=200)throw new IllegalStateException("expected 200 cards");
    Collections.shuffle(bag,new Random(seed));g.deck.addAll(bag);
@@ -79,6 +84,15 @@ public final class RndMatchEngine {
    return g;
   }catch(IOException e){throw new IllegalStateException(e);}
  }
+ private static Set<String> propertiesOf(JsonNode node){
+  Set<String> properties=new LinkedHashSet<>();
+  for(JsonNode p:node.path("properties"))properties.add(p.asText());
+  return Set.copyOf(properties);
+ }
+ public boolean isBurning(String region){return burning.contains(region);}
+ public int discardedCount(){return discarded.size();}
+ private boolean mobile(Card c){return Set.of("Military","Creature","Specialist").contains(c.category()) && c.capabilities().stream().anyMatch(MOBILE::contains);}
+ private int effectiveStrength(Card c,String region){return Math.max(0,c.strength()-(burning.contains(region)&&!c.properties().contains("FIREPROOF")?1:0));}
  public Seat seat(String id){Seat s=seats.get(aliases.getOrDefault(id.toLowerCase(Locale.ROOT),id));if(s==null)throw new IllegalArgumentException("unknown player");return s;}
  public String activeSeat(){return turns.get(active);}
  public int round(){return round;}
@@ -98,15 +112,16 @@ public final class RndMatchEngine {
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
     if(!seats.containsKey(target)||target.equals(id))return fail("choose a different kingdom");
     Seat enemy=seat(target);
-    List<Card> soldiers=actor.board.values().stream().filter(c->c.strength()>0).toList();
-    if(soldiers.isEmpty())return fail("no deployed attacking forces");
-    int attack=soldiers.stream().mapToInt(Card::strength).sum();
-    int defense=enemy.board.values().stream().mapToInt(Card::strength).sum();
+    String battlefield=home(target);
+    List<Card> soldiers=actor.board.values().stream().filter(c->c.strength()>0 && c.capabilities().contains("ATTACK") && battlefield.equals(locations.get(c.id()))).toList();
+    if(soldiers.isEmpty())return fail("no attacking forces at "+battlefield+"; move units to the target capital first");
+    int attack=soldiers.stream().mapToInt(c->effectiveStrength(c,battlefield)).sum();
+    int defense=enemy.board.values().stream().filter(c->battlefield.equals(locations.get(c.id()))).mapToInt(c->effectiveStrength(c,battlefield)).sum();
     Card attacker=soldiers.get(0);
     hostileActionSpent.add(id);
     if(attack>defense){
      // A raid occupies a single target asset; destroying a kingdom is a separate victory mechanic.
-     Card prize=enemy.board.values().stream().filter(c->c.strength()==0).findFirst().orElse(null);
+     Card prize=enemy.board.values().stream().filter(c->c.strength()==0 && battlefield.equals(locations.get(c.id()))).findFirst().orElse(null);
      if(prize!=null){enemy.board.remove(prize.id());actor.board.put(prize.id(),prize);
       events.add("R"+round+": "+id+" captured "+prize.name()+" from "+target+" (attack "+attack+" vs "+defense+")");
       return ok("Victory: captured "+prize.name()+"; "+target+" remains in the game");
@@ -133,18 +148,43 @@ public final class RndMatchEngine {
     events.add("R"+round+": "+id+" offered a trade to "+target);
     return ok("Trade proposed, pending other ruler's acceptance");
    }
+   case "TERRAIN" -> {
+    Card c=find(actor.hand,order.cardId());boolean fromHand=c!=null;
+    if(c==null)c=find(actor.board,order.cardId());
+    if(c==null)return fail("source must be your card in hand or deployed");
+    String target=order.target()==null?"":order.target().trim().toUpperCase(Locale.ROOT);
+    var region=world.location(target);
+    if(region.isEmpty())return fail("unknown region; use world for region IDs");
+    boolean ignite=c.properties().contains("FIRE")&&c.capabilities().contains("IGNITE");
+    boolean extinguish=c.properties().contains("WATER")&&c.capabilities().contains("EXTINGUISH");
+    if(!ignite&&!extinguish)return fail("card supplies neither FIRE/IGNITE nor WATER/EXTINGUISH");
+    if(fromHand && mainActionSpent.contains(id))return fail("main action already spent this turn");
+    if(fromHand && !Set.of("Spell","Event").contains(c.category()))return fail("deploy this source before using it");
+    if(!c.capabilities().contains("WORLD_EFFECT") && !target.equals(fromHand?home(id):locations.get(c.id())))return fail("source cannot reach that region; local effects require the same location");
+    if(ignite && !region.get().hasProperty("FLAMMABLE"))return fail("terrain is not flammable");
+    if(ignite && burning.contains(target))return fail("region is already burning");
+    if(extinguish && !burning.contains(target))return fail("region is not burning");
+    int mana=c.capabilities().contains("MAGIC")?2:0;
+    if(actor.mana<mana)return fail("terrain magic requires 2 Mana");
+    actor.mana-=mana;
+    if(fromHand){actor.hand.remove(c.id());discarded.add(c);mainActionSpent.add(id);}
+    if(ignite)burning.add(target);else burning.remove(target);
+    String message=c.name()+ (ignite?" ignited ":" extinguished ")+target+"; "+(ignite?"non-fireproof entry blocked; local strength -1":"entry restored; strength penalty removed");
+    events.add("R"+round+": "+id+" "+message);
+    return ok(message);
+   }
    case "WORLD" -> {return ok(worldView(id));}
-   case "HELP" -> {return ok("world | status | draw | deploy <card-name-or-id> | move <card-name-or-id> to <region-id> | assign <card> to <task> | pass. Movement: adjacent regions, one move per unit per round; structures/equipment/resources stay fixed. Raids currently use kingdom-wide strength, not geography.");}
+   case "HELP" -> {return ok("world | status | draw | deploy <card-name-or-id> | move <card-name-or-id> to <region-id> | assign <card> to <task> | pass. Movement: adjacent regions, one move per unit per round; structures/equipment/resources stay fixed. attack <kingdom> requires ATTACK units at its capital; use <card> on <region-id> resolves IGNITE or EXTINGUISH. Fire blocks non-fireproof entry and reduces local strength by 1 per non-fireproof card.");}
    case "MOVE" -> {
     Card c=find(actor.board,order.cardId());
     if(c==null)return fail("source must be your deployed card");
-    boolean unit=Set.of("Military","Creature","Specialist").contains(c.category());
-    if(!unit || c.capabilities().stream().noneMatch(MOBILE::contains))return fail("card has no movement capability or is a fixed asset");
+    if(!mobile(c))return fail("card has no movement capability or is a fixed asset");
     String to=order.target()==null?"":order.target().trim().toUpperCase(Locale.ROOT);
     if(world.location(to).isEmpty())return fail("unknown region; use world for region IDs");
     String from=locations.get(c.id());
     if(from==null)return fail("source has no world location");
     if(!world.connected(from,to))return fail("destination is not adjacent; borders: "+world.neighbors(from));
+    if(burning.contains(to) && !c.properties().contains("FIREPROOF"))return fail("destination is burning; extinguish it first or use a FIREPROOF unit");
     if(movedThisRound.contains(c.id()))return fail("card already moved this round");
     locations.put(c.id(),to);movedThisRound.add(c.id());
     events.add("R"+round+": "+id+" moved "+c.name()+" from "+from+" to "+to);
@@ -249,6 +289,11 @@ public final class RndMatchEngine {
     if(proposal.success())reports.add(id+": "+proposal.message());
    }
    if(mood==1 || mood==4){
+    for(Card force:List.copyOf(npc.board.values())){
+     if(!mobile(force)||!force.capabilities().contains("ATTACK"))continue;
+     String step=nextStep(locations.get(force.id()),home(rival));
+     if(step!=null){Result moved=execute(new Order(id,"MOVE",force.id(),step,null,Map.of()));if(moved.success())reports.add(id+": "+moved.message());}
+    }
     Result raid=execute(new Order(id,"ATTACK",null,rival,null,Map.of()));
     if(raid.success())reports.add(id+": "+raid.message());
    }
@@ -277,6 +322,21 @@ public final class RndMatchEngine {
   }
   return reports;
  }
+ private String nextStep(String from,String destination){
+  if(from==null||from.equals(destination))return null;
+  Map<String,String> first=new HashMap<>();Deque<String> queue=new ArrayDeque<>();
+  first.put(from,null);queue.add(from);
+  while(!queue.isEmpty()){
+   String region=queue.removeFirst();
+   for(String neighbor:world.neighbors(region).stream().sorted().toList()){
+    if(first.containsKey(neighbor)||burning.contains(neighbor))continue;
+    String step=region.equals(from)?neighbor:first.get(region);
+    if(neighbor.equals(destination))return step;
+    first.put(neighbor,step);queue.addLast(neighbor);
+   }
+  }
+  return null;
+ }
  private static Card find(Map<String,Card> map,String cardId){
   if(cardId==null)return null;
   Card exact=map.get(cardId);if(exact!=null)return exact;
@@ -303,6 +363,10 @@ public final class RndMatchEngine {
   String cmd=text.trim(),low=cmd.toLowerCase(Locale.ROOT);
   if(low.equals("world")||low.equals("map"))return new Order(actor,"WORLD",null,null,null,Map.of());
   if(low.equals("help"))return new Order(actor,"HELP",null,null,null,Map.of());
+  if(low.startsWith("use ")){
+   int separator=low.lastIndexOf(" on ");
+   if(separator>4)return new Order(actor,"TERRAIN",cmd.substring(4,separator).trim(),cmd.substring(separator+4).trim(),null,Map.of());
+  }
   if(low.startsWith("move ")){
    int separator=low.lastIndexOf(" to ");
    if(separator>5)return new Order(actor,"MOVE",cmd.substring(5,separator).trim(),cmd.substring(separator+4).trim(),null,Map.of());

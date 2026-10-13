@@ -1168,11 +1168,13 @@
       "name": "Fireball",
       "category": "Spell",
       "properties": [
-        "SPELL"
+        "SPELL",
+        "FIRE"
       ],
       "capabilities": [
         "CAST",
-        "MAGIC"
+        "MAGIC",
+        "IGNITE"
       ],
       "strength": null,
       "copies": 1
@@ -1546,11 +1548,13 @@
       "name": "Orb of Tides",
       "category": "Artifact",
       "properties": [
-        "ARTIFACT"
+        "ARTIFACT",
+        "WATER"
       ],
       "capabilities": [
         "ATTACH",
-        "ACTIVATE"
+        "ACTIVATE",
+        "EXTINGUISH"
       ],
       "strength": null,
       "copies": 1
@@ -2364,11 +2368,13 @@
       "name": "Great Flood",
       "category": "Event",
       "properties": [
-        "EVENT"
+        "EVENT",
+        "WATER"
       ],
       "capabilities": [
         "WORLD_EFFECT",
-        "RESOLVE"
+        "RESOLVE",
+        "EXTINGUISH"
       ],
       "strength": null,
       "copies": 1
@@ -2448,11 +2454,13 @@
       "name": "Wildfire",
       "category": "Event",
       "properties": [
-        "EVENT"
+        "EVENT",
+        "FIRE"
       ],
       "capabilities": [
         "WORLD_EFFECT",
-        "RESOLVE"
+        "RESOLVE",
+        "IGNITE"
       ],
       "strength": null,
       "copies": 1

@@ -152,3 +152,20 @@ Browser testing note: rapid form submissions could race navigation and issue/rej
 Current shared session after retest: round 6, current player, deck 168, Arcane Tower at W1, Siege Infantry at S1, Gold 0 / Wealth 0 / Mana 6. Document-only commits can trigger Render auto-deploy and restart the in-memory session; this snapshot is evidence, not durable storage.
 
 Next increment: location-aware attacks/access and at least one property-based terrain interaction with observable consequences. A full match-ending victory condition remains absent from this R&D engine; no complete-match claim is made.
+
+## 2026-10-13 — Location-aware raids and terrain effects
+
+Implemented next quick-match slice:
+- Raids now count only ATTACK-capable units physically at the target capital; defenders and captured assets must be there too. Failed access checks do not spend the hostile action.
+- NPC raid attempts first move eligible forces one region along a deterministic shortest available route.
+- R&D cards retain their properties. Explicit FIRE/IGNITE data added to Wildfire/Fireball and WATER/EXTINGUISH to Great Flood/Orb of Tides. No card-name recipes in the terrain resolver.
+- Forest regions are FLAMMABLE. Fire marks a region BURNING, blocks entry for non-FIREPROOF units, and reduces each non-fireproof card's local strength by 1 (floor zero). Water clears that state and its effects.
+- use <card> on <region-id> resolves only supplied capabilities. Hand events/spells consume the main action and go to a discard ledger; deployed sources must reach their region. WORLD_EFFECT sources have global reach; other sources are local. MAGIC sources cost 2 Mana. All validation occurs before costs or mutation.
+- new four player game [seed] supports reproducible live matches; malformed seeds preserve the current match. Seed 836 naturally deals Cavalry, Wildfire, and Great Flood to the human for the upcoming browser test.
+
+Raid fixtures updated to deploy and march through real commands instead of inserting unplaced board cards. New tests cover actual Wildfire consumption, invalid-target atomicity, water restoring access, FIREPROOF entry, property-based strength penalties, distant-raid rejection, and valid attacks after movement.
+
+Design limits: fire persists until extinguished, with no spread/weather/damage-over-time model. No property transfer or equipment-attachment resolver yet supplies FIREPROOF to existing units. Raids still compare summed local strength and capture at most one zero-strength asset; they do not resolve full combat casualties or kingdom elimination. Saved orders remain instructions rather than arbitrary creative outcomes. This slice must not be described as a finished creativity engine or complete match.
+
+Local suite: {'tests': 111, 'failures': 0, 'errors': 0, 'skipped': 0}
+Live validation pending.

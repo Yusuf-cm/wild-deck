@@ -67,9 +67,12 @@ public final class HumanWebServer {
 
     private String act(String input) {
         if(input.isBlank()) return "Type an order.";
-        if (input.equalsIgnoreCase("new four player game")) {
-            rndMatch = RndMatchEngine.start(20261010L);
-            return "New four-player table opened at Round 0. You control Player 1.";
+        if (input.equalsIgnoreCase("new four player game") || input.toLowerCase(Locale.ROOT).startsWith("new four player game ")) {
+            long seed=20261010L;
+            String seedText=input.substring("new four player game".length()).trim();
+            if(!seedText.isEmpty())try{seed=Long.parseLong(seedText);}catch(NumberFormatException ex){return "Seed must be a signed 64-bit integer; current match unchanged.";}
+            rndMatch = RndMatchEngine.start(seed);
+            return "New four-player table opened at Round 0. You control Player 1. Seed: "+seed;
         }
         if (rndMatch != null) {
             RndMatchEngine.Result result = rndMatch.command("player",input);
@@ -171,7 +174,7 @@ public final class HumanWebServer {
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids still use kingdom-wide strength.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use a FIRE/IGNITE or WATER/EXTINGUISH card on a region to change terrain.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {
@@ -192,7 +195,7 @@ public final class HumanWebServer {
                 .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
             return html.append("</main></body></html>").toString();
         }
-        html.append("<p>Type <b>new four player game</b> to start the fresh R&D match. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
+        html.append("<p>Type <b>new four player game [seed]</b> to start the fresh R&D match. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
         html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, <b>run rules replay</b> to execute conserved mechanics, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
         html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
         player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
