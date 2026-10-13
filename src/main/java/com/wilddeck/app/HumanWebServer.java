@@ -78,7 +78,7 @@ public final class HumanWebServer {
             RndMatchEngine.Result result = rndMatch.command("player",input);
             if (result.success() && input.trim().matches("(?i)pass|end turn")) {
                 List<String> actions = rndMatch.takeOpponentTurns();
-                return "Turn completed. Active: "+rndMatch.activeSeat()+"; round "+rndMatch.round()+"\nOpponent moves: "+actions;
+                return "Turn completed. Active: "+rndMatch.activeSeat()+"; round "+rndMatch.round()+"\nOpponent moves: "+actions+"\n"+rndMatch.winner().map(w->"MATCH WON by "+w).orElse("Match ongoing.");
             }
             return result.message();
         }
@@ -174,7 +174,7 @@ public final class HumanWebServer {
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use a FIRE/IGNITE or WATER/EXTINGUISH card on a region to change terrain.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {

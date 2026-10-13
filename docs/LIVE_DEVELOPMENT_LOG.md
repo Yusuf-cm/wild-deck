@@ -202,3 +202,24 @@ Design lesson: igniting a destination also denies access to the caster's ordinar
 Remaining gaps: terrain counter use in opponent decision-making, visible opposing unit locations, location-based interception/casualties, defense/counterattack windows, and a true match-ending victory condition. Generic unsupported abilities/orders, attachments and trait transfer remain unimplemented. The captured-tower message says "Victory", meaning a successful raid, not a won match.
 
 Next priority: give opponents legal terrain reactions and meaningful local defense, then add a complete match endpoint. Do not expand story mode yet.
+
+## 2026-10-13 — Defense, opponent counters, conquest and match endpoint
+
+Implementation:
+- Local battles snapshot both strengths and apply simultaneous damage. DEFEND-capable units absorb damage first. Wounds persist and lower effective strength; destroyed units leave boards/locations/orders and enter the discard ledger. This is an R&D combat slice, not the canonical corpse/wreck or regeneration system.
+- repel <kingdom> lets local ATTACK/DEFEND forces counterattack invaders at their own capital.
+- NPCs inspect public capital threats, use owned legal water counters, deploy strongest available defenders, and counterattack. This response runs from round 0 rather than waiting until the R5 strategic phase. It never supplies cards or mana they lack.
+- conquer <kingdom> requires a successful local raid, a surviving OCCUPY-capable unit at the capital, and no effective local defenders. A public pending occupation gives the defender a response turn.
+- Settlement checks the defender's actual completed-turn counter, not merely the next round number; late-round declarations cannot bypass the response window. A lost foothold or new defenders break occupation.
+- Successful conquest eliminates the kingdom, transfers its surviving board/resources/goods, preserves asset locations and damage, discards its private hand, changes capital controller display, and skips its future turns.
+- Last independent kingdom wins; state-changing commands are locked after victory, while status/world/events/help remain available. An eliminated human can pass to spectate.
+- Public board views now show positions and remaining/base strength. events exposes the public audit history.
+- Fixed use scrying on routing so it is not intercepted by the generic terrain-use parser.
+
+Regression coverage: simultaneous casualties, persistent wounds, equal-force destruction, defender counterattack breaking occupation, late-round response fairness, conquest/victory/mutation lock, terrain counters and reinforcements.
+
+Local suite: {'tests': 117, 'failures': 0, 'errors': 0, 'skipped': 0}
+Headless normal seeded matches: seed 0 ended with Mira winning at round 27; seed 1 ended with the human winning at round 15. Human planning used own hand and public positions/strength, not opponents' hidden hands. Seed 977 naturally gives human Wildfire and Asha Great Flood, selected for an upcoming live reaction test. These headless results are not yet live-browser verification.
+
+Limitations: aggregate local damage rather than individual target selection, no manual reaction subturn, no healing/equipment/trait-transfer resolver in this R&D engine, no vassalage/annihilation option, no persistent accounts. Combat values are provisional. Most free-form orders still only save text. Generic negotiation/trade acceptance remains unfinished.
+Live retests pending.
