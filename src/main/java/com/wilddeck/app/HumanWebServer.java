@@ -3,6 +3,7 @@ package com.wilddeck.app;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.wilddeck.engine.*;
+import com.wilddeck.world.*;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -101,6 +102,29 @@ public final class HumanWebServer {
             do {session.endTurn();} while(!session.humanTurn());
             return "Advanced to round "+state.round()+".";
         }
+        if(lower.equals("world")) {
+            StringBuilder result = new StringBuilder("World locations:\n");
+            for (WorldLocation location : state.world().locations()) {
+                result.append(location.id()).append(" [").append(location.properties())
+                    .append("] -> ").append(state.world().neighbors(location.id())).append("\n");
+            }
+            for (CardInstance card : player.kingdom()) {
+                result.append(card.definition().name()).append(": ")
+                    .append(state.cardLocation(card.id()).orElse("unplaced")).append("\n");
+            }
+            return result.toString();
+        }
+        if(lower.startsWith("move ")) {
+            String[] parts = input.trim().split("\\s+");
+            if(parts.length != 3) return "Usage: move <deployed-card-index> <location-id>";
+            int index;
+            try { index = Integer.parseInt(parts[1]); }
+            catch(NumberFormatException ex) { return "Card index must be a number."; }
+            List<CardInstance> cards = List.copyOf(player.kingdom());
+            if(index < 0 || index >= cards.size()) return "Card index out of range.";
+            new WorldEngine().move(state,id,cards.get(index).id(),parts[2]);
+            return cards.get(index).definition().name() + " moved to " + parts[2];
+        }
         if(lower.equals("draw") || lower.equals("draw a card")) return session.executor().draw(state,id).message();
         if(lower.startsWith("deploy ") || lower.startsWith("play ")) {
             String search=input.substring(input.indexOf(' ')+1).trim();
@@ -168,7 +192,7 @@ public final class HumanWebServer {
                 .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
             return html.append("</main></body></html>").toString();
         }
-        html.append("<p>Type <b>new four player game</b> to start the fresh R&D match.</p>");
+        html.append("<p>Type <b>new four player game</b> to start the fresh R&D match. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
         html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, <b>run rules replay</b> to execute conserved mechanics, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
         html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
         player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
