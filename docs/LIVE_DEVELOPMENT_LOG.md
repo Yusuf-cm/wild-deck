@@ -125,3 +125,30 @@ Limitations: this is geography integration, not the full creative world engine. 
 WD-LIVE-001, WD-LIVE-002, WD-LIVE-003: implementation complete; live retest pending. WD-LIVE-004: visible help added; safe mode exit remains pending.
 
 Local full Maven suite: 105 tests, 0 failures, 0 errors, 0 skipped. Live retest pending.
+
+## 2026-10-13 — Live retest of commit 77025f6f56bab751ce912734b9d0c25a7a9277ec
+
+Render deployment dep-db70n9rm8hqs73f5l66g reached live at 10:46:01 UTC / 13:46:01 EAT. Tested the browser command form in a fresh four-player match with seed 20261010. Completed the movement checks by approximately 13:48 EAT.
+
+| Check | Live result |
+| --- | --- |
+| world in four-player match | Passed: six-region atlas and current match round returned |
+| deploy Arcane Tower | Passed: WD-073 placed at W1 / Runebank |
+| move Arcane Tower to C1 | Rejected as fixed/nonmobile; location remained W1 |
+| pass | Final feedback and header both show player and completed round; tower Mana increments |
+| move Mercenaries to C1 | Rejected: source must be your deployed card |
+| Draw through rounds | Gemstone, Magic Crystal, Beast Saddle, Siege Infantry drawn; deck reached 168 |
+| deploy Siege Infantry at round 5 | Passed: WD-029 deployed at W1 |
+| move Siege Infantry to N1 | Rejected as nonadjacent; remained W1 |
+| move Siege Infantry to C1 | Passed: W1 -> C1 despite prior rejected move |
+| move WD-029 S1 in round 5 | Rejected: already moved this round; remained C1 |
+| pass to round 6; move WD-029 S1 | Passed: C1 -> S1; round movement allowance reset |
+| Reload | Round 6 and S1 location retained within running process |
+
+WD-LIVE-001, WD-LIVE-002, WD-LIVE-003 are VERIFIED FIXED for the covered commands. WD-LIVE-004 remains open for safe mode exit.
+
+Browser testing note: rapid form submissions could race navigation and issue/reject redundant commands. Later tests waited for the expected new visible response or round before issuing the next command. No additional cards were drawn by the redundant requests; the one-main-action guard rejected them. Prefer explicit response waits in future browser test runs.
+
+Current shared session after retest: round 6, current player, deck 168, Arcane Tower at W1, Siege Infantry at S1, Gold 0 / Wealth 0 / Mana 6. Document-only commits can trigger Render auto-deploy and restart the in-memory session; this snapshot is evidence, not durable storage.
+
+Next increment: location-aware attacks/access and at least one property-based terrain interaction with observable consequences. A full match-ending victory condition remains absent from this R&D engine; no complete-match claim is made.
