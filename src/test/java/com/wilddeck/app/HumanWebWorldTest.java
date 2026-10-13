@@ -3,6 +3,23 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HumanWebWorldTest {
+ @Test void resetSandboxExitsEveryModeAndRestoresSandboxRouting() throws Exception {
+  var app=new HumanWebServer();
+  var act=HumanWebServer.class.getDeclaredMethod("act",String.class);act.setAccessible(true);
+  var render=HumanWebServer.class.getDeclaredMethod("render");render.setAccessible(true);
+  for(String start:java.util.List.of("new quick game 42","new four player game 42",
+      "load cycle 18","replay rounds 0-18","run rules replay")) {
+   act.invoke(app,start);
+   assertTrue(((String)act.invoke(app,"reset sandbox")).contains("Returned to basic sandbox"));
+   String page=(String)render.invoke(app);
+   assertTrue(page.contains("Kingdom Treasury"),start);
+   assertFalse(page.contains("<h2>Wild Deck — Quick Match</h2>"),start);
+   assertTrue(((String)act.invoke(app,"world")).contains("World locations:"),start);
+  }
+  act.invoke(app,"new quick game 42");
+  assertTrue(((String)render.invoke(app)).contains("<h2>Wild Deck — Quick Match</h2>"));
+ }
+
  @Test void quickMatchShowsItsActualSupportedPool() throws Exception {
   var app=new HumanWebServer();var act=HumanWebServer.class.getDeclaredMethod("act",String.class);act.setAccessible(true);
   var render=HumanWebServer.class.getDeclaredMethod("render");render.setAccessible(true);
