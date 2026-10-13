@@ -107,3 +107,21 @@ For each cycle record:
 - Remaining work
 
 Keep "observed", "source-confirmed", "planned", and "verified fixed" separate. A successful deployment is not a successful gameplay test.
+
+## 2026-10-13 — Four-player geography integration
+
+Implemented in RndMatchEngine rather than borrowing the unrelated sandbox GameState:
+- Reused RndContinent's existing six-region topology through WorldMap.
+- Deployment records a card's capital region; the player's board view includes IDs and locations.
+- Added world/map/help and move <card-name-or-id> to <region-id> (or move <id> <region-id>).
+- Movement requires an owned deployed mobile Military/Creature/Specialist, adjacency, the active turn, and no prior move that round. Fixed assets cannot move. Validation precedes mutation; movement resets at completed round boundaries.
+- Fixed active match header and final turn response, including real line breaks.
+- Added engine integration and web routing/header regression checks.
+
+Validation uncovered an existing single-player fixture in WildDeckEngineTest.drawingDoesNotPreventPlayingCards that failed when deployment created geography requiring at least two kingdoms. Updated that fixture to include a second player; draw/play assertions remain unchanged.
+
+Limitations: this is geography integration, not the full creative world engine. Raids still use kingdom-wide strength, orders remain saved instructions, terrain interaction resolvers and a match-ending victory mechanic are not implemented here. Region ownership is initial atlas metadata, not capture/control state. NPC movement strategy remains future work.
+
+WD-LIVE-001, WD-LIVE-002, WD-LIVE-003: implementation complete; live retest pending. WD-LIVE-004: visible help added; safe mode exit remains pending.
+
+Local full Maven suite: 105 tests, 0 failures, 0 errors, 0 skipped. Live retest pending.

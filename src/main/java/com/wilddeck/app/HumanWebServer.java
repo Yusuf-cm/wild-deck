@@ -75,7 +75,7 @@ public final class HumanWebServer {
             RndMatchEngine.Result result = rndMatch.command("player",input);
             if (result.success() && input.trim().matches("(?i)pass|end turn")) {
                 List<String> actions = rndMatch.takeOpponentTurns();
-                return result.message()+"\\nOpponent moves: "+actions;
+                return "Turn completed. Active: "+rndMatch.activeSeat()+"; round "+rndMatch.round()+"\nOpponent moves: "+actions;
             }
             return result.message();
         }
@@ -165,13 +165,13 @@ public final class HumanWebServer {
             @media(max-width:720px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}form{flex-direction:column}}
             </style></head><body><main><h1>Wild Deck</h1><p>Human-play alpha · World round
             """);
-        html.append(state.round()).append(" · Single shared demo session (no accounts)</p>");
+        html.append(rndMatch != null ? rndMatch.round() : state.round()).append(" · Single shared demo session (no accounts)</p>");
         if (rndMatch != null) {
             html.append("<section class='panel'><h2>Wild Deck R&D — Four Player Table</h2>")
-                .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Your command: draw, deploy <card>, assign <card> to ..., pass'><button>Issue order</button></form>")
+                .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids still use kingdom-wide strength.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {

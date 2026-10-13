@@ -1,6 +1,7 @@
 package com.wilddeck.app;
 
 import com.fasterxml.jackson.databind.*;
+import com.wilddeck.world.*;
 import java.io.*;
 import java.util.*;
 
@@ -21,6 +22,31 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
+ private final WorldMap world = continentWorld();
+ private final Map<String,String> locations = new LinkedHashMap<>();
+ private final Set<String> movedThisRound = new HashSet<>();
+ private static final Set<String> MOBILE = Set.of("MOVE","ROAM","ATTACK","OCCUPY","FLY","BURROW","INFILTRATE");
+ private static WorldMap continentWorld(){
+  List<WorldLocation> regions = new ArrayList<>();
+  Map<String,Set<String>> links = new LinkedHashMap<>();
+  for(var r:RndContinent.regions()){
+   regions.add(new WorldLocation(r.id(),r.name(),Set.of(r.terrain().toUpperCase(Locale.ROOT))));
+   links.put(r.id(),new LinkedHashSet<>(r.borders()));
+  }
+  return new WorldMap(regions,links);
+ }
+ private static String home(String actor){
+  return RndContinent.regions().stream().filter(r->r.owner().equals(actor)).findFirst().orElseThrow().id();
+ }
+ public Optional<String> cardLocation(String cardId){return Optional.ofNullable(locations.get(cardId));}
+ public String worldView(String viewer){
+  Seat owner=seat(viewer);
+  StringBuilder out=new StringBuilder("World — round "+round+" | Current: "+activeSeat()+"\n");
+  for(var r:RndContinent.regions())out.append(r.id()).append(" ").append(r.name()).append(" [").append(r.terrain()).append("] owner=").append(r.owner()).append(" borders=").append(r.borders()).append('\n');
+  out.append("Your deployed cards (use IDs or full names):\n");
+  for(Card c:owner.board.values())out.append(c.id()).append(" ").append(c.name()).append(" @ ").append(locations.getOrDefault(c.id(),"unplaced")).append('\n');
+  return out.toString();
+ }
  public static final int FOUNDING_TRUCE_ROUNDS=0;
  private static final Set<String> HOSTILE_ACTIONS=Set.of("ATTACK","RAID","SIEGE","STEAL","SABOTAGE","DESTROY","INVADE","CAPTURE","PLUNDER");
  public boolean foundingTruceActive(){return round<FOUNDING_TRUCE_ROUNDS;}
@@ -107,6 +133,23 @@ public final class RndMatchEngine {
     events.add("R"+round+": "+id+" offered a trade to "+target);
     return ok("Trade proposed, pending other ruler's acceptance");
    }
+   case "WORLD" -> {return ok(worldView(id));}
+   case "HELP" -> {return ok("world | status | draw | deploy <card-name-or-id> | move <card-name-or-id> to <region-id> | assign <card> to <task> | pass. Movement: adjacent regions, one move per unit per round; structures/equipment/resources stay fixed. Raids currently use kingdom-wide strength, not geography.");}
+   case "MOVE" -> {
+    Card c=find(actor.board,order.cardId());
+    if(c==null)return fail("source must be your deployed card");
+    boolean unit=Set.of("Military","Creature","Specialist").contains(c.category());
+    if(!unit || c.capabilities().stream().noneMatch(MOBILE::contains))return fail("card has no movement capability or is a fixed asset");
+    String to=order.target()==null?"":order.target().trim().toUpperCase(Locale.ROOT);
+    if(world.location(to).isEmpty())return fail("unknown region; use world for region IDs");
+    String from=locations.get(c.id());
+    if(from==null)return fail("source has no world location");
+    if(!world.connected(from,to))return fail("destination is not adjacent; borders: "+world.neighbors(from));
+    if(movedThisRound.contains(c.id()))return fail("card already moved this round");
+    locations.put(c.id(),to);movedThisRound.add(c.id());
+    events.add("R"+round+": "+id+" moved "+c.name()+" from "+from+" to "+to);
+    return ok(c.name()+" moved from "+from+" to "+to);
+   }
    case "LOOK" -> {return ok(view(id));}
    case "DRAW" -> {
     if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
@@ -119,7 +162,7 @@ public final class RndMatchEngine {
    case "PLAY" -> {
     if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
     Card c=find(actor.hand,order.cardId());if(c==null)return fail("card not in hand");
-    actor.hand.remove(c.id());actor.board.put(c.id(),c);mainActionSpent.add(id);
+    actor.hand.remove(c.id());actor.board.put(c.id(),c);locations.put(c.id(),home(id));mainActionSpent.add(id);
     events.add("R"+round+": "+id+" deployed "+c.name());
     String effect=PRODUCTION_EFFECTS.containsKey(c.name()) ? " (passive: +1 Mana at each completed round)" : "";
     return ok(id+" deployed "+c.name()+" for free"+effect);
@@ -159,7 +202,7 @@ public final class RndMatchEngine {
    }
    case "PASS" -> {
     events.add("R"+round+": "+id+" passed");mainActionSpent.remove(id);hostileActionSpent.remove(id);active=(active+1)%turns.size();
-    if(active==0){round++; settleRoundProduction();events.add("R"+round+": production phase settled");}
+    if(active==0){round++; movedThisRound.clear(); settleRoundProduction();events.add("R"+round+": production phase settled");}
     return ok("Turn passed. Active: "+activeSeat()+"; round "+round);
    }
    default -> {return fail("unsupported action: "+type);}
@@ -251,12 +294,22 @@ public final class RndMatchEngine {
    b.append("\n");
   }
   b.append("Your resources: GOLD ").append(s.gold).append(", WEALTH ").append(s.wealth).append(", MANA ").append(s.mana).append("\n");
+  b.append("Your locations: ").append(s.board.values().stream().map(c->c.id()+" "+c.name()+" @ "+locations.getOrDefault(c.id(),"unplaced")).toList()).append("\n");
   b.append("Your orders: ").append(s.orders).append("\n");
   return b.toString();
  }
  /** Explicit parser boundary: a future language model outputs this schema, not mutations. */
  public Order translateSimple(String actor,String text){
   String cmd=text.trim(),low=cmd.toLowerCase(Locale.ROOT);
+  if(low.equals("world")||low.equals("map"))return new Order(actor,"WORLD",null,null,null,Map.of());
+  if(low.equals("help"))return new Order(actor,"HELP",null,null,null,Map.of());
+  if(low.startsWith("move ")){
+   int separator=low.lastIndexOf(" to ");
+   if(separator>5)return new Order(actor,"MOVE",cmd.substring(5,separator).trim(),cmd.substring(separator+4).trim(),null,Map.of());
+   String[] parts=cmd.split("\\s+");
+   if(parts.length==3)return new Order(actor,"MOVE",parts[1],parts[2],null,Map.of());
+   return new Order(actor,"MOVE",null,null,null,Map.of());
+  }
   if(low.equals("look")||low.equals("table")||low.equals("status"))return new Order(actor,"LOOK",null,null,null,Map.of());
   if(low.equals("draw")||low.equals("draw a card"))return new Order(actor,"DRAW",null,null,null,Map.of());
   if(low.equals("pass")||low.equals("end turn"))return new Order(actor,"PASS",null,null,null,Map.of());

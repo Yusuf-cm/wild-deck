@@ -32,7 +32,9 @@ class WildDeckEngineTest {
         CardInstance hydraInHand = new CardInstance(hydra,"p",Zone.HAND,Visibility.HIDDEN);
         p.addToHand(hydraInHand);
 
-        GameState game = new GameState(GameRules.alphaV1(),List.of(p),
+        // Deployment now creates geography, which requires two kingdoms.
+        PlayerState opponent = new PlayerState("opponent", "Opponent");
+        GameState game = new GameState(GameRules.alphaV1(),List.of(p, opponent),
                 List.of(new CardInstance(roc,"deck",Zone.DECK,Visibility.HIDDEN)),"p");
 
         GameEngine engine = new GameEngine();
