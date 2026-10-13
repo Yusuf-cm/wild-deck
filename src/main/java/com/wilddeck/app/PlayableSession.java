@@ -2,6 +2,7 @@ package com.wilddeck.app;
 
 import com.wilddeck.ai.*;
 import com.wilddeck.engine.*;
+import com.wilddeck.world.*;
 
 import java.util.*;
 
@@ -40,6 +41,7 @@ public final class PlayableSession {
                 turnOrder.get(0)
         );
 
+        state.setWorld(new WorldGenerator().generate(seed, turnOrder));
         game.initializeResources(state);
         dealOpeningHands(7);
         game.startRound(state,turnOrder.get(0));
