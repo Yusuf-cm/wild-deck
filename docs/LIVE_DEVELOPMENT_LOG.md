@@ -169,3 +169,36 @@ Design limits: fire persists until extinguished, with no spread/weather/damage-o
 
 Local suite: {'tests': 111, 'failures': 0, 'errors': 0, 'skipped': 0}
 Live validation pending.
+
+## 2026-10-13 — Live terrain/capture test VERIFIED
+
+- Tested commit 7931920b5ffbf4126c3a182d2d8ff5fe0eccce8e.
+- Render deployment dep-db70ugojo6nc7389umhg became live at 11:01:39 UTC / 14:01:39 EAT.
+- Browser playtest completed by approximately 14:09 EAT.
+- Fresh normal seeded match: new four player game 836. No extra cards or resources injected.
+- Human opening hand: Cavalry, Protective Ward, Wildfire, Great Flood, Spirit Bell, Smoke Bomb, Flood.
+
+| Round | Command | Actual result |
+| --- | --- | --- |
+| 0 | deploy Cavalry | WD-023 deployed at W1; main action consumed |
+| 0 | attack asha | Rejected: no attacking forces at N1; no raid allowance spent |
+| 0 | move Cavalry to C1 | Passed, W1 -> C1 |
+| 0 -> 1 | pass | All opponents deployed; Asha deployed Arcane Tower |
+| 1 | use Wildfire on N1 | N1 burning, ordinary entry blocked; Wildfire consumed from hand |
+| 1 | move Cavalry to N1 | Rejected because burning; Cavalry remained C1 |
+| 1 -> 2 | pass | Opponents acted; Asha deployed Royal Trade Caravan |
+| 2 | use Great Flood on N1 | Fire cleared and entry restored; Great Flood consumed from hand |
+| 2 | move Cavalry to N1 | Passed, C1 -> N1 |
+| 2 | attack asha | Captured Arcane Tower; Asha remained in game |
+| 2 | attack asha again | Rejected: one raid/attack per turn |
+| 2 -> 3 | pass | Captured Arcane Tower produced 1 Mana for player |
+
+Final observed state: round 3; player current; deck 172; human board Cavalry and captured Arcane Tower, both at N1; hand four remaining cards; Gold 0 / Wealth 0 / Mana 1. Asha retained Royal Trade Caravan and deployed Fishing Boat. Capture did not teleport the tower home.
+
+Verified this cycle: terrain state affects access; water reverses fire; actual movement unlocks a raid; capture transfers economic benefit; action limits remain enforced. Local suite: 111 tests, zero failures/errors/skips.
+
+Design lesson: igniting a destination also denies access to the caster's ordinary forces, so terrain manipulation requires timing rather than being an unconditional attack bonus. This test exercised both fire and water from the human hand; it did not establish that NPCs reason about or cast terrain counters. NPC movement toward raid destinations is implemented and covered by the full suite, but this short live run ended before the R5 strategic NPC phase.
+
+Remaining gaps: terrain counter use in opponent decision-making, visible opposing unit locations, location-based interception/casualties, defense/counterattack windows, and a true match-ending victory condition. Generic unsupported abilities/orders, attachments and trait transfer remain unimplemented. The captured-tower message says "Victory", meaning a successful raid, not a won match.
+
+Next priority: give opponents legal terrain reactions and meaningful local defense, then add a complete match endpoint. Do not expand story mode yet.
