@@ -17,6 +17,9 @@ public final class WorldEngine {
         if (!actorId.equals(card.controllerId())) throw new IllegalStateException("not your card");
         if (card.zone() != Zone.KINGDOM || card.isDead() || !card.isCombatCapable())
             throw new IllegalStateException("card cannot move while inactive");
+        boolean mobile = List.of("MOVE", "ATTACK", "OCCUPY", "FLY", "BURROW", "INFILTRATE")
+                .stream().anyMatch(card.definition()::hasCapability);
+        if (!mobile) throw new IllegalStateException("card has no movement capability");
         String from = state.cardLocation(cardId)
                 .orElseThrow(() -> new IllegalStateException("card has no world location"));
         if (!state.world().connected(from, destinationId))
