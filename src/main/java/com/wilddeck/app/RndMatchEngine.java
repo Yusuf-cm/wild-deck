@@ -176,7 +176,7 @@ public final class RndMatchEngine {
     if(!canHoldCapital(id,target))return fail("conquest needs an OCCUPY unit at the capital and no effective local defenders");
     occupations.put(target,new Occupation(id,target,round,completedTurns.getOrDefault(target,0)));
     events.add("R"+round+": "+id+" began occupying "+target+"; defender response window opened");
-    return ok("Occupation started at "+home(target)+"; "+target+" has its next turn to defend or repel. Conquest settles at the next completed round.");
+    return ok("Occupation started at "+home(target)+"; "+target+" has its next turn to defend or repel. Conquest settles at a completed round after that response.");
    }
    case "NEGOTIATE" -> {
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
@@ -460,7 +460,7 @@ public final class RndMatchEngine {
   }
   b.append("Your resources: GOLD ").append(s.gold).append(", WEALTH ").append(s.wealth).append(", MANA ").append(s.mana).append("\n");
   b.append("Your locations: ").append(s.board.values().stream().map(c->c.id()+" "+c.name()+" @ "+locations.getOrDefault(c.id(),"unplaced")).toList()).append("\n");
-  b.append("Pending occupations: ").append(occupations.values()).append("\n");
+  b.append("Pending occupations: ").append(occupations.values().stream().map(o->o.attacker()+" occupying "+o.defender()+" at "+home(o.defender())+"; awaiting response and settlement").toList()).append("\n");
   b.append("Match: ").append(winner==null?"ongoing":"WINNER "+winner).append("\n");
   b.append("Your orders: ").append(s.orders).append("\n");
   return b.toString();

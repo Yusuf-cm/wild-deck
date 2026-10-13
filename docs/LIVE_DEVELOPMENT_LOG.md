@@ -223,3 +223,29 @@ Headless normal seeded matches: seed 0 ended with Mira winning at round 27; seed
 
 Limitations: aggregate local damage rather than individual target selection, no manual reaction subturn, no healing/equipment/trait-transfer resolver in this R&D engine, no vassalage/annihilation option, no persistent accounts. Combat values are provisional. Most free-form orders still only save text. Generic negotiation/trade acceptance remains unfinished.
 Live retests pending.
+
+## 2026-10-13 — Live opponent counter and complete match VERIFIED
+
+Build 9f7ea8e94a17c0cfb1feeebad48a2934a80e66cb; Render deployment dep-db73ih7avr4c73c1uu90 became live at 14:00:38 UTC / 17:00:38 EAT.
+
+### Opponent terrain counter, seed 977
+1. new four player game 977 created a normal seeded match.
+2. Human used owned Wildfire on N1; event left hand and marked Moonwood burning.
+3. pass triggered Asha's owned Great Flood: fire cleared and her hidden hand count fell from 7 to 6. No extra cards, mana or commands were supplied to her.
+4. world confirmed N1 was no longer BURNING.
+
+### Complete live match, seed 1
+Submitted and verified 48 commands through the browser, from round 0 to a player victory at round 15. The complete chronological command/result record is docs/playtests/2026-10-13-defense-seed-1.md.
+- First invasion captured Treasury, then Asha deployed Sand Serpent and counterattacked: Dire Wolf died; Sand Serpent survived at 1/11 strength.
+- Rebuilt with Arcane Militia, raided and declared occupation at N1 in round 12. Asha got her response turn before conquest settled at round 13.
+- Brian conquered at round 14; Mira conquered at round 15.
+- Final state: player winner, all three other kingdoms CONQUERED, deck 147, no pending occupations.
+- Post-win draw rejected; deck and round unchanged. Reload retained the completed match inside the running process.
+
+This verifies a reachable complete quick-match endpoint, not only a raid or headless simulation. It does not establish durable persistence, balance or broad card coverage.
+
+WD-LIVE-005 — Pacing / executable card coverage. OPEN. After Dire Wolf died, the tested human plan spent rounds 4–10 drawing largely unresolved cards before the next military deployment. Opening hand included potentially interesting cards whose effects are still unimplemented; all three human resources remained zero. Next development should give existing hands more meaningful executable choices or use a smaller fully playable deck slice, instead of adding more inert content.
+
+Presentation follow-up: replace raw Occupation Java-record fields with a readable pending-conquest summary; correct conquest timing text to say settlement follows an actual defender response. These wording changes do not alter the verified combat/turn state transitions.
+
+Current limitations remain: simplified damage allocation, no manual reaction subturn, no vassalage, no general creative ability engine, and deterministic rather than provider-backed opponents in this mode. The original deployment and paid waypoint-db remain untouched.
