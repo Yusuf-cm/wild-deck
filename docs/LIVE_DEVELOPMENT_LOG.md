@@ -286,3 +286,12 @@ Build 550156e2398feaa6021e1cead029e407d81a4488 tested through the browser. Detai
 WD-LIVE-005 is MITIGATED in the optional quick slice, not closed as a general balance issue. The sampled quick opening produced immediate troop/deployment choices; 145 unresolved definitions are excluded rather than falsely presented as complete. The old full pool still has incomplete abilities. Further playtests should check strength distribution, armor/healing balance, conquest snowballing and idle turns across many seeds.
 
 No permanent storage, accounts, multiplayer isolation, general AI command translation or live contract acceptance was added. No proof of overall fun/balance is claimed from these three scenarios. Original deployment and waypoint-db remain untouched.
+
+## 2026-10-13 — Recovered session audit and mode-exit fix
+
+- Recovered branch at 248086f; Render reports its documentation deployment live. Previous quick-match live verification is recorded above; the interrupted chat did not imply a failed deployment.
+- WD-LIVE-004 source-confirmed: active R&D/quick match routing intercepted reset sandbox. Replay screens also remained selected after the old reset handler.
+- Moved reset sandbox ahead of mode dispatch and clear all alternate display modes. The basic sandbox state is retained; the old match is closed. Added visible match exit instructions.
+- Regression exercises quick/full matches, historical scenario, both replay screens, restored world routing, and opening a new match after exit. Full Maven suite: 132 tests, zero failures/errors/skips.
+- Remaining product gaps: one shared in-memory session, no durable saves/accounts/multiplayer isolation; standing orders mainly record text; proposals/trades lack acceptance and settlement; deterministic opponents; most printed capabilities unresolved outside the supported quick slice.
+- Live exit retest pending deployment.
