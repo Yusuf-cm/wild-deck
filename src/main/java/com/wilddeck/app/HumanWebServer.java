@@ -67,6 +67,13 @@ public final class HumanWebServer {
 
     private String act(String input) {
         if(input.isBlank()) return "Type an order.";
+        if (input.equalsIgnoreCase("reset sandbox")) {
+            rndMatch=null;
+            scenario=null;
+            historicalReplay=null;
+            actualReplay=null;
+            return "Returned to basic sandbox. Previous match closed; sandbox state retained.";
+        }
         boolean quick=input.equalsIgnoreCase("new quick game")||input.toLowerCase(Locale.ROOT).startsWith("new quick game ");
         if (quick || input.equalsIgnoreCase("new four player game") || input.toLowerCase(Locale.ROOT).startsWith("new four player game ")) {
             long seed=20261010L;
@@ -95,7 +102,6 @@ public final class HumanWebServer {
             scenario = new ThreeKingdomScenario();
             return "Loaded Cycle 18 historical scenario. Type hand, cards, draw, deploy, assign, inspect, trade, break treaty, or next round.";
         }
-        if (input.equalsIgnoreCase("reset sandbox")) {scenario=null; return "Returned to basic sandbox.";}
         if (scenario != null) return scenario.command(input);
         GameState state=session.state();
         String id=session.humanPlayerId();
@@ -175,7 +181,7 @@ public final class HumanWebServer {
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>reset sandbox</b> to close this match and return to the basic sandbox. Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {
