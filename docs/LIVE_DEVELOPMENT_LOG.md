@@ -253,3 +253,22 @@ Current limitations remain: simplified damage allocation, no manual reaction sub
 ### Presentation follow-up live verification
 
 Build 60d4bf5651702aee194763594e7b2ff927760d5b; deployment dep-db73nb67bikc73frc5lg reached live at 14:11:00 UTC / 17:11:00 EAT. A fresh normal seed-836 game deployed Cavalry, marched W1 -> C1 -> N1, captured Arcane Tower, and declared occupation. The browser displayed the readable "player occupying asha at N1; awaiting response and settlement" summary and the corrected defender-response timing text. Seven affected local tests passed. The earlier seed-1 full-match proof remains the completed-match result; this presentation check intentionally ended with a pending occupation at round 1.
+
+## 2026-10-13 — Executable card actions and quick-match pacing
+
+Implementation:
+- Added new quick game [seed], using 55 cards filtered from the existing 200-card definitions by implemented capabilities/effects. The full seeded 200-card R&D mode remains available. All normal shuffling and private seven-card opening hands remain intact.
+- Six producer structures now have explicit data-driven income: Gold Mine (+2 Gold), Treasury/Trading Post (+1 Gold), Granary (+1 Wealth), Mana Shrine/Arcane Tower (+1 Mana), per completed round. Only PRODUCE-capable cards earn this income. A provisional +1 baseline Wealth per surviving kingdom per completed round prevents an empty supply economy.
+- Healer (+2 healing) and Herbalist (+1 healing) can move and treat a co-located owned living BIOLOGICAL unit, once per healer per round, for 1 Wealth or 2 Gold. Append with gold to choose Gold; insufficient Wealth can fall back to available Gold. All validation precedes costs/cooldown/mutation. Dead, enemy, and non-biological units cannot be treated. Bone Dragon and Undead Cavalry are marked UNDEAD rather than BIOLOGICAL.
+- Healing Rain costs 2 Mana and the hand-card action; heals all wounded biological units at its region, including opponents, and extinguishes fire. It is a shared environmental effect, not an owner-only buff.
+- Directly attach owned hand equipment to a living unit at the capital as the main card action; already-deployed equipment can attach through management at the same location. Iron Sword adds 1 attack; Reinforced Shield absorbs 2 incoming damage per battle; Fireproof Mail absorbs 1 and supplies FIREPROOF to its carrier.
+- Equipment follows its carrier, cannot be double-attached, and drops at the battlefield if the carrier dies. Capture cannot steal an attached item independently. Conquest preserves attachment relationships.
+- Armor-protected surviving defenders block capture. A completely killed attacking force cannot claim an asset even when its pre-exchange attack total was higher.
+- Opponents equip available deployed gear and heal nearby eligible wounded units using their own resources. Quick opponents retain one-shot spells/events instead of deploying them as inert permanent cards. One-shot use always consumes the hand card; it cannot be activated repeatedly after deployment.
+- cards shows owned cards, supported actions, traits and human-readable effects; header/deck count identifies the selected mode.
+
+Coverage: 131 local tests pass, including equipment action cost, ownership/range, movement linkage, fire resistance, armor/casualties, dropping equipment, treatment limits and costs, Gold payment, biological restrictions, both-side rain healing, invalid-action atomicity, and quick-mode web/deck selection.
+
+Headless scenarios prepared for live verification: quick seed 1 reached a human victory at round 11; quick seed 192 equipped Fireproof Mail, deployed a Healer and Trading Post, survived enemy raids, and healed Sand Serpent at round 13. These are natural seeded matches without injected runtime cards/resources. Live retest pending.
+
+Design limits: 55 cards have at least one implemented action, not every printed capability; 145 other definitions remain outside the quick slice. Combat/economy values are provisional. Gold has healing-supply use, but no full market/trade settlement. No resurrection, permanent character growth, general magic or free-form combination executor. Read-only declarations of unsupported capabilities remain development data. This is a pacing/interaction slice, not a claim that the full 200-card game is finished.

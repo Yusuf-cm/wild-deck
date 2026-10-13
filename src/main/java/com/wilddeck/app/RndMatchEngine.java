@@ -7,8 +7,10 @@ import java.util.*;
 
 /** Four-seat R&D match: deterministic cards and a strict translator/engine boundary. */
 public final class RndMatchEngine {
- public record Card(String id,String name,String category,Set<String> capabilities,int strength,Set<String> properties){
-  public Card(String id,String name,String category,Set<String> capabilities,int strength){this(id,name,category,capabilities,strength,Set.of());}
+ public record Card(String id,String name,String category,Set<String> capabilities,int strength,Set<String> properties,Map<String,Integer> effects){
+  public Card {capabilities=Set.copyOf(capabilities);properties=Set.copyOf(properties);effects=Map.copyOf(effects);if(effects.values().stream().anyMatch(n->n<0||n>100))throw new IllegalArgumentException("invalid effect amount");}
+  public Card(String id,String name,String category,Set<String> capabilities,int strength){this(id,name,category,capabilities,strength,Set.of(),Map.of());}
+  public Card(String id,String name,String category,Set<String> capabilities,int strength,Set<String> properties){this(id,name,category,capabilities,strength,properties,Map.of());}
  }
  public record Order(String actor,String type,String cardId,String target,String intent,Map<String,Integer> costs){}
  public record Result(boolean success,String message){}
@@ -24,6 +26,13 @@ public final class RndMatchEngine {
  private final Deque<Card> deck=new ArrayDeque<>();
  private final List<String> events=new ArrayList<>();
  private int round=0,active=0;
+ private boolean quickMatch;
+ private int poolSize;
+ private final Map<String,String> attachments=new LinkedHashMap<>();
+ private final Set<String> treatedThisRound=new HashSet<>();
+ public boolean quickMatch(){return quickMatch;}
+ public int poolSize(){return poolSize;}
+ public Optional<String> attachedTo(String equipmentId){return Optional.ofNullable(attachments.get(equipmentId));}
  private final WorldMap world = continentWorld();
  private final Map<String,String> locations = new LinkedHashMap<>();
  public record Occupation(String attacker,String defender,int startedRound,int defenderTurnsCompleted){}
@@ -71,14 +80,14 @@ public final class RndMatchEngine {
  private static boolean offensiveInstruction(String text){return text!=null && text.toLowerCase(Locale.ROOT).matches("(?s).*\\b(?:attack|raid|siege|steal|sabotage|destroy|invade|plunder)\\b.*");}
  private final Set<String> mainActionSpent=new HashSet<>();
  private final Set<String> hostileActionSpent=new HashSet<>();
- // R&D card-effect registry: additive yields applied only at completed round boundaries.
- private static final Map<String,Map<String,Integer>> PRODUCTION_EFFECTS = Map.of(
-   "Arcane Tower", Map.of("MANA",1));
+ public static final int BASE_WEALTH_INCOME=1;
  private final List<String> turns=List.of("player","asha","brian","mira");
  private final Map<String,String> aliases=Map.of("you","player","player1","player","asha","asha","brian","brian","mira","mira");
  private RndMatchEngine(){for(String id:turns){seats.put(id,new Seat(id));capitalControllers.put(home(id),id);}}
- public static RndMatchEngine start(long seed){
-  RndMatchEngine g=new RndMatchEngine();
+ public static RndMatchEngine start(long seed){return start(seed,false);}
+ public static RndMatchEngine startQuick(long seed){return start(seed,true);}
+ private static RndMatchEngine start(long seed,boolean quick){
+  RndMatchEngine g=new RndMatchEngine();g.quickMatch=quick;
   try(InputStream stream=RndMatchEngine.class.getResourceAsStream("/data/rnd-200-card-pool.json")){
    if(stream==null)throw new IllegalStateException("200 card pool not found");
    JsonNode root=new ObjectMapper().readTree(stream);
@@ -89,9 +98,12 @@ public final class RndMatchEngine {
     bag.add(new Card(n.get("id").asText(),n.get("name").asText(),
      n.get("category").asText(),Set.copyOf(caps),
      n.path("strength").isNumber()?n.get("strength").asInt():0,
-     propertiesOf(n)));
+     propertiesOf(n),effectsOf(n)));
    }
    if(bag.size()!=200)throw new IllegalStateException("expected 200 cards");
+   if(quick)bag.removeIf(c->!executableCard(c));
+   if(bag.size()<28)throw new IllegalStateException("not enough supported cards for four hands");
+   g.poolSize=bag.size();
    Collections.shuffle(bag,new Random(seed));g.deck.addAll(bag);
    for(int i=0;i<7;i++)for(String id:g.turns)g.drawSetup(id);
    g.events.add("R0: four kingdoms established, seven private cards each; seed "+seed);
@@ -103,10 +115,55 @@ public final class RndMatchEngine {
   for(JsonNode p:node.path("properties"))properties.add(p.asText());
   return Set.copyOf(properties);
  }
+ private static Map<String,Integer> effectsOf(JsonNode node){
+  Map<String,Integer> effects=new LinkedHashMap<>();
+  node.path("effects").fields().forEachRemaining(e->{if(!e.getValue().isIntegralNumber())throw new IllegalArgumentException("effect must be an integer");effects.put(e.getKey(),e.getValue().asInt());});
+  return Map.copyOf(effects);
+ }
+ private static boolean executableCard(Card c){
+  return c.strength()>0&&c.capabilities().contains("ATTACK")
+    ||c.capabilities().contains("PRODUCE")&&c.effects().keySet().stream().anyMatch(k->k.endsWith("_INCOME"))
+    ||c.capabilities().contains("HEAL")&&c.effects().getOrDefault("HEAL",0)>0
+    ||c.capabilities().contains("HEAL_AREA")&&c.effects().getOrDefault("HEAL_AREA",0)>0
+    ||c.capabilities().contains("SCRY")
+    ||c.capabilities().contains("ATTACH")&&(c.effects().getOrDefault("ARMOR",0)>0||c.effects().getOrDefault("ATTACK_BONUS",0)>0||c.properties().contains("FIREPROOF"))
+    ||c.capabilities().contains("WORLD_EFFECT")&&(c.capabilities().contains("IGNITE")||c.capabilities().contains("EXTINGUISH"));
+ }
+ private Card boardCard(String cardId){for(Seat seat:seats.values()){Card c=seat.board.get(cardId);if(c!=null)return c;}return null;}
+ private boolean hasProperty(Card c,String property){
+  return c.properties().contains(property)||attachments.entrySet().stream().anyMatch(e->e.getValue().equals(c.id())&&boardCard(e.getKey())!=null&&boardCard(e.getKey()).properties().contains(property));
+ }
+ private int equipmentEffect(Card unit,String key){return attachments.entrySet().stream().filter(e->e.getValue().equals(unit.id())).map(e->boardCard(e.getKey())).filter(Objects::nonNull).mapToInt(c->c.effects().getOrDefault(key,0)).sum();}
+ private String effectSummary(Card c){
+  List<String> effects=new ArrayList<>();
+  for(String resource:List.of("GOLD","WEALTH","MANA")){int amount=c.effects().getOrDefault(resource+"_INCOME",0);if(amount>0)effects.add("+"+amount+" "+resource.toLowerCase(Locale.ROOT)+" per round");}
+  if(c.effects().getOrDefault("ARMOR",0)>0)effects.add("armor absorbs "+c.effects().get("ARMOR")+" damage per battle");
+  if(c.effects().getOrDefault("ATTACK_BONUS",0)>0)effects.add("attack +"+c.effects().get("ATTACK_BONUS"));
+  if(c.effects().getOrDefault("HEAL",0)>0)effects.add("heal "+c.effects().get("HEAL")+" strength for 1 Wealth or 2 Gold, once per round");
+  if(c.effects().getOrDefault("HEAL_AREA",0)>0)effects.add("heal "+c.effects().get("HEAL_AREA")+" strength to all biological units in a region, 2 Mana");
+  return String.join("; ",effects);
+ }
+ public String cardsView(String viewer){
+  Seat owner=seat(viewer);StringBuilder out=new StringBuilder("Your cards and supported actions:\n");
+  for(Card c:java.util.stream.Stream.concat(owner.hand.values().stream(),owner.board.values().stream()).toList()){
+   List<String> commands=new ArrayList<>();
+   if(mobile(c)){commands.add("deploy and move");if(c.capabilities().contains("ATTACK"))commands.add("attack/repel");}
+   if(c.capabilities().contains("OCCUPY"))commands.add("hold a cleared capital for conquest");
+   if(c.capabilities().contains("PRODUCE")&&!c.effects().isEmpty())commands.add("deploy for income");
+   if(c.capabilities().contains("HEAL"))commands.add("heal "+c.name()+" to <patient>");
+   if(c.category().equals("Equipment")&&executableCard(c))commands.add("attach "+c.name()+" to <unit>");
+   if(c.capabilities().contains("SCRY"))commands.add("scry <kingdom> for 2 Mana");
+   if(c.capabilities().contains("IGNITE")||c.capabilities().contains("EXTINGUISH")||c.capabilities().contains("HEAL_AREA"))commands.add("use "+c.name()+" on <region>");
+   out.append(c.id()).append(" ").append(c.name()).append(" (").append(owner.hand.containsKey(c.id())?"in hand":locations.get(c.id())).append(") | traits ").append(c.properties()).append(" | ").append(String.join(", ",commands)).append(" | ").append(effectSummary(c));
+   if(!executableCard(c))out.append("deployment only; effect not implemented");
+   out.append('\n');
+  }
+  return out.toString();
+ }
  public boolean isBurning(String region){return burning.contains(region);}
  public int discardedCount(){return discarded.size();}
  private boolean mobile(Card c){return Set.of("Military","Creature","Specialist").contains(c.category()) && c.capabilities().stream().anyMatch(MOBILE::contains);}
- private int effectiveStrength(Card c,String region){return Math.max(0,c.strength()-wounds.getOrDefault(c.id(),0)-(burning.contains(region)&&!c.properties().contains("FIREPROOF")?1:0));}
+ private int effectiveStrength(Card c,String region){return Math.max(0,c.strength()-wounds.getOrDefault(c.id(),0)-(burning.contains(region)&&!hasProperty(c,"FIREPROOF")?1:0));}
  public Seat seat(String id){Seat s=seats.get(aliases.getOrDefault(id.toLowerCase(Locale.ROOT),id));if(s==null)throw new IllegalArgumentException("unknown player");return s;}
  public String activeSeat(){return turns.get(active);}
  public int round(){return round;}
@@ -117,12 +174,13 @@ public final class RndMatchEngine {
   if(order==null||order.actor()==null||order.type()==null)return fail("missing order fields");
   String id=aliases.getOrDefault(order.actor().toLowerCase(Locale.ROOT),order.actor());
   String type=order.type().toUpperCase(Locale.ROOT);
-  if(Set.of("LOOK","WORLD","HELP","EVENTS").contains(type)){
+  if(Set.of("LOOK","WORLD","HELP","EVENTS","CARDS").contains(type)){
    if(!seats.containsKey(id))return fail("unknown player");
    if(type.equals("LOOK"))return ok(view(id));
    if(type.equals("WORLD"))return ok(worldView(id));
+   if(type.equals("CARDS"))return ok(cardsView(id));
    if(type.equals("EVENTS"))return ok(String.join("\n",events));
-   return ok("world | status | events | draw | deploy <card> | move <card> to <region> | use <card> on <region> | attack <kingdom> | repel <kingdom> | conquer <kingdom> | pass. Capital occupation must survive the defender's next turn. Last independent kingdom wins. Damage persists; defeated units are discarded. Fire blocks entry and reduces local strength.");
+   return ok("world | status | cards | events | draw | deploy <card> | attach <equipment> to <unit> | heal <healer> to <unit> | move <card> to <region> | use <card> on <region> | attack <kingdom> | repel <kingdom> | conquer <kingdom> | pass. Capital occupation must survive the defender's next turn. Last independent kingdom wins. Damage persists; defeated units are discarded. Fire blocks entry and reduces local strength.");
   }
   if(winner!=null)return fail("Match finished. Winner: "+winner+". Start a new four player game to play again.");
   if(eliminated.contains(id))return type.equals("PASS")?ok("Spectating; advancing opponents."):fail("your kingdom is conquered; pass to spectate");
@@ -140,7 +198,7 @@ public final class RndMatchEngine {
     String battlefield=home(repel?id:target);
     List<Card> soldiers=actor.board.values().stream().filter(c->remainingStrength(c.id())>0 && (c.capabilities().contains("ATTACK") || (repel && c.capabilities().contains("DEFEND"))) && battlefield.equals(locations.get(c.id()))).toList();
     if(soldiers.isEmpty())return fail("no attacking forces at "+battlefield+"; move units to the target capital first");
-    int attack=soldiers.stream().mapToInt(c->effectiveStrength(c,battlefield)).sum();
+    int attack=soldiers.stream().mapToInt(c->effectiveStrength(c,battlefield)+equipmentEffect(c,"ATTACK_BONUS")).sum();
     int defense=enemy.board.values().stream().filter(c->battlefield.equals(locations.get(c.id()))).mapToInt(c->effectiveStrength(c,battlefield)).sum();
     if(attack==0)return fail("local forces have no effective strength");
     List<Card> defenders=enemy.board.values().stream().filter(c->remainingStrength(c.id())>0 && battlefield.equals(locations.get(c.id()))).toList();
@@ -154,10 +212,10 @@ public final class RndMatchEngine {
      events.add("R"+round+": "+id+" counterattacked "+target+" at "+battlefield+exchange);
      return ok("Counterattack resolved at "+battlefield+exchange);
     }
-    if(attack>defense){
+    if(attack>defense && soldiers.stream().anyMatch(c->actor.board.containsKey(c.id())) && defenders.stream().noneMatch(c->enemy.board.containsKey(c.id())&&effectiveStrength(c,battlefield)>0)){
      footholds.add(id+":"+target);
      // A raid occupies a single target asset; destroying a kingdom is a separate victory mechanic.
-     Card prize=enemy.board.values().stream().filter(c->c.strength()==0 && battlefield.equals(locations.get(c.id()))).findFirst().orElse(null);
+     Card prize=enemy.board.values().stream().filter(c->c.strength()==0 && !attachments.containsKey(c.id()) && battlefield.equals(locations.get(c.id()))).findFirst().orElse(null);
      if(prize!=null){enemy.board.remove(prize.id());actor.board.put(prize.id(),prize);
       events.add("R"+round+": "+id+" captured "+prize.name()+" from "+target+" (attack "+attack+" vs "+defense+")");
       return ok("Raid succeeded: captured "+prize.name()+"; "+target+" remains in the game"+exchange);
@@ -194,27 +252,67 @@ public final class RndMatchEngine {
     events.add("R"+round+": "+id+" offered a trade to "+target);
     return ok("Trade proposed, pending other ruler's acceptance");
    }
+   case "ATTACH" -> {
+    Card gear=find(actor.hand,order.cardId());boolean fromHand=gear!=null;
+    if(gear==null)gear=find(actor.board,order.cardId());
+    Card unit=find(actor.board,order.target());
+    if(gear==null||!gear.category().equals("Equipment")||!gear.capabilities().contains("ATTACH"))return fail("source must be your equipment with ATTACH");
+    if(!executableCard(gear))return fail("equipment effect is not implemented yet");
+    if(unit==null||remainingStrength(unit.id())<=0||!mobile(unit))return fail("target must be your living deployed unit");
+    if(attachments.containsKey(gear.id()))return fail("equipment is already attached");
+    if(fromHand&&mainActionSpent.contains(id))return fail("main action already spent this turn");
+    String sourceLocation=fromHand?home(id):locations.get(gear.id());
+    if(!Objects.equals(sourceLocation,locations.get(unit.id())))return fail("equipment and target must share a location");
+    if(fromHand){actor.hand.remove(gear.id());actor.board.put(gear.id(),gear);mainActionSpent.add(id);}
+    locations.put(gear.id(),locations.get(unit.id()));attachments.put(gear.id(),unit.id());
+    String message="Attached "+gear.name()+" to "+unit.name()+" (armor "+gear.effects().getOrDefault("ARMOR",0)+", attack bonus "+gear.effects().getOrDefault("ATTACK_BONUS",0)+(gear.properties().contains("FIREPROOF")?", FIREPROOF":"")+")";
+    events.add("R"+round+": "+id+" "+message);return ok(message);
+   }
+   case "HEAL" -> {
+    Card healer=find(actor.board,order.cardId()),unit=find(actor.board,order.target());
+    if(healer==null||!healer.capabilities().contains("HEAL")||healer.effects().getOrDefault("HEAL",0)<=0)return fail("source must be your deployed healer with HEAL");
+    if(unit==null||remainingStrength(unit.id())<=0||!unit.properties().contains("BIOLOGICAL"))return fail("target must be your living biological unit");
+    if(!Objects.equals(locations.get(healer.id()),locations.get(unit.id())))return fail("healer and patient must share a location");
+    int damage=wounds.getOrDefault(unit.id(),0);
+    if(damage==0)return fail("target is not wounded");
+    if(treatedThisRound.contains(healer.id()))return fail("healer already treated a unit this round");
+    boolean withGold="GOLD".equals(order.intent())||(actor.wealth<1&&actor.gold>=2);
+    if(withGold?actor.gold<2:actor.wealth<1)return fail("healing needs 1 Wealth or 2 Gold for supplies");
+    int amount=Math.min(damage,healer.effects().get("HEAL"));
+    if(withGold)actor.gold-=2;else actor.wealth--;wounds.put(unit.id(),damage-amount);treatedThisRound.add(healer.id());
+    String message=healer.name()+" healed "+unit.name()+" by "+amount+"; strength "+remainingStrength(unit.id())+"/"+unit.strength()+(withGold?" (-2 Gold)":" (-1 Wealth)");
+    events.add("R"+round+": "+id+" "+message);return ok(message);
+   }
    case "TERRAIN" -> {
     Card c=find(actor.hand,order.cardId());boolean fromHand=c!=null;
     if(c==null)c=find(actor.board,order.cardId());
     if(c==null)return fail("source must be your card in hand or deployed");
+    if(!fromHand && Set.of("Spell","Event").contains(c.category()))return fail("one-shot spells and events must be used from hand");
     String target=order.target()==null?"":order.target().trim().toUpperCase(Locale.ROOT);
     var region=world.location(target);
     if(region.isEmpty())return fail("unknown region; use world for region IDs");
+    boolean healing=c.capabilities().contains("HEAL_AREA")&&c.effects().getOrDefault("HEAL_AREA",0)>0;
+    List<Card> patients=new ArrayList<>();
+    if(healing)for(Seat seat:seats.values())for(Card unit:seat.board.values())if(target.equals(locations.get(unit.id()))&&unit.properties().contains("BIOLOGICAL")&&wounds.getOrDefault(unit.id(),0)>0)patients.add(unit);
     boolean ignite=c.properties().contains("FIRE")&&c.capabilities().contains("IGNITE");
     boolean extinguish=c.properties().contains("WATER")&&c.capabilities().contains("EXTINGUISH");
-    if(!ignite&&!extinguish)return fail("card supplies neither FIRE/IGNITE nor WATER/EXTINGUISH");
+    if(!ignite&&!extinguish&&!healing)return fail("card supplies neither FIRE/IGNITE nor WATER/EXTINGUISH");
     if(fromHand && mainActionSpent.contains(id))return fail("main action already spent this turn");
     if(fromHand && !Set.of("Spell","Event").contains(c.category()))return fail("deploy this source before using it");
     if(!c.capabilities().contains("WORLD_EFFECT") && !target.equals(fromHand?home(id):locations.get(c.id())))return fail("source cannot reach that region; local effects require the same location");
     if(ignite && !region.get().hasProperty("FLAMMABLE"))return fail("terrain is not flammable");
     if(ignite && burning.contains(target))return fail("region is already burning");
-    if(extinguish && !burning.contains(target))return fail("region is not burning");
+    boolean clearsFire=extinguish&&burning.contains(target);
+    if(extinguish && !clearsFire && patients.isEmpty())return fail("region is not burning and has no wounded biological units");
+    if(healing && patients.isEmpty()&&!clearsFire)return fail("no wounded biological units at that region");
     int mana=c.capabilities().contains("MAGIC")?2:0;
     if(actor.mana<mana)return fail("terrain magic requires 2 Mana");
     actor.mana-=mana;
     if(fromHand){actor.hand.remove(c.id());discarded.add(c);mainActionSpent.add(id);}
-    if(ignite)burning.add(target);else burning.remove(target);
+    if(ignite)burning.add(target);else if(clearsFire)burning.remove(target);
+    List<String> restored=new ArrayList<>();
+    for(Card unit:patients){int amount=Math.min(wounds.get(unit.id()),c.effects().get("HEAL_AREA"));wounds.put(unit.id(),wounds.get(unit.id())-amount);restored.add(unit.name()+" +"+amount);}
+    if(healing){String message=c.name()+" healed at "+target+": "+restored+(clearsFire?"; fire extinguished":"");events.add("R"+round+": "+id+" "+message);return ok(message);}
     String message=c.name()+ (ignite?" ignited ":" extinguished ")+target+"; "+(ignite?"non-fireproof entry blocked; local strength -1":"entry restored; strength penalty removed");
     events.add("R"+round+": "+id+" "+message);
     return ok(message);
@@ -230,9 +328,10 @@ public final class RndMatchEngine {
     String from=locations.get(c.id());
     if(from==null)return fail("source has no world location");
     if(!world.connected(from,to))return fail("destination is not adjacent; borders: "+world.neighbors(from));
-    if(burning.contains(to) && !c.properties().contains("FIREPROOF"))return fail("destination is burning; extinguish it first or use a FIREPROOF unit");
+    if(burning.contains(to) && !hasProperty(c,"FIREPROOF"))return fail("destination is burning; extinguish it first or use a FIREPROOF unit");
     if(movedThisRound.contains(c.id()))return fail("card already moved this round");
     locations.put(c.id(),to);movedThisRound.add(c.id());
+    attachments.forEach((gear,unit)->{if(unit.equals(c.id()))locations.put(gear,to);});
     events.add("R"+round+": "+id+" moved "+c.name()+" from "+from+" to "+to);
     return ok(c.name()+" moved from "+from+" to "+to);
    }
@@ -248,14 +347,15 @@ public final class RndMatchEngine {
    case "PLAY" -> {
     if(mainActionSpent.contains(id))return fail("main action already spent this turn; kingdom management only");
     Card c=find(actor.hand,order.cardId());if(c==null)return fail("card not in hand");
+    if(quickMatch&&Set.of("Spell","Event").contains(c.category()))return fail("use this one-shot card from hand instead of deploying it");
     actor.hand.remove(c.id());actor.board.put(c.id(),c);locations.put(c.id(),home(id));mainActionSpent.add(id);
     events.add("R"+round+": "+id+" deployed "+c.name());
-    String effect=PRODUCTION_EFFECTS.containsKey(c.name()) ? " (passive: +1 Mana at each completed round)" : "";
+    String effect=c.capabilities().contains("PRODUCE")&&!c.effects().isEmpty()?" (round production: "+effectSummary(c)+")":"";
     return ok(id+" deployed "+c.name()+" for free"+effect);
    }
    case "SCRY" -> {
     if(mainActionSpent.contains(id))return fail("main action already spent this turn");
-    Card spell=find(actor.hand,"Scrying");
+    Card spell=actor.hand.values().stream().filter(c->c.capabilities().contains("SCRY")).findFirst().orElse(null);
     if(spell==null)return fail("Scrying must be in hand");
     if(actor.mana<2)return fail("Scrying requires 2 Mana");
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
@@ -299,9 +399,10 @@ public final class RndMatchEngine {
   List<Card> ordered=forces.stream().sorted(Comparator.comparing((Card c)->!c.capabilities().contains("DEFEND"))).toList();
   for(Card c:ordered){
    if(amount<=0)break;
+   int absorbed=Math.min(amount,equipmentEffect(c,"ARMOR"));amount-=absorbed;
    int hit=Math.min(amount,remainingStrength(c.id()));
    wounds.merge(c.id(),hit,Integer::sum);amount-=hit;
-   if(remainingStrength(c.id())==0){owner.board.remove(c.id());owner.orders.remove(c.id());locations.remove(c.id());movedThisRound.remove(c.id());discarded.add(c);casualties.add(owner.id+"'s "+c.name());}
+   if(remainingStrength(c.id())==0){owner.board.remove(c.id());owner.orders.remove(c.id());locations.remove(c.id());movedThisRound.remove(c.id());discarded.add(c);attachments.entrySet().removeIf(e->e.getValue().equals(c.id())||e.getKey().equals(c.id()));casualties.add(owner.id+"'s "+c.name());}
   }
  }
  private boolean canHoldCapital(String attacker,String defender){
@@ -312,7 +413,7 @@ public final class RndMatchEngine {
  private void advanceTurn(){
   do{
    active=(active+1)%turns.size();
-   if(active==0){round++;movedThisRound.clear();settleOccupations();settleRoundProduction();events.add("R"+round+": production phase settled");}
+   if(active==0){round++;movedThisRound.clear();treatedThisRound.clear();settleOccupations();settleRoundProduction();events.add("R"+round+": production phase settled");}
   }while(winner==null&&eliminated.contains(activeSeat()));
   if(winner!=null)active=turns.indexOf(winner);
  }
@@ -334,13 +435,16 @@ public final class RndMatchEngine {
   }
  }
  private void settleRoundProduction(){
-  for(Seat seat:seats.values())for(Card card:seat.board.values()){
-   Map<String,Integer> effect=PRODUCTION_EFFECTS.get(card.name());
-   if(effect==null)continue;
-   seat.gold+=effect.getOrDefault("GOLD",0);
-   seat.wealth+=effect.getOrDefault("WEALTH",0);
-   seat.mana+=effect.getOrDefault("MANA",0);
-   events.add("R"+round+": "+seat.id+" "+card.name()+" produced "+effect);
+  for(Seat seat:seats.values()){
+   if(eliminated.contains(seat.id))continue;
+   seat.wealth+=BASE_WEALTH_INCOME;
+   for(Card card:seat.board.values()){
+    if(!card.capabilities().contains("PRODUCE"))continue;
+    seat.gold+=card.effects().getOrDefault("GOLD_INCOME",0);
+    seat.wealth+=card.effects().getOrDefault("WEALTH_INCOME",0);
+    seat.mana+=card.effects().getOrDefault("MANA_INCOME",0);
+    if(!card.effects().isEmpty())events.add("R"+round+": "+seat.id+" "+card.name()+" produced "+effectSummary(card));
+   }
   }
  }
  /** Offline simulation for the three non-human seats; no AI key or hidden-hand leakage. */
@@ -358,6 +462,7 @@ public final class RndMatchEngine {
      if(counter.success()){reports.add(id+": "+counter.message());break;}
     }
    }
+   maintainUnits(id,reports);
    List<String> invaders=turns.stream().filter(other->!other.equals(id)&&!eliminated.contains(other)&&seat(other).board.values().stream().anyMatch(c->mobile(c)&&home(id).equals(locations.get(c.id())))).toList();
    if(!invaders.isEmpty()){
     Card reinforcement=npc.hand.values().stream().filter(c->c.strength()>0&&(c.capabilities().contains("DEFEND")||c.capabilities().contains("ATTACK"))).max(Comparator.comparingInt(Card::strength)).orElse(null);
@@ -371,12 +476,13 @@ public final class RndMatchEngine {
    // Preserve recorded R0-R4 opponent actions for the active match;
    // new adversarial strategy is enabled beginning with the current Round 5.
    if(round<5){
-    Card c=npc.hand.values().stream().findFirst().orElse(null);
+    Card c=npc.hand.values().stream().filter(card->!quickMatch||!Set.of("Spell","Event").contains(card.category())).findFirst().orElse(null);
     if(c!=null){Result play=execute(new Order(id,"PLAY",c.id(),null,null,Map.of()));
       if(play.success())reports.add(play.message());
     }else{Result draw=execute(new Order(id,"DRAW",null,null,null,Map.of()));
       if(draw.success())reports.add(id+" drew a private card");
     }
+    maintainUnits(id,reports);
     execute(new Order(id,"PASS",null,null,null,Map.of()));
     continue;
    }
@@ -411,8 +517,8 @@ public final class RndMatchEngine {
    }
    Card selected=null;
    if(!npc.hand.isEmpty() && choice.nextInt(4)!=0){
-    List<Card> choices=new ArrayList<>(npc.hand.values());
-    selected=choices.get(choice.nextInt(choices.size()));
+    List<Card> choices=new ArrayList<>(npc.hand.values().stream().filter(card->!quickMatch||!Set.of("Spell","Event").contains(card.category())).toList());
+    if(!choices.isEmpty())selected=choices.get(choice.nextInt(choices.size()));
    }
    if(selected!=null){
     Result played=execute(new Order(id,"PLAY",selected.id(),null,null,Map.of()));
@@ -421,10 +527,24 @@ public final class RndMatchEngine {
     Result drawn=execute(new Order(id,"DRAW",null,null,null,Map.of()));
     if(drawn.success())reports.add(id+" drew one private card");
    }
+   maintainUnits(id,reports);
    Result passed=execute(new Order(id,"PASS",null,null,null,Map.of()));
    if(!passed.success())throw new IllegalStateException(passed.message());
   }
   return reports;
+ }
+ private void maintainUnits(String id,List<String> reports){
+  Seat npc=seat(id);
+  for(Card gear:List.copyOf(npc.board.values())){
+   if(!gear.capabilities().contains("ATTACH")||attachments.containsKey(gear.id()))continue;
+   Card target=npc.board.values().stream().filter(c->mobile(c)&&remainingStrength(c.id())>0&&Objects.equals(locations.get(c.id()),locations.get(gear.id()))).max(Comparator.comparingInt(Card::strength)).orElse(null);
+   if(target!=null){Result attached=execute(new Order(id,"ATTACH",gear.id(),target.id(),null,Map.of()));if(attached.success())reports.add(id+": "+attached.message());}
+  }
+  for(Card healer:List.copyOf(npc.board.values())){
+   if(!healer.capabilities().contains("HEAL"))continue;
+   Card patient=npc.board.values().stream().filter(c->c.properties().contains("BIOLOGICAL")&&wounds.getOrDefault(c.id(),0)>0&&Objects.equals(locations.get(c.id()),locations.get(healer.id()))).max(Comparator.comparingInt(c->wounds.getOrDefault(c.id(),0))).orElse(null);
+   if(patient!=null){Result healed=execute(new Order(id,"HEAL",healer.id(),patient.id(),null,Map.of()));if(healed.success())reports.add(id+": "+healed.message());}
+  }
  }
  private String nextStep(String from,String destination){
   if(from==null||from.equals(destination))return null;
@@ -462,12 +582,22 @@ public final class RndMatchEngine {
   b.append("Your locations: ").append(s.board.values().stream().map(c->c.id()+" "+c.name()+" @ "+locations.getOrDefault(c.id(),"unplaced")).toList()).append("\n");
   b.append("Pending occupations: ").append(occupations.values().stream().map(o->o.attacker()+" occupying "+o.defender()+" at "+home(o.defender())+"; awaiting response and settlement").toList()).append("\n");
   b.append("Match: ").append(winner==null?"ongoing":"WINNER "+winner).append("\n");
+  b.append("Your equipment: ").append(attachments.entrySet().stream().filter(e->s.board.containsKey(e.getKey())).map(e->s.board.get(e.getKey()).name()+" attached to "+s.board.get(e.getValue()).name()).toList()).append("\n");
   b.append("Your orders: ").append(s.orders).append("\n");
   return b.toString();
  }
  /** Explicit parser boundary: a future language model outputs this schema, not mutations. */
  public Order translateSimple(String actor,String text){
   String cmd=text.trim(),low=cmd.toLowerCase(Locale.ROOT);
+  if(low.equals("cards"))return new Order(actor,"CARDS",null,null,null,Map.of());
+  if(low.startsWith("attach ")||low.startsWith("heal ")){
+   int separator=low.lastIndexOf(" to ");
+   int start=low.startsWith("attach ")?7:5;
+   if(separator>start){String target=cmd.substring(separator+4).trim();String payment=null;
+    if(low.startsWith("heal ")&&low.endsWith(" with gold")){target=target.substring(0,target.length()-10).trim();payment="GOLD";}
+    return new Order(actor,low.startsWith("attach ")?"ATTACH":"HEAL",cmd.substring(start,separator).trim(),target,payment,Map.of());
+   }
+  }
   if(low.equals("events"))return new Order(actor,"EVENTS",null,null,null,Map.of());
   if(low.equals("world")||low.equals("map"))return new Order(actor,"WORLD",null,null,null,Map.of());
   if(low.equals("help"))return new Order(actor,"HELP",null,null,null,Map.of());

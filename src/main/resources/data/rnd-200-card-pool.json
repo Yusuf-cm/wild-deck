@@ -8,7 +8,8 @@
       "name": "Hydra",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -23,7 +24,8 @@
       "name": "Ancient Titan",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -38,7 +40,8 @@
       "name": "Griffin",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -53,7 +56,8 @@
       "name": "Basilisk",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -68,7 +72,8 @@
       "name": "Wyvern",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -83,7 +88,8 @@
       "name": "Frost Giant",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -98,7 +104,8 @@
       "name": "River Serpent",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -113,7 +120,8 @@
       "name": "Dire Wolf",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -128,7 +136,8 @@
       "name": "Stoneburrower",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -143,7 +152,8 @@
       "name": "Phoenix",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -158,7 +168,8 @@
       "name": "Thunder Roc",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -173,7 +184,8 @@
       "name": "Cave Wyrm",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -188,7 +200,8 @@
       "name": "Ash Drake",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -203,7 +216,8 @@
       "name": "Manticore",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -218,7 +232,8 @@
       "name": "Moon Stag",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -233,7 +248,8 @@
       "name": "Leviathan",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -248,7 +264,8 @@
       "name": "Rock Troll",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -263,7 +280,8 @@
       "name": "Sand Serpent",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -278,7 +296,8 @@
       "name": "Bone Dragon",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "UNDEAD"
       ],
       "capabilities": [
         "ATTACK",
@@ -293,7 +312,8 @@
       "name": "Forest Guardian",
       "category": "Creature",
       "properties": [
-        "CREATURE"
+        "CREATURE",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -308,7 +328,8 @@
       "name": "Militia",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -323,7 +344,8 @@
       "name": "Royal Guard",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -338,7 +360,8 @@
       "name": "Cavalry",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -353,7 +376,8 @@
       "name": "Longbowmen",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -368,7 +392,8 @@
       "name": "War Elephants",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -383,7 +408,8 @@
       "name": "Arcane Militia",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -398,7 +424,8 @@
       "name": "Undead Cavalry",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "UNDEAD"
       ],
       "capabilities": [
         "ATTACK",
@@ -413,7 +440,8 @@
       "name": "Spearmen",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -428,7 +456,8 @@
       "name": "Siege Infantry",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -443,7 +472,8 @@
       "name": "Royal Lancers",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -458,7 +488,8 @@
       "name": "Shieldbearers",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -473,7 +504,8 @@
       "name": "Sappers",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -488,7 +520,8 @@
       "name": "Sky Riders",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -503,7 +536,8 @@
       "name": "Mercenaries",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -518,7 +552,8 @@
       "name": "Desert Scouts",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -533,7 +568,8 @@
       "name": "Pikemen",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -548,7 +584,8 @@
       "name": "Heavy Knights",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -563,7 +600,8 @@
       "name": "War Chariots",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -578,7 +616,8 @@
       "name": "Crossbowmen",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -593,7 +632,8 @@
       "name": "Temple Guards",
       "category": "Military",
       "properties": [
-        "MILITARY"
+        "MILITARY",
+        "BIOLOGICAL"
       ],
       "capabilities": [
         "ATTACK",
@@ -794,10 +834,15 @@
       ],
       "capabilities": [
         "OPERATE",
-        "LEARN"
+        "LEARN",
+        "HEAL",
+        "MOVE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "HEAL": 1
+      }
     },
     {
       "id": "WD-055",
@@ -850,10 +895,15 @@
       ],
       "capabilities": [
         "OPERATE",
-        "LEARN"
+        "LEARN",
+        "HEAL",
+        "MOVE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "HEAL": 2
+      }
     },
     {
       "id": "WD-059",
@@ -895,7 +945,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "GOLD_INCOME": 2
+      }
     },
     {
       "id": "WD-062",
@@ -909,7 +962,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "MANA_INCOME": 1
+      }
     },
     {
       "id": "WD-063",
@@ -1021,7 +1077,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "GOLD_INCOME": 1
+      }
     },
     {
       "id": "WD-071",
@@ -1035,7 +1094,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "GOLD_INCOME": 1
+      }
     },
     {
       "id": "WD-072",
@@ -1063,7 +1125,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "MANA_INCOME": 1
+      }
     },
     {
       "id": "WD-074",
@@ -1077,7 +1142,10 @@
         "PRODUCE"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "WEALTH_INCOME": 1
+      }
     },
     {
       "id": "WD-075",
@@ -1240,14 +1308,21 @@
       "name": "Healing Rain",
       "category": "Spell",
       "properties": [
-        "SPELL"
+        "SPELL",
+        "WATER"
       ],
       "capabilities": [
         "CAST",
-        "MAGIC"
+        "MAGIC",
+        "HEAL_AREA",
+        "EXTINGUISH",
+        "WORLD_EFFECT"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "HEAL_AREA": 2
+      }
     },
     {
       "id": "WD-087",
@@ -1272,7 +1347,8 @@
       ],
       "capabilities": [
         "CAST",
-        "MAGIC"
+        "MAGIC",
+        "SCRY"
       ],
       "strength": null,
       "copies": 1
@@ -1739,7 +1815,10 @@
         "EQUIP"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "ATTACK_BONUS": 1
+      }
     },
     {
       "id": "WD-122",
@@ -1795,7 +1874,10 @@
         "EQUIP"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "ARMOR": 2
+      }
     },
     {
       "id": "WD-126",
@@ -1900,14 +1982,18 @@
       "name": "Fireproof Mail",
       "category": "Equipment",
       "properties": [
-        "EQUIPMENT"
+        "EQUIPMENT",
+        "FIREPROOF"
       ],
       "capabilities": [
         "ATTACH",
         "EQUIP"
       ],
       "strength": null,
-      "copies": 1
+      "copies": 1,
+      "effects": {
+        "ARMOR": 1
+      }
     },
     {
       "id": "WD-134",

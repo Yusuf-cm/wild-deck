@@ -3,6 +3,14 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HumanWebWorldTest {
+ @Test void quickMatchShowsItsActualSupportedPool() throws Exception {
+  var app=new HumanWebServer();var act=HumanWebServer.class.getDeclaredMethod("act",String.class);act.setAccessible(true);
+  var render=HumanWebServer.class.getDeclaredMethod("render");render.setAccessible(true);
+  assertTrue(((String)act.invoke(app,"new quick game 42")).contains("New quick match"));
+  String page=(String)render.invoke(app);assertTrue(page.contains("Quick Match"));assertTrue(page.contains("55-card seeded deck"));
+  String cards=(String)act.invoke(app,"cards");assertFalse(cards.contains("effect not implemented"));
+ }
+
  @Test void webCommandsAndHeaderReadTheActiveMatch() throws Exception {
   var app=new HumanWebServer();
   var act=HumanWebServer.class.getDeclaredMethod("act",String.class);act.setAccessible(true);

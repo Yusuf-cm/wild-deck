@@ -67,12 +67,13 @@ public final class HumanWebServer {
 
     private String act(String input) {
         if(input.isBlank()) return "Type an order.";
-        if (input.equalsIgnoreCase("new four player game") || input.toLowerCase(Locale.ROOT).startsWith("new four player game ")) {
+        boolean quick=input.equalsIgnoreCase("new quick game")||input.toLowerCase(Locale.ROOT).startsWith("new quick game ");
+        if (quick || input.equalsIgnoreCase("new four player game") || input.toLowerCase(Locale.ROOT).startsWith("new four player game ")) {
             long seed=20261010L;
-            String seedText=input.substring("new four player game".length()).trim();
+            String seedText=input.substring((quick?"new quick game":"new four player game").length()).trim();
             if(!seedText.isEmpty())try{seed=Long.parseLong(seedText);}catch(NumberFormatException ex){return "Seed must be a signed 64-bit integer; current match unchanged.";}
-            rndMatch = RndMatchEngine.start(seed);
-            return "New four-player table opened at Round 0. You control Player 1. Seed: "+seed;
+            rndMatch = quick?RndMatchEngine.startQuick(seed):RndMatchEngine.start(seed);
+            return (quick?"New quick match opened":"New four-player table opened")+" at Round 0. You control Player 1. Seed: "+seed;
         }
         if (rndMatch != null) {
             RndMatchEngine.Result result = rndMatch.command("player",input);
@@ -170,11 +171,11 @@ public final class HumanWebServer {
             """);
         html.append(rndMatch != null ? rndMatch.round() : state.round()).append(" · Single shared demo session (no accounts)</p>");
         if (rndMatch != null) {
-            html.append("<section class='panel'><h2>Wild Deck R&D — Four Player Table</h2>")
+            html.append("<section class='panel'><h2>").append(rndMatch.quickMatch()?"Wild Deck — Quick Match":"Wild Deck R&D — Four Player Table").append("</h2>")
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>200-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {
@@ -195,7 +196,7 @@ public final class HumanWebServer {
                 .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
             return html.append("</main></body></html>").toString();
         }
-        html.append("<p>Type <b>new four player game [seed]</b> to start the fresh R&D match. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
+        html.append("<p>Type <b>new quick game [seed]</b> for the supported-card match, or <b>new four player game [seed]</b> for the full R&D pool. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
         html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, <b>run rules replay</b> to execute conserved mechanics, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
         html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
         player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
