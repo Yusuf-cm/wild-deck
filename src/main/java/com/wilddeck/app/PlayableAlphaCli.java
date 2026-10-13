@@ -2,6 +2,7 @@ package com.wilddeck.app;
 
 import com.wilddeck.ai.*;
 import com.wilddeck.engine.*;
+import com.wilddeck.world.*;
 
 import java.util.*;
 
@@ -96,6 +97,13 @@ public final class PlayableAlphaCli {
             case "hand" -> printCards("HAND",human.hand());
             case "board" -> printBoard(session.state(),human);
             case "events" -> printEvents(session.state(),human.id());
+            case "world" -> printWorld(session.state());
+            case "move" -> {
+                require(parts.length >= 3, "move <your-board-index> <location-id>");
+                CardInstance mover = at(List.copyOf(human.kingdom()),integer(parts[1]));
+                new WorldEngine().move(session.state(), human.id(), mover.id(), parts[2]);
+                System.out.println("Moved " + mover.definition().name() + " to " + parts[2]);
+            }
             case "draw" -> printWithTurnHint(
                     session.executor().draw(session.state(),human.id()),session.state());
             case "play" -> {
@@ -250,6 +258,8 @@ public final class PlayableAlphaCli {
               hand
               board
               events
+              world
+              move <your-board-index> <location-id>
 
             ADVANCED
             play <hand-index> [hidden]
@@ -265,6 +275,20 @@ public final class PlayableAlphaCli {
             end
             quit
             """);
+    }
+
+    private static void printWorld(GameState state) {
+        for (WorldLocation location : state.world().locations()) {
+            System.out.println(location.id() + " | " + location.name()
+                    + " | " + location.properties()
+                    + " | routes " + state.world().neighbors(location.id()));
+        }
+        System.out.println("Your deployed card locations:");
+        PlayerState viewer = state.player(state.activePlayerId());
+        for (CardInstance card : viewer.kingdom()) {
+            System.out.println(card.definition().name() + " -> "
+                    + state.cardLocation(card.id()).orElse("unplaced"));
+        }
     }
 
     private static void printStatus(GameState state,PlayerState human) {
