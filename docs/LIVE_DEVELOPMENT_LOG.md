@@ -249,3 +249,7 @@ WD-LIVE-005 — Pacing / executable card coverage. OPEN. After Dire Wolf died, t
 Presentation follow-up: replace raw Occupation Java-record fields with a readable pending-conquest summary; correct conquest timing text to say settlement follows an actual defender response. These wording changes do not alter the verified combat/turn state transitions.
 
 Current limitations remain: simplified damage allocation, no manual reaction subturn, no vassalage, no general creative ability engine, and deterministic rather than provider-backed opponents in this mode. The original deployment and paid waypoint-db remain untouched.
+
+### Presentation follow-up live verification
+
+Build 60d4bf5651702aee194763594e7b2ff927760d5b; deployment dep-db73nb67bikc73frc5lg reached live at 14:11:00 UTC / 17:11:00 EAT. A fresh normal seed-836 game deployed Cavalry, marched W1 -> C1 -> N1, captured Arcane Tower, and declared occupation. The browser displayed the readable "player occupying asha at N1; awaiting response and settlement" summary and the corrected defender-response timing text. Seven affected local tests passed. The earlier seed-1 full-match proof remains the completed-match result; this presentation check intentionally ended with a pending occupation at round 1.
