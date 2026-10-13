@@ -272,3 +272,17 @@ Coverage: 131 local tests pass, including equipment action cost, ownership/range
 Headless scenarios prepared for live verification: quick seed 1 reached a human victory at round 11; quick seed 192 equipped Fireproof Mail, deployed a Healer and Trading Post, survived enemy raids, and healed Sand Serpent at round 13. These are natural seeded matches without injected runtime cards/resources. Live retest pending.
 
 Design limits: 55 cards have at least one implemented action, not every printed capability; 145 other definitions remain outside the quick slice. Combat/economy values are provisional. Gold has healing-supply use, but no full market/trade settlement. No resurrection, permanent character growth, general magic or free-form combination executor. Read-only declarations of unsupported capabilities remain development data. This is a pacing/interaction slice, not a claim that the full 200-card game is finished.
+
+## 2026-10-13 — Quick deck, equipment and recovery live VERIFIED
+
+Build 550156e2398feaa6021e1cead029e407d81a4488 tested through the browser. Detailed guide: docs/QUICK_MATCH.md. Combined chronological evidence: docs/playtests/2026-10-13-quick-card-actions.md (88 recorded verified responses, plus terminal/reload and duplicate-attachment checks).
+
+- Quick seed 32: Fireproof Mail attached to Royal Lancers and moved with its carrier W1 -> C1 -> N1. world explicitly showed N1 BURNING when entry succeeded. Duplicate attachment rejected without mutation.
+- Quick seed 192: real enemy combat killed equipped War Chariots and injured Sand Serpent. A previously deployed Healer restored Sand Serpent from 1/11 to 3/11 for 1 Wealth. Trading Post had earned 10 Gold; Wealth became 12 after treatment. Changing payment to Gold did not bypass the healer cooldown and spent nothing. The carrier's dropped Fireproof Mail was reattached to the survivor at the same location through management, after the main card action had already been spent.
+- Quick seed 1: 50 verified match commands reached player victory at round 11. Defenders broke the first occupation attempt. Final deck 17; Gold 14, Wealth 37; all three opponents conquered. Post-win drawing rejected; reload retained the outcome in process.
+
+131 automated tests pass. Live validation covers equipment-derived properties, movement linkage, supply income, healing, cooldown, salvaging gear, conquest and match closure. Area healing and successful explicit Gold payment have meaningful automated checks but were not separately activated in the live runs.
+
+WD-LIVE-005 is MITIGATED in the optional quick slice, not closed as a general balance issue. The sampled quick opening produced immediate troop/deployment choices; 145 unresolved definitions are excluded rather than falsely presented as complete. The old full pool still has incomplete abilities. Further playtests should check strength distribution, armor/healing balance, conquest snowballing and idle turns across many seeds.
+
+No permanent storage, accounts, multiplayer isolation, general AI command translation or live contract acceptance was added. No proof of overall fun/balance is claimed from these three scenarios. Original deployment and waypoint-db remain untouched.
