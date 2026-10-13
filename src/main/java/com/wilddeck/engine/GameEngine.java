@@ -1,6 +1,7 @@
 package com.wilddeck.engine;
 
-import com.wilddeck.world.WorldEngine;
+import com.wilddeck.world.*;
+import java.util.*;
 
 public final class GameEngine {
 
@@ -49,6 +50,10 @@ public final class GameEngine {
 
         player.resources().spend(card.definition().cost());
         player.deploy(card, hidden);
+        if (!state.hasWorld()) {
+            state.setWorld(new WorldGenerator().generate(0L,
+                    state.players().stream().map(PlayerState::id).toList()));
+        }
         new WorldEngine().deployAtHome(state, card);
 
         if (!hidden) {
