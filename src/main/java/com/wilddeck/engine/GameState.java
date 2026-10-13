@@ -1,9 +1,13 @@
 package com.wilddeck.engine;
 
 import java.util.*;
+import com.wilddeck.world.*;
 
 public final class GameState {
     private final GameRules rules;
+    private WorldMap world;
+    private final Map<String,String> cardLocations = new LinkedHashMap<>();
+    private final Map<String,Integer> lastMovedRound = new HashMap<>();
     private final Map<String,PlayerState> players = new LinkedHashMap<>();
     private final List<Contract> contracts = new ArrayList<>();
     private final Map<String,Occupation> occupations = new LinkedHashMap<>();
@@ -24,6 +28,27 @@ public final class GameState {
     }
 
     public GameRules rules() { return rules; }
+    public void setWorld(WorldMap world) {
+        if (this.world != null) throw new IllegalStateException("world already initialized");
+        this.world = Objects.requireNonNull(world);
+    }
+    public WorldMap world() {
+        if (world == null) throw new IllegalStateException("world not initialized");
+        return world;
+    }
+    public Optional<String> cardLocation(String cardId) {
+        return Optional.ofNullable(cardLocations.get(cardId));
+    }
+    public void placeCard(String cardId, String locationId) {
+        if (findCard(cardId).isEmpty()) throw new IllegalArgumentException("unknown card");
+        if (world().location(locationId).isEmpty()) throw new IllegalArgumentException("unknown location");
+        cardLocations.put(cardId, locationId);
+    }
+    public boolean markCardMovedThisRound(String cardId) {
+        if (Objects.equals(lastMovedRound.get(cardId), round)) return false;
+        lastMovedRound.put(cardId, round);
+        return true;
+    }
     public int round() { return round; }
     public String activePlayerId() { return activePlayerId; }
     public boolean mainActionUsed() { return mainActionUsed; }
