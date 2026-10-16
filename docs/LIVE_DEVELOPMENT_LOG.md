@@ -360,3 +360,62 @@ consequences, not a completed-match or balanced-diplomacy claim. NPC-originated
 offers and human acceptance of one were not exercised in this browser run.
 Expiry, cancellations, privacy, insufficient funds, overflow and conquest cleanup
 have automated coverage rather than separate browser proof in this cycle.
+
+## 2026-10-16 — First executable combined world order, VERIFIED
+
+Implemented `combine <fire-source> with <troop> to flush <forest-id>` and
+`interactions` in the active live match, without borrowing sandbox state.
+
+- Composition requires distinct owned FIRE/IGNITE and deployed adjacent mobile
+  ATTACK cards, plus FLAMMABLE FOREST terrain. It uses capabilities/properties,
+  not particular card names or narrative text saved as a fake outcome.
+- Costs: main action, hostile action, 1 Wealth and normal source/card/Mana costs.
+  All validation precedes mutation; pending pressure is public.
+- The immediate ignition is ordinary terrain fire. Forced retreat waits for
+  every initially threatened surviving kingdom's actual next completed turn.
+- Water cancels pressure; equipment-derived FIREPROOF can prevent displacement;
+  moved/lost/ineffective support or a new ceasefire can cancel it. Costs remain
+  spent. Fireproof/fixed assets stay, and units without a legal exit are pinned,
+  not magically killed. Equipment follows retreats and movement is accounted for.
+- Resolution never itself awards a raid, capture, foothold or conquest. Ordinary
+  fire continues to block the attacker's own non-fireproof advance.
+- Match victory clears pending pressure and locks further combined orders.
+
+Validation: isolated test-branch Java CI run 38879694114 passed 165 tests with the
+16 new interaction regressions. Adding the complete-match rehearsal produced
+run 38879902611 on bf642c996727509348213bdd0e5c40a03650cf0f: **166 tests, zero
+failures/errors/skips**. Local Maven dependencies remain unavailable, so these
+are actual CI results, not claimed local execution.
+
+The rehearsal selected normal quick seed 1598 using the human's own hand and
+public board state. It reached a human victory at R10. The tested build was
+promoted to the live branch and Render deployment dep-db8uq1k9v7es739b35kg reached
+live at 09:25:57 UTC / 12:25:57 EAT.
+
+### Live browser results
+
+Detailed command/result evidence: `docs/playtests/2026-10-16-combined-orders.md`.
+No runtime cards, resources or state were injected in either browser scenario.
+
+1. Seed 105, seven verified responses: Spearmen + Wildfire prepared X1 at N1;
+   Asha used her naturally held Great Flood on her response turn, cancelling the
+   combination. `interactions` reported COUNTERED, with no retreat or refund.
+2. Seed 1598, 47 verified responses: Mira accepted a ceasefire; War Chariots +
+   Wildfire flushed Shieldbearers and Cave Wyrm from N1 to N2 after Asha's response.
+   A direct entry attempt failed because fire persisted. The human's Great Flood
+   then cleared it, enabling ordinary movement/raid/occupation.
+3. Brian later fought the refugees at N2 and killed them. Further human advances
+   also suffered actual losses; this was not an automatic victory combo. Mira
+   exploited the wider war and took Brian before the human betrayed her.
+4. The same browser match reached **player victory at R10**: deck 23, Gold 28,
+   Wealth 24, Mana 0; all three rivals conquered; no pending occupations or
+   combinations. Post-win combination rejected with exact match-view equality.
+   Reload retained the completed game only within the running process.
+
+Limits: one bounded interaction, not arbitrary natural-language creative orders;
+no fire spread/burn damage, selectable retreat path, NPC combined-offense planning,
+durable saves or multiplayer isolation. Broader balance/fun is unproven. The
+original deployment and paid waypoint-db remain untouched. Next work should
+stress-test this interaction across varied positions, then provide safe isolated
+sessions before wider player testing; story and additional inert cards remain
+deferred.

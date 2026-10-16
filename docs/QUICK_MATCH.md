@@ -33,6 +33,8 @@ accept D1
 reject D1
 cancel D1
 betray asha
+combine <fire-source> with <troop> to flush N1
+interactions
 ```
 
 Names may contain spaces. `cards` shows your owned cards, supported actions and effects; `world` shows region IDs and borders.
@@ -41,6 +43,11 @@ Names may contain spaces. `cards` shows your owned cards, supported actions and 
 actual returned ID. See [DIPLOMACY.md](DIPLOMACY.md) for settlement, expiry,
 opponent valuation and betrayal rules. Old free-text `trade`/`negotiate` commands
 remain messages only; use `offer` for executable terms.
+
+`combine` executes the first capability-based world interaction: fire plus
+adjacent troop pressure can flush vulnerable defenders from a forest after their
+actual response turn. See [COMBINED_ORDERS.md](COMBINED_ORDERS.md) for costs,
+escape rules, water counters and the risk of blocking your own advance.
 
 ## Action and supply rules
 
