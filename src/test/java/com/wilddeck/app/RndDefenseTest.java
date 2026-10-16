@@ -48,7 +48,8 @@ class RndDefenseTest {
   g.command("player","move army E1");g.command("player","attack mira");g.command("player","conquer mira");g.command("player","pass");passOtherSeats(g);
   assertEquals("player",g.winner().orElseThrow());assertFalse(g.command("player","draw").success());
   assertFalse(g.command("player","pass").success());assertTrue(g.command("mira","world").success());
-  for(String command:List.of("offer asha peace 2","accept D1","reject D1","cancel D1","betray asha"))assertFalse(g.command("player",command).success());
+  for(String command:List.of("offer asha peace 2","accept D1","reject D1","cancel D1","betray asha","combine fire with army to flush N1"))assertFalse(g.command("player",command).success());
+  assertTrue(g.command("mira","interactions").success());
   assertTrue(g.command("mira","deals").success());
   assertTrue(g.view("player").contains("WINNER player"));
   assertTrue(g.worldView("player").contains("N1 Moonwood [Forest] owner=player"));
