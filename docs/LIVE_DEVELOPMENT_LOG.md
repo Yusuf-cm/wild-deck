@@ -299,3 +299,64 @@ No permanent storage, accounts, multiplayer isolation, general AI command transl
 ### Mode-exit live retest VERIFIED
 
 Deployment dep-db7725a0p4hs73f65dj0 (5e6a8e7) reached live at 17:59:49 UTC. Browser reproduced the pre-fix unsupported reset command. After final deployment, new quick game 42 displayed exit instructions; reset sandbox returned the basic Kingdom Treasury/hand/management screen with the message "Previous match closed; sandbox state retained." WD-LIVE-004 is VERIFIED FIXED for quick-match exit; all five mode exits are covered by the 132-test automated suite. Other mode exits were not separately browser-tested.
+
+## 2026-10-16 — Executable diplomacy and breakable promises
+
+Implemented in RndDiplomacy using the live RndMatchEngine's seats and turn state:
+- `offer`, `accept`, `reject`, `cancel`, `deals` and `betray` commands.
+- Atomic single-resource barter for Gold/Wealth/Mana; optional paid ceasefire or
+  peace-only offer. Resources remain unreserved until acceptance and are rechecked.
+- Participant-only pending terms; public accepted settlements, ceasefires and
+  broken-promise counts. No card/inventory or hidden-hand exchange.
+- Offers expire after two world-round boundaries or conquest. One pending offer
+  per directed pair, three proposals per sender turn. No repeated settlement.
+- Explicit betrayal ends a mutual promise without refunding completed barter;
+  normal attacks still require legal troops, location and action allowance.
+- Peace blocks direct hostility, conquest, original-capital entry and ignition
+  at protected capital/unit regions. Rejects peace during bilateral invasion or
+  occupation, revalidating at acceptance. Natural expiry costs no trust.
+- NPCs accept affordable non-losing trades at provisional Gold=1/Wealth=2/Mana=2
+  values, reject peace from known promise-breakers, and can originate peace after
+  R5. They respect active promises when selecting attack targets.
+- Old free-text trade/negotiate messages now explicitly say they are messages,
+  not executable terms. These promises are not canonical Official Contracts.
+
+Validation: local Maven could not access dependencies (unavailable configured
+proxy/DNS). Used an isolated `feature/diplomacy-v1` branch and enabled Java CI for
+that branch and the live playtest branch. First run caught a variable-scope
+compile error; fixed before promotion. GitHub Actions run 38877623291 on commit
+a68189270f75b81087b622679e8b80621fca80d5 passed **149 tests, 0 failures, 0 errors,
+0 skipped**, including 17 new diplomacy tests and existing victory mutation locks.
+Promoted the tested commit to feature/live-world-playtest, preserving its previous
+head with an expected-SHA lease. Live-browser verification pending below.
+
+Limits: deterministic transparent NPC pricing, no NPC betrayal planning, no
+future deliveries/mutual defense/proxy clauses, no reputation repair, no escrow,
+no card/equipment trades and no claim of balanced diplomacy or general creativity.
+The shared in-process session, lack of durable saves/accounts and full-pool card
+coverage remain unchanged. Original deployment and paid waypoint-db untouched.
+
+### Live diplomacy VERIFIED — quick seed 42
+
+Render deployment dep-db8uge17lnhs73ak1b1g reached live at 09:03:42 UTC / 12:03:42
+EAT. Normal `new quick game 42`, no injected cards/resources. Eighteen recorded
+form responses after match creation are in
+`docs/playtests/2026-10-16-diplomacy-seed-42.md`.
+
+- Trading Post earned normal Gold income; Royal Lancers deployed and reached C1.
+- Asha accepted D1 peace. The ceasefire rejected both N1 entry and an attack;
+  rejected commands left troops/resources unchanged.
+- Asha rejected D2 (1 Gold for 1 Wealth) under its disclosed valuation policy.
+- D3 (2 Gold for 1 Wealth) settled once. Starting R2 Gold 2 / Wealth 2 became
+  R3 Gold 1 / Wealth 4 after barter and the normal completed-round production.
+- Explicit betrayal registered one public broken promise and removed the pact.
+  A new D4 peace offer, made before any invasion, was rejected by Asha.
+- Repeating acceptance of settled D3 rejected with balances unchanged.
+- After betrayal, C1 -> N1 entry succeeded. Reload retained the ledger in process.
+
+Final observed state: round 4, deck 27, Gold 2 / Wealth 5 / Mana 0. This verifies
+live negotiation decisions, actual settlement, ceasefire enforcement and trust
+consequences, not a completed-match or balanced-diplomacy claim. NPC-originated
+offers and human acceptance of one were not exercised in this browser run.
+Expiry, cancellations, privacy, insufficient funds, overflow and conquest cleanup
+have automated coverage rather than separate browser proof in this cycle.
