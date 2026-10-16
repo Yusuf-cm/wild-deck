@@ -517,8 +517,8 @@ public final class RndMatchEngine {
     Result proposal=execute(new Order(id,"NEGOTIATE",null,rival,offer,Map.of()));
     if(proposal.success())reports.add(id+": "+proposal.message());
     if(mood==3 && diplomacy.breaches(rival)==0){
-     Result offer=execute(new Order(id,"OFFER",null,null,rival+" peace 3",Map.of()));
-     if(offer.success())reports.add(id+": "+offer.message());
+     Result peaceOffer=execute(new Order(id,"OFFER",null,null,rival+" peace 3",Map.of()));
+     if(peaceOffer.success())reports.add(id+": "+peaceOffer.message());
     }
    }
    if((mood==1 || mood==4)&&!diplomacy.atPeace(id,rival)){

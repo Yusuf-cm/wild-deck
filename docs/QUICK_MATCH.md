@@ -26,9 +26,21 @@ repel <kingdom>
 conquer <kingdom>
 pass
 events
+deals
+offer asha peace 3
+offer asha give 2 gold for 1 wealth
+accept D1
+reject D1
+cancel D1
+betray asha
 ```
 
 Names may contain spaces. `cards` shows your owned cards, supported actions and effects; `world` shows region IDs and borders.
+
+`deals` shows your executable offers and public ceasefires. Replace D1 with the
+actual returned ID. See [DIPLOMACY.md](DIPLOMACY.md) for settlement, expiry,
+opponent valuation and betrayal rules. Old free-text `trade`/`negotiate` commands
+remain messages only; use `offer` for executable terms.
 
 ## Action and supply rules
 
