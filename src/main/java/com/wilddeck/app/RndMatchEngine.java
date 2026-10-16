@@ -43,6 +43,13 @@ public final class RndMatchEngine {
  private final Map<String,Occupation> occupations=new LinkedHashMap<>();
  private final Set<String> footholds=new HashSet<>();
  private String winner;
+ private final RndDiplomacy diplomacy=new RndDiplomacy(this);
+ void diplomacyEvent(String message){events.add("R"+round+": "+message);}
+ boolean diplomacyThreat(String a,String b){
+  return occupations.values().stream().anyMatch(o->o.attacker().equals(a)&&o.defender().equals(b)||o.attacker().equals(b)&&o.defender().equals(a))
+   ||seat(a).board.values().stream().anyMatch(c->remainingStrength(c.id())>0&&home(b).equals(locations.get(c.id())))
+   ||seat(b).board.values().stream().anyMatch(c->remainingStrength(c.id())>0&&home(a).equals(locations.get(c.id())));
+ }
  public Optional<String> winner(){return Optional.ofNullable(winner);}
  public boolean eliminated(String id){return eliminated.contains(id);}
  public int remainingStrength(String cardId){
@@ -174,26 +181,32 @@ public final class RndMatchEngine {
   if(order==null||order.actor()==null||order.type()==null)return fail("missing order fields");
   String id=aliases.getOrDefault(order.actor().toLowerCase(Locale.ROOT),order.actor());
   String type=order.type().toUpperCase(Locale.ROOT);
-  if(Set.of("LOOK","WORLD","HELP","EVENTS","CARDS").contains(type)){
+  if(Set.of("LOOK","WORLD","HELP","EVENTS","CARDS","DEALS").contains(type)){
    if(!seats.containsKey(id))return fail("unknown player");
    if(type.equals("LOOK"))return ok(view(id));
    if(type.equals("WORLD"))return ok(worldView(id));
    if(type.equals("CARDS"))return ok(cardsView(id));
    if(type.equals("EVENTS"))return ok(String.join("\n",events));
-   return ok("world | status | cards | events | draw | deploy <card> | attach <equipment> to <unit> | heal <healer> to <unit> | move <card> to <region> | use <card> on <region> | attack <kingdom> | repel <kingdom> | conquer <kingdom> | pass. Capital occupation must survive the defender's next turn. Last independent kingdom wins. Damage persists; defeated units are discarded. Fire blocks entry and reduces local strength.");
+   if(type.equals("DEALS"))return ok(diplomacy.view(id));
+   return ok("world | status | cards | events | deals | offer <kingdom> peace <rounds> | offer <kingdom> give <n> <resource> for <n> <resource> [peace <rounds>] | accept/reject/cancel <deal-id> | betray <kingdom> | draw | deploy <card> | attach <equipment> to <unit> | heal <healer> to <unit> | move <card> to <region> | use <card> on <region> | attack <kingdom> | repel <kingdom> | conquer <kingdom> | pass. Capital occupation must survive the defender's next turn. Last independent kingdom wins. Damage persists; defeated units are discarded. Fire blocks entry and reduces local strength.");
   }
   if(winner!=null)return fail("Match finished. Winner: "+winner+". Start a new four player game to play again.");
+  if(!seats.containsKey(id))return fail("unknown player");
   if(eliminated.contains(id))return type.equals("PASS")?ok("Spectating; advancing opponents."):fail("your kingdom is conquered; pass to spectate");
   if(!activeSeat().equals(id))return fail("not "+id+"'s turn (current: "+activeSeat()+")");
   Seat actor=seat(id);
   if(foundingTruceActive() && (HOSTILE_ACTIONS.contains(type) || (type.equals("ABILITY") && offensiveInstruction(order.intent()) && order.target()!=null && !order.target().equalsIgnoreCase(id))))
    return fail("Founding Truce: hostile actions against other kingdoms are prohibited until Round 6");
   switch(type){
+   case "OFFER" -> {return diplomacy.propose(id,order.intent());}
+   case "ACCEPT", "REJECT", "CANCEL" -> {return diplomacy.respond(id,type,order.target());}
+   case "BETRAY" -> {return diplomacy.betray(id,order.target());}
    case "ATTACK", "REPEL" -> {
     boolean repel=type.equals("REPEL");
     if(hostileActionSpent.contains(id))return fail("only one raid or attack per turn");
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
     if(!seats.containsKey(target)||target.equals(id)||eliminated.contains(target))return fail("choose a different surviving kingdom");
+    if(diplomacy.atPeace(id,target))return fail("ceasefire active; betray "+target+" explicitly before hostile action");
     Seat enemy=seat(target);
     String battlefield=home(repel?id:target);
     List<Card> soldiers=actor.board.values().stream().filter(c->remainingStrength(c.id())>0 && (c.capabilities().contains("ATTACK") || (repel && c.capabilities().contains("DEFEND"))) && battlefield.equals(locations.get(c.id()))).toList();
@@ -229,6 +242,7 @@ public final class RndMatchEngine {
    case "CONQUER" -> {
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
     if(!seats.containsKey(target)||target.equals(id)||eliminated.contains(target))return fail("choose another surviving kingdom");
+    if(diplomacy.atPeace(id,target))return fail("ceasefire active; betray "+target+" explicitly before conquest");
     if(occupations.containsKey(target))return fail("capital already has a pending occupation");
     if(!footholds.contains(id+":"+target))return fail("win a local raid against that kingdom first");
     if(!canHoldCapital(id,target))return fail("conquest needs an OCCUPY unit at the capital and no effective local defenders");
@@ -242,7 +256,7 @@ public final class RndMatchEngine {
     if(order.intent()==null||order.intent().isBlank())return fail("missing terms");
     actor.orders.put("proposal:"+target,order.intent());
     events.add("R"+round+": "+id+" proposed terms to "+target);
-    return ok("Proposal delivered to "+target+": "+order.intent()+" (not accepted yet)");
+    return ok("Proposal delivered to "+target+": "+order.intent()+" (message only; use offer for executable terms)");
    }
    case "TRADE" -> {
     String target=order.target()==null?"":order.target().toLowerCase(Locale.ROOT);
@@ -250,7 +264,7 @@ public final class RndMatchEngine {
     if(order.intent()==null||order.intent().isBlank())return fail("missing offer");
     actor.orders.put("trade:"+target,order.intent());
     events.add("R"+round+": "+id+" offered a trade to "+target);
-    return ok("Trade proposed, pending other ruler's acceptance");
+    return ok("Trade message saved only; use offer <kingdom> give <amount> <resource> for <amount> <resource> for executable settlement");
    }
    case "ATTACH" -> {
     Card gear=find(actor.hand,order.cardId());boolean fromHand=gear!=null;
@@ -295,6 +309,7 @@ public final class RndMatchEngine {
     List<Card> patients=new ArrayList<>();
     if(healing)for(Seat seat:seats.values())for(Card unit:seat.board.values())if(target.equals(locations.get(unit.id()))&&unit.properties().contains("BIOLOGICAL")&&wounds.getOrDefault(unit.id(),0)>0)patients.add(unit);
     boolean ignite=c.properties().contains("FIRE")&&c.capabilities().contains("IGNITE");
+    if(ignite&&turns.stream().anyMatch(other->diplomacy.atPeace(id,other)&&(home(other).equals(target)||seat(other).board.keySet().stream().anyMatch(card->target.equals(locations.get(card))))))return fail("ceasefire protects a partner at that region; betray them explicitly before igniting it");
     boolean extinguish=c.properties().contains("WATER")&&c.capabilities().contains("EXTINGUISH");
     if(!ignite&&!extinguish&&!healing)return fail("card supplies neither FIRE/IGNITE nor WATER/EXTINGUISH");
     if(fromHand && mainActionSpent.contains(id))return fail("main action already spent this turn");
@@ -325,6 +340,7 @@ public final class RndMatchEngine {
     if(!mobile(c))return fail("card has no movement capability or is a fixed asset");
     String to=order.target()==null?"":order.target().trim().toUpperCase(Locale.ROOT);
     if(world.location(to).isEmpty())return fail("unknown region; use world for region IDs");
+    if(turns.stream().anyMatch(other->home(other).equals(to)&&diplomacy.atPeace(id,other)))return fail("ceasefire forbids entering the partner's capital; betray them explicitly first");
     String from=locations.get(c.id());
     if(from==null)return fail("source has no world location");
     if(!world.connected(from,to))return fail("destination is not adjacent; borders: "+world.neighbors(from));
@@ -387,6 +403,7 @@ public final class RndMatchEngine {
     return fail("ability validated; no target-specific outcome resolver for "+verb+" yet; state unchanged");
    }
    case "PASS" -> {
+    diplomacy.turnEnded(id);
     completedTurns.merge(id,1,Integer::sum);
     events.add("R"+round+": "+id+" passed");mainActionSpent.remove(id);hostileActionSpent.remove(id);advanceTurn();
     return ok("Turn passed. Active: "+activeSeat()+"; round "+round);
@@ -413,7 +430,7 @@ public final class RndMatchEngine {
  private void advanceTurn(){
   do{
    active=(active+1)%turns.size();
-   if(active==0){round++;movedThisRound.clear();treatedThisRound.clear();settleOccupations();settleRoundProduction();events.add("R"+round+": production phase settled");}
+   if(active==0){round++;movedThisRound.clear();treatedThisRound.clear();settleOccupations();diplomacy.refresh();settleRoundProduction();events.add("R"+round+": production phase settled");}
   }while(winner==null&&eliminated.contains(activeSeat()));
   if(winner!=null)active=turns.indexOf(winner);
  }
@@ -454,6 +471,7 @@ public final class RndMatchEngine {
   while(winner==null && !activeSeat().equals("player") && (!eliminated.contains("player")||spectatorTurns++<turns.size())){
    String id=activeSeat();
    Seat npc=seat(id);
+   reports.addAll(diplomacy.respondAsOpponent(id));
    // React using only owned cards and public terrain/positions, before scripted development.
    for(Card source:java.util.stream.Stream.concat(npc.board.values().stream(),npc.hand.values().stream()).toList()){
     if(!burning.contains(home(id)))break;
@@ -491,14 +509,19 @@ public final class RndMatchEngine {
    Random choice=new Random(20261010L + 7919L*round + 101L*turns.indexOf(id));
    List<String> rivals=new ArrayList<>(turns.stream().filter(other->!eliminated.contains(other)).toList());
    rivals.remove(id);
-   String rival=rivals.get(choice.nextInt(rivals.size()));
+   List<String> hostileRivals=rivals.stream().filter(other->!diplomacy.atPeace(id,other)).toList();
+   String rival=hostileRivals.isEmpty()?rivals.get(choice.nextInt(rivals.size())):hostileRivals.get(choice.nextInt(hostileRivals.size()));
    int mood=choice.nextInt(5);
    if(mood==0 || mood==3){
     String offer=mood==0?"Shall we exchange information?":"I offer a temporary ceasefire; name your price.";
     Result proposal=execute(new Order(id,"NEGOTIATE",null,rival,offer,Map.of()));
     if(proposal.success())reports.add(id+": "+proposal.message());
+    if(mood==3 && diplomacy.breaches(rival)==0){
+     Result offer=execute(new Order(id,"OFFER",null,null,rival+" peace 3",Map.of()));
+     if(offer.success())reports.add(id+": "+offer.message());
+    }
    }
-   if(mood==1 || mood==4){
+   if((mood==1 || mood==4)&&!diplomacy.atPeace(id,rival)){
     for(Card force:List.copyOf(npc.board.values())){
      if(!mobile(force)||!force.capabilities().contains("ATTACK"))continue;
      String step=nextStep(locations.get(force.id()),home(rival));
@@ -584,11 +607,15 @@ public final class RndMatchEngine {
   b.append("Match: ").append(winner==null?"ongoing":"WINNER "+winner).append("\n");
   b.append("Your equipment: ").append(attachments.entrySet().stream().filter(e->s.board.containsKey(e.getKey())).map(e->s.board.get(e.getKey()).name()+" attached to "+s.board.get(e.getValue()).name()).toList()).append("\n");
   b.append("Your orders: ").append(s.orders).append("\n");
+  b.append(diplomacy.view(s.id));
   return b.toString();
  }
  /** Explicit parser boundary: a future language model outputs this schema, not mutations. */
  public Order translateSimple(String actor,String text){
   String cmd=text.trim(),low=cmd.toLowerCase(Locale.ROOT);
+  if(low.equals("deals"))return new Order(actor,"DEALS",null,null,null,Map.of());
+  if(low.startsWith("offer "))return new Order(actor,"OFFER",null,null,cmd.substring(6).trim(),Map.of());
+  for(String action:List.of("accept","reject","cancel","betray"))if(low.startsWith(action+" "))return new Order(actor,action.toUpperCase(Locale.ROOT),null,cmd.substring(action.length()+1).trim(),null,Map.of());
   if(low.equals("cards"))return new Order(actor,"CARDS",null,null,null,Map.of());
   if(low.startsWith("attach ")||low.startsWith("heal ")){
    int separator=low.lastIndexOf(" to ");
