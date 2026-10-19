@@ -16,7 +16,7 @@ Cards define what exists; players define what they attempt; the engine validates
 - Render service: wild-deck-world-playtest (srv-db709s0u01pc73br3iug)
 - Runtime: Java 17, Maven, Docker; entry point com.wilddeck.app.HumanWebServer
 - Scope: separate development deployment; preserve original deployment and paid waypoint-db.
-- One shared in-process demo session, without accounts. Reload survival does not establish durable persistence or isolation.
+- Last hosted version: one shared in-process demo session without accounts. The 2026-10-19 browser-save increment is on the development branch; hosted rollout remains blocked by the billing suspension.
 - Render auto-deploys commits on this branch.
 
 ## 2026-10-13 — Live browser test, approximately 13:30–13:33 EAT

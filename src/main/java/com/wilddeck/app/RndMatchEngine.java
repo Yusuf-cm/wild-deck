@@ -103,6 +103,51 @@ public final class RndMatchEngine {
  private final List<String> turns=List.of("player","asha","brian","mira");
  private final Map<String,String> aliases=Map.of("you","player","player1","player","asha","asha","brian","brian","mira","mira");
  private RndMatchEngine(){for(String id:turns){seats.put(id,new Seat(id));capitalControllers.put(home(id),id);}}
+/** Versioned full-state save. Card/deck and insertion order are preserved. */
+ public record SeatSave(int gold,int wealth,int mana,List<Card> hand,List<Card> board,
+                        Map<String,Integer> goods,Map<String,String> orders){}
+ public record Snapshot(int version,Map<String,SeatSave> seats,List<Card> deck,List<String> events,int round,int active,boolean quickMatch,int poolSize,Map<String,String> attachments,Set<String> treatedThisRound,Map<String,String> locations,Map<String,String> capitalControllers,Map<String,Integer> completedTurns,Map<String,Integer> wounds,Set<String> eliminated,Map<String,Occupation> occupations,Set<String> footholds,String winner,Set<String> burning,List<Card> discarded,Set<String> movedThisRound,Set<String> mainActionSpent,Set<String> hostileActionSpent,RndDiplomacy.Snapshot diplomacy,RndInteractions.Snapshot interactions){}
+ public Snapshot snapshot(){
+  Map<String,SeatSave> saved=new LinkedHashMap<>();
+  seats.forEach((id,s)->saved.put(id,new SeatSave(s.gold,s.wealth,s.mana,List.copyOf(s.hand.values()),
+    List.copyOf(s.board.values()),new LinkedHashMap<>(s.goods),new LinkedHashMap<>(s.orders))));
+  return new Snapshot(1,saved,List.copyOf(deck),List.copyOf(events),round,active,quickMatch,poolSize,new LinkedHashMap<>(attachments),new LinkedHashSet<>(treatedThisRound),new LinkedHashMap<>(locations),new LinkedHashMap<>(capitalControllers),new LinkedHashMap<>(completedTurns),new LinkedHashMap<>(wounds),new LinkedHashSet<>(eliminated),new LinkedHashMap<>(occupations),new LinkedHashSet<>(footholds),winner,new LinkedHashSet<>(burning),List.copyOf(discarded),new LinkedHashSet<>(movedThisRound),new LinkedHashSet<>(mainActionSpent),new LinkedHashSet<>(hostileActionSpent),diplomacy.snapshot(),interactions.snapshot());
+ }
+ public static RndMatchEngine restore(Snapshot s){
+  if(s==null||s.version()!=1||s.round()<0||s.active()<0||s.active()>3||
+     !s.seats().keySet().equals(Set.of("player","asha","brian","mira")))
+    throw new IllegalArgumentException("Unsupported or invalid match save");
+  RndMatchEngine g=new RndMatchEngine();
+  s.seats().forEach((id,v)->{
+   Seat seat=g.seat(id);seat.gold=v.gold();seat.wealth=v.wealth();seat.mana=v.mana();
+   v.hand().forEach(c->seat.hand.put(c.id(),c));v.board().forEach(c->seat.board.put(c.id(),c));
+   seat.goods.putAll(v.goods());seat.orders.putAll(v.orders());
+  });
+  g.deck.addAll(s.deck());
+  g.events.addAll(s.events());
+  g.round=s.round();
+  g.active=s.active();
+  g.quickMatch=s.quickMatch();
+  g.poolSize=s.poolSize();
+  g.attachments.clear();g.attachments.putAll(s.attachments());
+  g.treatedThisRound.addAll(s.treatedThisRound());
+  g.locations.clear();g.locations.putAll(s.locations());
+  g.capitalControllers.clear();g.capitalControllers.putAll(s.capitalControllers());
+  g.completedTurns.clear();g.completedTurns.putAll(s.completedTurns());
+  g.wounds.clear();g.wounds.putAll(s.wounds());
+  g.eliminated.addAll(s.eliminated());
+  g.occupations.clear();g.occupations.putAll(s.occupations());
+  g.footholds.addAll(s.footholds());
+  g.winner=s.winner();
+  g.burning.addAll(s.burning());
+  g.discarded.addAll(s.discarded());
+  g.movedThisRound.addAll(s.movedThisRound());
+  g.mainActionSpent.addAll(s.mainActionSpent());
+  g.hostileActionSpent.addAll(s.hostileActionSpent());
+  g.diplomacy.restore(s.diplomacy());
+  g.interactions.restore(s.interactions());
+  return g;
+ }
  public static RndMatchEngine start(long seed){return start(seed,false);}
  public static RndMatchEngine startQuick(long seed){return start(seed,true);}
  private static RndMatchEngine start(long seed,boolean quick){

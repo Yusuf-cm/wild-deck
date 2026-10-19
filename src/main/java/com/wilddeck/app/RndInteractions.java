@@ -4,12 +4,17 @@ import java.util.*;
 
 /** Executable, capability-based combined orders with real defender response windows. */
 final class RndInteractions {
- private record Flush(String id,String actor,String support,String blockingRegion,String region,Map<String,Integer> defenderTurns){}
+ record Flush(String id,String actor,String support,String blockingRegion,String region,Map<String,Integer> defenderTurns){}
  private final RndMatchEngine game;
  private final Map<String,Flush> pending=new LinkedHashMap<>();
  private final List<String> history=new ArrayList<>();
  private int nextId=1;
  RndInteractions(RndMatchEngine game){this.game=game;}
+ record Snapshot(List<Flush> pending,List<String> history,int nextId){}
+ Snapshot snapshot(){return new Snapshot(List.copyOf(pending.values()),List.copyOf(history),nextId);}
+ void restore(Snapshot s){
+  pending.clear();s.pending().forEach(f->pending.put(f.region(),f));history.clear();history.addAll(s.history());nextId=s.nextId();
+ }
  private RndMatchEngine.Result fail(String text){return new RndMatchEngine.Result(false,text);}
  private void record(String text){history.add(text);game.diplomacyEvent(text);}
  RndMatchEngine.Result flush(String actorId,String sourceId,String supportId,String rawRegion){

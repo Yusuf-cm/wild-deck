@@ -9,7 +9,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/** Minimal single-user web test harness. No authentication or multiplayer guarantees. */
+/** Browser-local playtest state. HTTP sessions and opaque saves are managed by BrowserGameServer. */
 public final class HumanWebServer {
     private final PlayableSession session = PlayableSession.standard(42L,null);
     private String lastMessage = "Welcome to your kingdom.";
@@ -17,52 +17,20 @@ public final class HumanWebServer {
     private HistoricalReplay historicalReplay;
     private KingdomReplayHarness actualReplay;
     private RndMatchEngine rndMatch;
-    private final Object lock = new Object();
-
     public static void main(String[] args) throws Exception {
         int port=Integer.parseInt(System.getenv().getOrDefault("PORT","10000"));
-        HumanWebServer app = new HumanWebServer();
-        HttpServer server=HttpServer.create(new InetSocketAddress("0.0.0.0",port),0);
-        server.createContext("/health",e->{
-            byte[] bytes="ok".getBytes(StandardCharsets.UTF_8);
-            e.sendResponseHeaders(200,bytes.length);
-            try(OutputStream out=e.getResponseBody()){out.write(bytes);}
-        });
-        server.createContext("/",app::handle);
+        BrowserGameServer server=new BrowserGameServer(port,MatchSaveCodec.fromEnvironment(),
+            !System.getenv().getOrDefault("WILD_DECK_COOKIE_SECURE","true").equals("false"));
         server.start();
-        System.out.println("Wild Deck Human Alpha listening on "+port);
+        System.out.println("Wild Deck Human Alpha listening on "+server.port());
     }
 
-    private void handle(HttpExchange exchange) throws IOException {
-        try {
-            synchronized(lock) {
-                if("POST".equals(exchange.getRequestMethod()) && "/action".equals(exchange.getRequestURI().getPath())) {
-                    byte[] request=exchange.getRequestBody().readNBytes(8192);
-                    String body=new String(request,StandardCharsets.UTF_8);
-                    String value="";
-                    for(String field:body.split("&")) if(field.startsWith("command=")){
-                        value=URLDecoder.decode(field.substring(8),StandardCharsets.UTF_8);
-                    }
-                    lastMessage=act(value.trim());
-                    exchange.getResponseHeaders().set("Location","/");
-                    exchange.sendResponseHeaders(303,-1);
-                    exchange.close();
-                    return;
-                }
-                if(!"GET".equals(exchange.getRequestMethod()) || !"/".equals(exchange.getRequestURI().getPath())) {
-                    exchange.sendResponseHeaders(404,-1);exchange.close();return;
-                }
-                byte[] bytes=render().getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().set("Content-Type","text/html; charset=utf-8");
-                exchange.getResponseHeaders().set("Cache-Control","no-store");
-                exchange.sendResponseHeaders(200,bytes.length);
-                try(OutputStream out=exchange.getResponseBody()){out.write(bytes);}
-            }
-        } catch(RuntimeException ex) {
-            byte[] bytes=("Error: "+ex.getMessage()).getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(400,bytes.length);
-            try(OutputStream out=exchange.getResponseBody()){out.write(bytes);}
-        }
+    void command(String input){lastMessage=act(input);}
+    RndMatchEngine.Snapshot snapshot(){return rndMatch==null?null:rndMatch.snapshot();}
+    String message(){return lastMessage;}
+    void restore(MatchSaveCodec.Save save){
+        RndMatchEngine restored=RndMatchEngine.restore(save.match());
+        rndMatch=restored;lastMessage=save.message();
     }
 
     private String act(String input) {
@@ -143,6 +111,7 @@ public final class HumanWebServer {
             return session.executor().play(state,id,card.get().id(),false).message();
         }
         // Management commands print to console; capture for display in browser.
+        synchronized (HumanWebServer.class) {
         ByteArrayOutputStream buffer=new ByteArrayOutputStream();
         PrintStream original=System.out;
         try(PrintStream capture=new PrintStream(buffer,true,StandardCharsets.UTF_8)) {
@@ -152,9 +121,10 @@ public final class HumanWebServer {
         } finally {System.setOut(original);}
         String output=buffer.toString(StandardCharsets.UTF_8).trim();
         return output.isBlank()?"Order completed.":output;
+        }
     }
 
-    private String render(){
+    String render(){
         GameState state=session.state();
         PlayerState player=state.player(session.humanPlayerId());
         StringBuilder html=new StringBuilder("""
@@ -175,7 +145,7 @@ public final class HumanWebServer {
             @media(max-width:720px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}form{flex-direction:column}}
             </style></head><body><main><h1>Wild Deck</h1><p>Human-play alpha · World round
             """);
-        html.append(rndMatch != null ? rndMatch.round() : state.round()).append(" · Single shared demo session (no accounts)</p>");
+        html.append(rndMatch != null ? rndMatch.round() : state.round()).append(" · Private browser session (no accounts)</p>");
         if (rndMatch != null) {
             html.append("<section class='panel'><h2>").append(rndMatch.quickMatch()?"Wild Deck — Quick Match":"Wild Deck R&D — Four Player Table").append("</h2>")
                 .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
@@ -183,7 +153,7 @@ public final class HumanWebServer {
                 .append("<p>Combined orders: <b>combine &lt;fire-source&gt; with &lt;troop&gt; to flush N1</b>. Requires owned FIRE/IGNITE and deployed adjacent ATTACK support, 1 Wealth, normal source cost, and your main + hostile actions. Defenders get a response turn; water cancels, fireproof units hold, blocked escapes pin. Keep the supporting troop in place. Use <b>interactions</b> for outcomes.</p>")
                 .append("<pre>").append(esc(lastMessage)).append("</pre>")
                 .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
-                .append("<p>Use <b>reset sandbox</b> to close this match and return to the basic sandbox. Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. State is a shared development process until persistent accounts are built.</p></section>");
+                .append("<p>Use <b>reset sandbox</b> to close this match and return to the basic sandbox. Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. Quick and full matches autosave in this browser. Keep site data to restore after a server restart. Sandbox and historical replay modes are temporary.</p></section>");
             return html.append("</main></body></html>").toString();
         }
         if (actualReplay != null) {

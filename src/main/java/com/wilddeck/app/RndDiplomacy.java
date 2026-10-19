@@ -23,6 +23,13 @@ final class RndDiplomacy {
  private final Map<String,Integer> breaches=new LinkedHashMap<>(),proposedThisTurn=new HashMap<>();
  private int nextId=1;
  RndDiplomacy(RndMatchEngine game){this.game=game;}
+ record Snapshot(List<Offer> offers,List<Pact> pacts,Map<String,Integer> breaches,Map<String,Integer> proposedThisTurn,int nextId){}
+ Snapshot snapshot(){return new Snapshot(List.copyOf(offers.values()),List.copyOf(pacts.values()),new LinkedHashMap<>(breaches),new LinkedHashMap<>(proposedThisTurn),nextId);}
+ void restore(Snapshot s){
+  offers.clear();s.offers().forEach(o->offers.put(o.id(),o));
+  pacts.clear();s.pacts().forEach(p->pacts.put(p.id(),p));
+  breaches.clear();breaches.putAll(s.breaches());proposedThisTurn.clear();proposedThisTurn.putAll(s.proposedThisTurn());nextId=s.nextId();
+ }
  private RndMatchEngine.Result ok(String text){return new RndMatchEngine.Result(true,text);}
  private RndMatchEngine.Result fail(String text){return new RndMatchEngine.Result(false,text);}
  private void event(String text){game.diplomacyEvent(text);}

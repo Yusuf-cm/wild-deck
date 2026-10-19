@@ -39,9 +39,9 @@ class HumanWebWorldTest {
   assertTrue(result.contains("Active: player; round 1"));
   assertTrue(result.contains("\nOpponent moves:"));
   String page=(String)render.invoke(app);
-  assertTrue(page.contains("1 · Single shared demo session"));
+  assertTrue(page.contains("1 · Private browser session"));
   assertTrue(page.contains("Round 1 | Current: player"));
   act.invoke(app,"pass");
-  assertTrue(((String)render.invoke(app)).contains("2 · Single shared demo session"));
+  assertTrue(((String)render.invoke(app)).contains("2 · Private browser session"));
  }
 }

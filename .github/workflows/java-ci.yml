@@ -18,3 +18,8 @@ jobs:
           cache: maven
       - name: Run tests
         run: mvn --batch-mode test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify browser save controls
+        run: node --test src/test/js/browser-save.test.cjs

@@ -6,7 +6,9 @@ Open https://wild-deck-world-playtest.onrender.com/ and enter:
 new quick game 1
 ```
 
-This starts the 55-card supported-action pool. Use `new four player game 1` for the full 200-card R&D pool. The optional seed controls the shuffled deal. Both modes currently share one in-memory demo session across visitors.
+This starts the 55-card supported-action pool. Use `new four player game 1` for the full 200-card R&D pool. The optional seed controls the shuffled deal.
+
+The browser-save increment on the development branch gives each browser its own match and restores quick/full matches after a server restart. See [Browser matches and saves](BROWSER_SAVES.md) for storage limits and required server configuration. Hosted rollout is pending: the playtest service is suspended for billing as of the 2026-10-19 implementation check.
 
 ## Commands
 
