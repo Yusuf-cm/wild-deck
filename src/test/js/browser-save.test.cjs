@@ -6,7 +6,7 @@ const source=fs.readFileSync('src/main/java/com/wilddeck/app/BrowserGameServer.j
 const script=source.match(/private static final String SCRIPT="""\n([\s\S]*?)\n """;/)[1];
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function page(boot,{saved,respond,storageError=false}={}){
- let stored=saved,handler,reloads=0;
+ let stored=saved,handler,reloads=0,failStorage=storageError;
  const calls=[],input={disabled:false,value:'pass'},button={disabled:false};
  const status={textContent:'',append(){}};
  const form={addEventListener(event,callback){handler=callback;}};
@@ -15,7 +15,7 @@ async function page(boot,{saved,respond,storageError=false}={}){
   document:{getElementById:()=>status,querySelectorAll:q=>q==='form'?[form]:[input,button],createElement:()=>({})},
   localStorage:{
    getItem(){return stored??null;},
-   setItem(key,value){if(storageError)throw Error('Storage full');stored=value;},
+   setItem(key,value){if(failStorage)throw Error('Storage full');stored=value;},
    removeItem(){stored=undefined;}
   },
   location:{reload(){reloads++;}},
@@ -27,7 +27,7 @@ async function page(boot,{saved,respond,storageError=false}={}){
   }
  };
  vm.runInNewContext(script,context);await tick();
- return {input,status,calls,get stored(){return stored;},get reloads(){return reloads;},
+ return {input,status,calls,exhaustStorage(){failStorage=true;},get stored(){return stored;},get reloads(){return reloads;},
   async submit(){await handler({preventDefault(){}});await tick();}};
 }
 test('submission reads enabled controls and saves returned token before reload',async()=>{
@@ -51,8 +51,10 @@ test('bad restore keeps original save and disables commands',async()=>{
 test('quota failure preserves previous save and reports unsaved order',async()=>{
  const saved=JSON.stringify({revision:1,save:'wd1.old'});
  // Let initial refresh save, then reject the action's new token.
- const p=await page({fresh:false,revision:1,save:'wd1.old'},{saved,storageError:true});
+ const p=await page({fresh:false,revision:1,save:'wd1.old'},{saved});
+ p.exhaustStorage();await p.submit();
  assert.equal(p.stored,saved);assert.equal(p.input.disabled,true);assert.match(p.status.textContent,/Storage full/);
+ assert.equal(p.reloads,0);
 });
 test('older tab cannot erase a newer saved match',async()=>{
  const saved=JSON.stringify({revision:9,save:'wd1.newer'});

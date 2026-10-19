@@ -90,6 +90,19 @@ class MatchSnapshotTest {
   assertFalse(restored.command("player","draw").success());
   assertFalse(restored.command("player","pass").success());
  }
+ @Test void acceptedPactsBetrayalsAndOfferCountersContinueAfterRestoration()throws Exception{
+  var g=RndMatchEngine.startQuick(42);
+  yes(g,"player","offer asha peace 3");yes(g,"player","pass");
+  yes(g,"asha","accept D1");yes(g,"asha","offer brian peace 2");
+  for(String actor:List.of("asha","brian","mira"))yes(g,actor,"pass");
+  var restored=roundTrip(g);assertTrue(restored.atPeace("player","asha"));
+  for(String command:List.of("betray asha","offer mira peace 2")){
+   assertEquals(g.command("player",command),restored.command("player",command));
+   assertEquals(g.snapshot(),restored.snapshot());restored=roundTrip(restored);
+  }
+  assertFalse(restored.atPeace("player","asha"));
+  assertTrue(restored.command("player","deals").message().contains("D3"));
+ }
  @Test void invalidVersionsAreRejected()throws Exception{
   var node=json.valueToTree(RndMatchEngine.startQuick(42).snapshot());
   ((com.fasterxml.jackson.databind.node.ObjectNode)node).put("version",99);

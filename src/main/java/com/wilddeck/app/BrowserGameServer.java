@@ -24,6 +24,7 @@ final class BrowserGameServer implements AutoCloseable {
   HumanWebServer app=new HumanWebServer();
   long revision;
   boolean initialized;
+  int inUse; // Guarded by the server registry lock, preventing eviction during a request.
  }
  BrowserGameServer(int port,MatchSaveCodec codec,boolean secureCookie)throws IOException{
   this.codec=codec;this.secureCookie=secureCookie;
@@ -47,17 +48,25 @@ final class BrowserGameServer implements AutoCloseable {
  private synchronized Session session(String id){
   Session s=sessions.get(id);
   if(s==null){
-   if(sessions.size()>=MAX_SESSIONS)sessions.remove(sessions.keySet().iterator().next());
+   if(sessions.size()>=MAX_SESSIONS){
+    String victim=null;
+    for(var entry:sessions.entrySet())if(entry.getValue().inUse==0){victim=entry.getKey();break;}
+    if(victim==null)return null;
+    sessions.remove(victim);
+   }
    s=new Session();sessions.put(id,s);
   }
+  s.inUse++;
   return s;
  }
+ private synchronized void release(Session s){s.inUse--;}
  private Map<String,Object> state(String id,Session s){
   var match=s.app.snapshot();
   return Map.of("revision",s.revision,"fresh",!s.initialized,"save",match==null?"":codec.seal(id,
       new MatchSaveCodec.Save(1,s.revision,s.app.message(),match)));
  }
  private void handle(HttpExchange e)throws IOException{
+  Session usedSession=null;
   e.getResponseHeaders().set("Cache-Control","no-store");
   e.getResponseHeaders().set("X-Content-Type-Options","nosniff");
   e.getResponseHeaders().set("Referrer-Policy","same-origin");
@@ -72,6 +81,8 @@ final class BrowserGameServer implements AutoCloseable {
     send(e,403,"text/plain","Use the same-origin game controls");return;
    }
    String id=identity(e);Session s=session(id);
+   if(s==null){send(e,503,"text/plain","Server is busy. Keep your browser save and retry.");return;}
+   usedSession=s;
    synchronized(s){
     if(read){
      if(path.equals("/state"))sendJson(e,200,state(id,s));
@@ -84,7 +95,11 @@ final class BrowserGameServer implements AutoCloseable {
     }
     byte[] body=e.getRequestBody().readNBytes(MAX_BODY+1);
     if(body.length>MAX_BODY){send(e,413,"text/plain","Request too large");return;}
-    var input=json.readTree(body);
+    com.fasterxml.jackson.databind.JsonNode input;
+    try{input=json.readTree(body);}catch(com.fasterxml.jackson.core.JsonProcessingException invalid){
+     throw new IllegalArgumentException("Invalid JSON");
+    }
+    if(input==null||!input.isObject())throw new IllegalArgumentException("Expected an object");
     if(path.equals("/restore")){
      if(s.initialized){sendJson(e,409,state(id,s));return;}
      if(!input.path("save").isTextual())throw new IllegalArgumentException("Missing save");
@@ -104,7 +119,7 @@ final class BrowserGameServer implements AutoCloseable {
    }
   }catch(IllegalArgumentException e1){send(e,400,"text/plain","Invalid request or save. Your existing browser save was preserved.");}
    catch(Exception e1){send(e,500,"text/plain","Could not complete this request. Keep your browser save and reload.");}
-  finally{e.close();}
+  finally{if(usedSession!=null)release(usedSession);e.close();}
  }
  private void sendJson(HttpExchange e,int status,Object value)throws IOException{
   send(e,status,"application/json",json.writeValueAsString(value));

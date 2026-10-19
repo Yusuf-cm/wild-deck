@@ -58,6 +58,20 @@ class BrowserGameServerTest {
    assertFalse(page.body().contains("\"deck\""));assertFalse(page.body().contains("\"hand\""));
   }
  }
+ @Test void evictedMatchRestoresAndMalformedRequestsPreserveState()throws Exception{
+  try(var server=new BrowserGameServer(0,new MatchSaveCodec(KEY),false)){
+   server.start();var browser=new Browser(server.port());
+   var state=browser.action("new quick game 42");var expected=browser.decode(state);
+   for(int i=0;i<64;i++)new Browser(server.port()).state();
+   assertTrue(browser.state().get("fresh").asBoolean());
+   assertEquals(200,browser.request("POST","/restore",Map.of("save",state.get("save").asText()),true).statusCode());
+   assertEquals(expected,browser.decode(browser.state()));
+   assertEquals(400,browser.request("POST","/action",null,true).statusCode());
+   assertEquals(400,browser.request("POST","/action",Map.of("revision",1,"command",""),true).statusCode());
+   assertEquals(413,browser.request("POST","/restore",Map.of("save","x".repeat(1_600_001)),true).statusCode());
+   assertEquals(expected,browser.decode(browser.state()));
+  }
+ }
  @Test void sealedSavesRejectTamperingUnknownVersionWrongKeyAndForeignBrowser()throws Exception{
   var codec=new MatchSaveCodec(KEY);
   var save=new MatchSaveCodec.Save(1,12,"saved",RndMatchEngine.startQuick(42).snapshot());

@@ -24,6 +24,8 @@ The server caches at most 64 browser sessions. A least-recently-used session can
 
 MatchSnapshotTest checks JSON round trips, private hands and deck order, future command equivalence, pending forest response windows, diplomacy identifiers, non-default combat/economy/occupation/victory fields, detached collections, schema versions, and coverage of every mutable engine field.
 
-BrowserGameServerTest uses independent HTTP clients and cookies to check isolation, stale revisions, cross-session saves, tampering, wrong keys, and same-origin request requirements. It launches two separate Java processes in sequence, restores two different matches into the second process, compares their complete snapshots, then checks equivalent continuation and continued isolation.
+BrowserGameServerTest uses independent HTTP clients and cookies to check isolation, stale revisions, cross-session saves, tampering, wrong keys, malformed/oversized requests, cache eviction recovery, and same-origin request requirements. It launches two separate Java processes in sequence, restores two different matches into the second process, compares their complete snapshots, then checks equivalent continuation and continued isolation.
+
+The dependency-free browser-script checks run with node --test src/test/js/browser-save.test.cjs. They execute the shipped script against simulated browser APIs to check save-before-reload, automatic restoration, corrupt-save preservation, quota failure after an order, older tabs, and stale-action conflicts. They complement the HTTP/process tests; they are not a real browser UI test.
 
 These are automated HTTP/process checks. Live browser and hosted restart validation must still be performed once the development host is available and its stable save key is provisioned.
