@@ -419,3 +419,25 @@ original deployment and paid waypoint-db remain untouched. Next work should
 stress-test this interaction across varied positions, then provide safe isolated
 sessions before wider player testing; story and additional inert cards remain
 deferred.
+
+## 2026-10-19 — Independent browser matches and complete saves
+
+Implemented on feature/diplomacy-v1, pending hosted rollout. Separate browser cookies now own separate match state; tabs within the same browser share their match. Per-session serialization and revision checks prevent stale tabs from submitting duplicate orders. The bounded session cache does not evict a session while requests are using it.
+
+Quick/full matches now serialize complete versioned snapshots: all hands, ordered deck and discards, treasury and physical goods, boards/orders, locations, wounds, equipment, terrain, action/healer/movement limits, completed-turn counters, diplomacy offers/pacts/trust and ID counters, pending occupations and combined orders, events, eliminations and winner. Immutable geography and player identities are reconstructed. Saves use AES-256-GCM, are bound to a persistent HttpOnly browser cookie, and are stored in localStorage before reloading. Fresh server processes restore before enabling commands. Damaged saves and storage failures preserve the previous save and visibly stop controls.
+
+### Verification
+
+- [CI for 8046231](https://github.com/Yusuf-cm/wild-deck/actions/runs/39256034986) passed: 176 Java tests, zero failures/errors/skips, plus six browser-script checks.
+- Two independent HTTP clients retained separate quick/full matches. Cross-browser tokens, tampering, wrong keys, stale revisions, malformed and oversized requests were rejected without changing existing state.
+- A real JVM process was terminated. A second JVM with the same stable key restored both matches from their saved tokens/cookies, matched their complete snapshots, and continued one match identically while preserving the other.
+- JSON round trips preserved deck/hand order and every mutable engine field, pending defender-response windows, diplomacy acceptance/betrayal/IDs, non-default combat/economy/occupation state and victory locks. Cache eviction recovery was verified.
+- The shipped browser script ran against simulated browser APIs: save-before-reload, restart restoration, damaged-save retention, quota failure after an order, older-tab protection and stale-action reload. These are script/HTTP/process tests, not two live browser profiles or a hosted restart.
+
+### Hosting blocker and limits
+
+Render service wild-deck-world-playtest is suspended with suspender billing (read-only checks on 2026-10-19; suspension timestamp 2026-10-16T18:45:41Z). Its branch remains feature/live-world-playtest at the prior hosted version. No billing, service plan, original deployment, or paid waypoint-db changes were made, and no new resources were added.
+
+Before rollout, provision one stable random 32-byte base64 WILD_DECK_SAVE_KEY as a hosting secret, resolve hosting availability, then deploy the verified branch and perform live browser/restart checks. Do not start with an ephemeral key. See [Browser saves](BROWSER_SAVES.md).
+
+These are same-browser saves, without accounts or cross-device recovery. Clearing site data/cookies or losing the server key loses access. Sandbox and historical modes are temporary; reset sandbox closes the saved match. An order whose response never reaches browser storage can be lost on a subsequent restart. Older valid snapshots can be replayed after server memory disappears; preventing that requires durable authoritative server storage.

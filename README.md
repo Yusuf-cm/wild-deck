@@ -2,6 +2,8 @@
 
 Wild Deck is an AI-refereed emergent strategy card game.
 
+For the browser playtest, see [Quick Match](docs/QUICK_MATCH.md) and [browser sessions, saves, and server configuration](docs/BROWSER_SAVES.md). The web entry point requires a stable WILD_DECK_SAVE_KEY; its browser-held saves cover quick/full matches, while terminal and legacy sandbox modes remain temporary.
+
 **Cards define what exists. Players define what they attempt. Java decides whether the world permits it.**
 
 ## Alpha engine rules implemented
