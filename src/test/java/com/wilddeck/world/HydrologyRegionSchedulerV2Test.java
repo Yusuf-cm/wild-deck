@@ -31,6 +31,17 @@ class HydrologyRegionSchedulerV2Test {
                 }));
         assertEquals(0,count[0]);
     }
+    @Test void pendingReceiptHintsRespectSharedVertexOwnership(){
+        var inbox=new HydrologyEpochInboxV2();
+        var a=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var b=new GlobalHydrologyAddressV2.Sample(2,4,4,4);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,a,b),1);
+        assertEquals(List.of(new HydrologyRegionSchedulerV2.Region(0,0)),
+            HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot()));
+        inbox.claimAvailable(1,Set.of(b));
+        assertTrue(HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot()).isEmpty());
+    }
+
     @Test void rejectsOverflowAndInvalidLimits(){
         assertThrows(ArithmeticException.class,()->
             HydrologyRegionSchedulerV2.load(
