@@ -82,3 +82,9 @@ No production deployment, Render billing change, or paid database modifications.
 - `RiverNetworkV2.extract(LakeSpillV2.Result, SpillDischargeV2.Discharge, double)` extracts channels from conserved lake-spill flow. `RegionalHydrologyV2.generate` now uses this overload instead of the legacy raw-D8 channel extraction.
 - The old D8 extraction overload is retained for compatibility. Integration tests for the lake-aware river flow were added. Latest CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40886028435 (check status).
 - Next limitations: stable IDs across different mosaics, boundary exchange with unloaded regions, realistic seasonal lake storage/evaporation, river incision/erosion, and runtime gameplay persistence.
+
+## 2026-10-29 — Stable sample IDs and boundary export
+
+- `GlobalHydrologyAddressV2` supplies global grid sample coordinates (level, divisions, x, y), independent of the finite mosaic's origin or extent. Tests passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40886772041 .
+- `HydrologyBoundaryV2` exports interior-to-perimeter river links with stable global sample endpoints and their conserved flow. This is an interface for future cross-region transfer; **no receiving-tile injection or unloaded-region routing exists yet**.
+- Next: design incoming boundary flux and topological transfer without double-counting shared vertices, enforce conservation between mosaics, then establish stable catchment identities at planet scale. Do not confuse sample-address stability with global river identity.
