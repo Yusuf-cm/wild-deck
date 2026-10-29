@@ -441,3 +441,13 @@ Render service wild-deck-world-playtest is suspended with suspender billing (rea
 Before rollout, provision one stable random 32-byte base64 WILD_DECK_SAVE_KEY as a hosting secret, resolve hosting availability, then deploy the verified branch and perform live browser/restart checks. Do not start with an ephemeral key. See [Browser saves](BROWSER_SAVES.md).
 
 These are same-browser saves, without accounts or cross-device recovery. Clearing site data/cookies or losing the server key loses access. Sandbox and historical modes are temporary; reset sandbox closes the saved match. An order whose response never reaches browser storage can be lost on a subsequent restart. Older valid snapshots can be replayed after server memory disappears; preventing that requires durable authoritative server storage.
+
+## 2026-10-29 — Smallest world-first interaction experiment
+
+User redirected development toward world properties, interactions, reactions and deliberate responses before further cards or GUI work. Added a small WorldSimulation over the existing WorldMap, plus an executable WorldSandboxDemo with a forest clearing, river bank and settlement. This is a card-independent laboratory, not another match engine.
+
+Heat spends a finite charge to ignite reachable dry combustible material. Ticks consume fuel, emit smoke and damage exposed actors. Fire blocks ordinary entry; a unit can retreat, collect water, extinguish material or wet it preemptively. Wetness dries, fuel remains consumed, fireproof actors resist exposure, and smoke expires. Nearby-site reach is explicitly local and must not be reused as continent-scale range.
+
+[Code CI](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841070706) passed for 7642331: eight new world tests, 184 total Java tests, no failures/errors/skips, six browser-script checks, and the actual executable demo. The scout retreated at health 2/3; extinguished trees retained 2/3 fuel; movement reopened; wet trees resisted reignition; the same rule burned a wooden gate and rejected stone. Tests also cover alternate response timing, depletion, drying, fireproof movement, incapacitation, distance, resource preservation on failed actions, snapshot isolation and deterministic repetition.
+
+No AI decision-making, automatic fire spread, flooding, smoke concealment, graphical client, match integration or world-save format is claimed. No hosting or billing changes. See [World laboratory](WORLD_LAB.md) for exact rules, run instructions and evidence.

@@ -24,6 +24,12 @@ The demo ignites the forest, advances environmental time, rejects unsafe entry, 
 
 WorldSimulationTest checks that sequence and alternative responses: preventative wetting/drying, fuel exhaustion, smoke persistence, fireproof movement, incapacitation, local reach, resource costs, invalid actions, detached snapshots and deterministic repeats.
 
-## Boundary
+## Verified result — 2026-10-29
+
+[CI run 40841070706](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841070706) passed for code commit 7642331: eight new world tests, 184 total Java tests, zero failures/errors/skips, six browser-script checks, and the executable world demo.
+
+Observed demo: trees ignited; fire blocked entry; scout retreated with health 2/3; worker collected water, extinguished the trees and entered; trees retained 2/3 fuel and resisted immediate reignition while wet. The same ignition rule burned the wooden gate and rejected stone without charging a failed ignition.
+
+## Boundary and remaining work
 
 This increment has no cards, AI calls, opponent policy, match turns, browser UI, world persistence, automatic fire spread, flooding or smoke-based concealment. Smoke is an observable condition only. The demo's responses are chosen explicitly; it does not claim to demonstrate intelligent opponents. Existing match behaviour is not changed. These mechanisms can be evaluated before selecting their integration into the authoritative match state.
