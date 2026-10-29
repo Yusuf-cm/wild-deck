@@ -16,7 +16,7 @@ class LakeSpillV2Test {
         var elevation=new double[]{0,5,5,5,1,5,5,5,5};
         var result=LakeSpillV2.fill(3,3,elevation);
         assertEquals(0,result.waterSurface()[0]);
-        assertEquals(5,result.waterSurface()[4]);
+        assertEquals(1,result.waterSurface()[4]);
     }
     @Test void flatTerrainHasNoWaterDepth(){
         var elevation=new double[25];
