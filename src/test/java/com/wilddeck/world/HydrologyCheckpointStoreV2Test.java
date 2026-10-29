@@ -66,6 +66,34 @@ class HydrologyCheckpointStoreV2Test {
         assertEquals(committed,HydrologyCheckpointStoreV2.load(file));
     }
 
+    @Test void futureReceiptsMayBeAppendedButNeverRewritten() throws IOException {
+        Path file=directory.resolve("receipts.chk");
+        var initial=checkpoint(4,"stable-world");
+        HydrologyCheckpointStoreV2.save(file,initial);
+        var inbox=HydrologyCheckpointV2.restoreInbox(initial);
+        var from=new GlobalHydrologyAddressV2.Sample(2,4,4,3);
+        var to=new GlobalHydrologyAddressV2.Sample(2,4,5,3);
+        var key=new HydrologyTransferLedgerV2.Key(5,from,to);
+        inbox.receive(key,7);
+        var appended=HydrologyCheckpointV2.capture(4,"stable-world",inbox);
+        HydrologyCheckpointStoreV2.saveIncoming(file,appended);
+        HydrologyCheckpointStoreV2.saveIncoming(file,appended);
+        assertEquals(7,HydrologyCheckpointV2.restoreInbox(
+            HydrologyCheckpointStoreV2.load(file)).snapshot().receipts().get(key));
+        assertThrows(IOException.class,()->HydrologyCheckpointStoreV2.save(file,appended));
+        assertThrows(IOException.class,()->
+            HydrologyCheckpointStoreV2.saveIncoming(file,initial));
+        assertThrows(IOException.class,()->
+            HydrologyCheckpointStoreV2.saveIncoming(file,
+                HydrologyCheckpointV2.capture(4,"different-world",inbox)));
+        var altered=HydrologyEpochInboxV2.restore(inbox.snapshot());
+        altered.claim(5);
+        assertThrows(IOException.class,()->
+            HydrologyCheckpointStoreV2.saveIncoming(file,
+                HydrologyCheckpointV2.capture(4,"stable-world",altered)));
+        assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
+    }
+
     @Test void missingParentFailsWithoutCreatingNewDirectories() {
         Path file=directory.resolve("missing").resolve("world.hydrology");
         assertThrows(IOException.class,()->

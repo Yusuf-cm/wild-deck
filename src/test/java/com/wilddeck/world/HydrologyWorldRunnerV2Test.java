@@ -46,6 +46,29 @@ class HydrologyWorldRunnerV2Test {
         assertEquals(1,runner.epoch());
     }
 
+    @Test void incomingWaterSurvivesRestartBeforeAnyAdvance() throws IOException {
+        Path path=directory.resolve("durable-receipts.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"initial");
+        var key=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
+        assertTrue(runner.receive(key,5));
+        var restored=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertFalse(restored.receive(key,5));
+        assertThrows(IllegalArgumentException.class,()->restored.receive(key,6));
+        assertEquals(8,restored.advance("world-1",graph())
+            .terminalOutflow().get(at(6)),1e-9);
+        assertEquals(1,HydrologyWorldRunnerV2.open(path,0,"ignored").epoch());
+    }
+
+    @Test void failedReceiptWriteDoesNotAcknowledgeWater() throws IOException {
+        Path path=directory.resolve("missing-after-open.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"initial");
+        Files.delete(path);
+        assertThrows(IOException.class,()->runner.receive(
+            new HydrologyTransferLedgerV2.Key(1,at(4),at(5)),5));
+        assertTrue(runner.inboxSnapshot().receipts().isEmpty());
+        assertEquals(0,runner.epoch());
+    }
+
     @Test void failedAdvancePreservesEpochAndInbox() throws IOException {
         var runner=HydrologyWorldRunnerV2.open(directory.resolve("world.chk"),0,"initial");
         runner.receive(new HydrologyTransferLedgerV2.Key(1,at(4),at(5)),5);

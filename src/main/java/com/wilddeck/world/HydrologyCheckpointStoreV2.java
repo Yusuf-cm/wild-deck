@@ -50,6 +50,41 @@ public final class HydrologyCheckpointStoreV2 {
                 throw new IOException("Conflicting checkpoint for same epoch");
             }
         }
+        writeAtomic(target,parent,checkpoint);
+    }
+
+    /**
+     * Persist additional future-epoch receipts without changing the committed
+     * world or consumption markers. Ordinary save() deliberately continues to
+     * reject conflicting same-epoch replacements.
+     */
+    public static void saveIncoming(Path destination,HydrologyCheckpointV2.Checkpoint checkpoint)
+            throws IOException {
+        Objects.requireNonNull(destination);
+        Objects.requireNonNull(checkpoint);
+        Path target=destination.toAbsolutePath();
+        Path parent=target.getParent();
+        if(parent==null||!Files.isDirectory(parent))
+            throw new IOException("Checkpoint parent directory must exist");
+        var previous=load(target);
+        if(previous.epoch()!=checkpoint.epoch()||
+           !previous.worldState().equals(checkpoint.worldState()))
+            throw new IOException("Cannot rewrite committed epoch or world state");
+        var before=HydrologyInboxCodecV2.decode(previous.inboxState());
+        var after=HydrologyInboxCodecV2.decode(checkpoint.inboxState());
+        if(!before.consumedEpochs().equals(after.consumedEpochs())||
+           !after.receipts().entrySet().containsAll(before.receipts().entrySet()))
+            throw new IOException("Cannot remove or change committed receipts");
+        for(var key:after.receipts().keySet())
+            if(!before.receipts().containsKey(key) && key.epoch()<=previous.epoch())
+                throw new IOException("Cannot add water to committed epoch");
+        if(previous.equals(checkpoint))return;
+        writeAtomic(target,parent,checkpoint);
+    }
+
+    private static void writeAtomic(Path target,Path parent,
+                                    HydrologyCheckpointV2.Checkpoint checkpoint)
+            throws IOException {
         byte[] encoded=encode(checkpoint);
         Path temporary=Files.createTempFile(parent,target.getFileName().toString()+".",".pending");
         try {
@@ -60,7 +95,6 @@ public final class HydrologyCheckpointStoreV2 {
             }
             // Deliberately no non-atomic fallback: partial replacement is worse.
             Files.move(temporary,target,ATOMIC_MOVE,REPLACE_EXISTING);
-            // Sync directory entry as well as file contents on supported filesystems.
             try(FileChannel directory=FileChannel.open(parent,READ)){
                 directory.force(true);
             }

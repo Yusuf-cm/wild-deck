@@ -42,12 +42,22 @@ public final class HydrologyWorldRunnerV2 {
     public synchronized long epoch(){return last.epoch();}
     public synchronized String worldState(){return last.worldState();}
 
-    /** Deliver only to future epochs; current and earlier epochs are closed. */
-    public synchronized boolean receive(HydrologyTransferLedgerV2.Key key,double flow) {
+    /**
+     * Persist each future-epoch receipt before acknowledging delivery.
+     * A crash before the next advance therefore cannot silently lose water.
+     */
+    public synchronized boolean receive(HydrologyTransferLedgerV2.Key key,double flow)
+            throws IOException {
         Objects.requireNonNull(key);
         if(key.epoch()<=last.epoch())
             throw new IllegalArgumentException("Transfer targets committed epoch");
-        return inbox.receive(key,flow);
+        var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
+        if(!staged.receive(key,flow))return false;
+        var checkpoint=HydrologyCheckpointV2.capture(last.epoch(),last.worldState(),staged);
+        HydrologyCheckpointStoreV2.saveIncoming(checkpointPath,checkpoint);
+        inbox=staged;
+        last=checkpoint;
+        return true;
     }
 
     /**
