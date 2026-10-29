@@ -276,3 +276,8 @@ No production deployment, Render billing change, or paid database modifications.
 - Full workflow **PASSED** for deterministic pending-region ownership and runner hint integration: https://github.com/Yusuf-cm/wild-deck/actions/runs/40925581968 (`f7a470b931c66ef9e4bc2db9dbe7766278d3bc74`).
 - Additional tests reject mixed-resolution region hints (`a90303a4f14495b9ccab480716514e8548fb0be8`) and verify that two different source epochs of the same river edge can both wait for a later loaded destination without collision (`d15cf91c9078e21ff1159e583b08cca500802da7`). **Their full CI workflows are pending at this writing**: https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
 - The system now preserves known-edge incoming discharge across arbitrary numbers of unloaded epochs in the tested single-writer runtime. **Unknown downstream routing, world-scale physical calibration, bounded ledger retention, and actual automatic terrain loading remain unimplemented.**
+
+### 2026-10-29 — Latest test verification
+
+- Mixed-resolution pending-region hint rejection test: **full CI passed** for `a90303a4f14495b9ccab480716514e8548fb0be8`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925705905 .
+- Same-edge multi-source-epoch delayed receipt test: **Maven test step passed** for `d15cf91c9078e21ff1159e583b08cca500802da7`; full workflow browser/atlas steps still running at this check, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925750288 . Do not count the whole workflow as green until it finishes.
