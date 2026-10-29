@@ -70,8 +70,10 @@ public final class HydrologyGlobalSlopeRouterV2 {
                 if(x<0||x>maxX||y<0||y>maxY)continue;
                 var neighbor=new GlobalHydrologyAddressV2.Sample(
                     first.level(),first.divisions(),x,y);
-                double slope=(height-checked(elevations.at(neighbor)))/
-                    (dx!=0&&dy!=0?StrictMath.sqrt(2):1);
+                double drop=height-checked(elevations.at(neighbor));
+                if(!Double.isFinite(drop))
+                    throw new IllegalArgumentException("Global elevation difference overflow");
+                double slope=drop/(dx!=0&&dy!=0?StrictMath.sqrt(2):1);
                 if(slope>bestSlope||
                    (slope==bestSlope&&slope>0&&
                     (best==null||HydrologyFlowGraphV2.ADDRESS_ORDER.compare(neighbor,best)<0))) {
