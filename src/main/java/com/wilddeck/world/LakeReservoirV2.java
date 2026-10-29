@@ -96,6 +96,8 @@ public final class LakeReservoirV2 {
         double available=previousVolume+inflow;
         if(!Double.isFinite(available))throw new IllegalArgumentException("Water overflow");
         double potential=evaporationDepth*basin.wettedArea(basin.stageAt(previousVolume));
+        if(!Double.isFinite(potential))
+            throw new IllegalArgumentException("Lake evaporation overflow");
         double evaporated=Math.min(available,potential);
         double after=available-evaporated;
         double stored=Math.min(capacity,after);
