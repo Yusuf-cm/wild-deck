@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ConnectedHydrologyV2Test {
     @Test void connectedMosaicConservesRainfallAndIsRepeatable(){
-        var world=new PlanetSurfaceV2(12345L);
-        var climate=new PlanetClimateV2(12345L);
+        var world=new PlanetSurfaceV2(Planet.emptyEarthSized(),12345L);
+        var climate=new PlanetClimateV2(world);
         var a=ConnectedHydrologyV2.generate(world,climate,2,1,1,2,2,4,0.1);
         var b=ConnectedHydrologyV2.generate(world,climate,2,1,1,2,2,4,0.1);
         assertEquals(a.internalTransfers(),b.internalTransfers());
