@@ -81,6 +81,46 @@ class HydrologyTerrainOverlayV2Test {
             new HydrologyTerrainOverlayV2.State("x",Map.of(id,Double.NaN)));
     }
 
+    @Test void persistedDepositionChangesGlobalDownhillRouting() {
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,5,5);
+        var east=new GlobalHydrologyAddressV2.Sample(2,4,6,5);
+        var south=new GlobalHydrologyAddressV2.Sample(2,4,5,6);
+        HydrologyGlobalSlopeRouterV2.Elevations baseline=p->
+            p.equals(source)?10:p.equals(east)?8:p.equals(south)?9:12;
+        var water=List.of(new HydrologyGlobalSlopeRouterV2.Source(source,3));
+        var original=HydrologyGlobalSlopeRouterV2.route(water,baseline,Set.of());
+        assertEquals(east,original.get(0).downstream());
+        var edited=new HydrologyTerrainOverlayV2.State("world",Map.of(east,11.0));
+        var reloaded=HydrologyTerrainOverlayV2.decode(
+            HydrologyTerrainOverlayV2.encode(edited));
+        var changed=HydrologyGlobalSlopeRouterV2.route(water,
+            HydrologyTerrainOverlayV2.elevations(baseline,reloaded),Set.of());
+        assertEquals(south,changed.get(0).downstream());
+        assertEquals(3,HydrologyFlowGraphV2.solve(changed)
+            .pendingOutflow().get(south),1e-9);
+        assertEquals(8,baseline.at(east),0);
+    }
+
+    @Test void sixteenSeasonSedimentEvolutionRemainsFiniteAndConservative() {
+        var initial=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var current=initial;
+        for(int epoch=0;epoch<16;epoch++){
+            var evolved=evolve(current);
+            assertEquals(evolved.landscape().erodedMass(),
+                evolved.landscape().depositedMass()+
+                evolved.landscape().exportedMass(),1e-7);
+            assertEquals(50,evolved.landscape().discharge().flow()[24],1e-8);
+            assertTrue(evolved.state().elevations().values().stream()
+                .allMatch(Double::isFinite));
+            current=HydrologyTerrainOverlayV2.decode(
+                HydrologyTerrainOverlayV2.encode(evolved.state()));
+        }
+        var replay=initial;
+        for(int epoch=0;epoch<16;epoch++)replay=evolve(replay).state();
+        assertEquals(replay,current);
+        assertTrue(initial.elevations().isEmpty());
+    }
+
     @Test void rejectsNoncontiguousWindowBeforeErosion() {
         var broken=new ArrayList<>(addresses());
         Collections.swap(broken,0,1);
