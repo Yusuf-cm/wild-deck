@@ -54,6 +54,10 @@ public final class HydrologyFrontierDispatchV2 {
             if(nodes.putIfAbsent(node.address(),node)!=null)
                 throw new IllegalArgumentException("Duplicate frontier source");
         }
+        // Reject a result from another graph, even when its pending endpoints
+        // happen to match. This validation costs one deterministic re-solve.
+        if(!HydrologyFlowGraphV2.solve(nodes.values()).equals(solved))
+            throw new IllegalArgumentException("Frontier graph/result mismatch");
         var transfers=new ArrayList<Transfer>();
         var unresolved=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
