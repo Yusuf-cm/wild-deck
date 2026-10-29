@@ -281,3 +281,28 @@ No production deployment, Render billing change, or paid database modifications.
 
 - Mixed-resolution pending-region hint rejection test: **full CI passed** for `a90303a4f14495b9ccab480716514e8548fb0be8`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925705905 .
 - Same-edge multi-source-epoch delayed receipt test: **Maven test step passed** for `d15cf91c9078e21ff1159e583b08cca500802da7`; full workflow browser/atlas steps still running at this check, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925750288 . Do not count the whole workflow as green until it finishes.
+
+### 2026-10-29 — Terrain halo routing, pending-water load orchestration, river identities and numerical safety
+
+**Scope:** All changes on `feature/world-engine-v2` only. No merges/PRs to main, production changes, or paid infrastructure.
+
+**Implemented this run:**
+- `HydrologyTerrainWindowV2.generateCoreWithHalo` generates one deterministic connected hydrology solve over a clipped surrounding terrain halo, then exports only globally addressed core samples. The halo supplies one-step downstream evidence for core-boundary water instead of falsely declaring a core-edge outlet. The larger window does not duplicate shared rainfall vertices. It is a bounded finite-window approximation, not a planetary routing oracle.
+- `HydrologyWorldRunnerV2.advanceTerrainCoreAndQueue` connects seeded terrain/climate generation directly to checkpointed frontier dispatch. Known outward edges are queued as durable receipts; unknown routes still fail closed.
+- `HydrologyRegionSchedulerV2.loadWithPending` combines explicit focus and parked-water destinations into a deterministic deduplicated load plan, checks the region budget before invoking the provider, and protects against pathological oversized radius loops. `HydrologyWorldRunnerV2.advancePendingRegionsAndQueue` loads that plan and atomically advances/queues water. A restart integration test follows a parked receipt into one loaded region, queues its known edge into the next unloaded region, reloads from disk and delivers the same water once.
+- `SpillDischargeV2` rejects non-finite downstream accumulation and invalid discharge/outlet records instead of allowing infinite water to propagate. `RiverErosionV2` rejects non-finite incision and caps a single cut at the original downstream-bed descent to avoid manufacturing an uphill reach through over-incision.
+- `HydrologyRiverIdentityV2.knownReaches` exposes stable globally addressed reach IDs for verified one-step edges even when the outlet is not yet resolved. Catchment IDs are still assigned **only** after a physically confirmed outlet is available; no speculative catchment ID is fabricated.
+
+**Tests and verification (distinguish full CI from Maven-only):**
+- Baseline before edits: full CI **PASSED** for `98137ead0705beda8190e1afd0e2a3379b49abfd`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925881445 .
+- Deterministic halo core uniqueness, conservation, and real-planet-edge unresolved route tests: full CI **PASSED** for `976925cae5f1b4cb955009af72259286f1ae5803`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40934661622 .
+- Pending-water scheduling, budget rollback and two-region restart handoff tests: full CI **PASSED** for `e8a5e81074907acad29989bc727937171debe2a1`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40934741474 .
+- Seeded terrain-core checkpoint/restart integration: full CI **PASSED** for `a6fafad7ae48e02c19669af546e70e09ae3efab2`, https://github.com/Yusuf-cm/wild-deck/actions/runs/40934829812 .
+- Downstream overflow and erosion numerical-guard tests (`a6b26cfbbb5f6fa369cce6c80c42d21261b3feb2`, `047ee84ebf6783a6ca9fcd65280265ea891caeeb`) had **Maven tests passed** while full browser/atlas CI was still running at documentation time. River reach identity tests (`33b43ed4fa026bee99a68162db86b6325ee9d898`) likewise require final full-CI confirmation. Check https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
+
+**Hydrology acceptance gaps still unfinished:**
+1. Halo-based routes are not authoritative outside the finite sampled window. Different independently generated windows can disagree at their edges; no planet-wide depression filling, guaranteed global river topology, automatic route reconciliation or full-world catchment catalog.
+2. Region provider still supplies prepared graph nodes. The pending-water scheduler chooses load priorities but does not implement terrain cache eviction, dynamic neighbor exploration, seamless global longitude/polar geometry or distributed region ownership. The terrain-core method covers a bounded seeded window only.
+3. Water with **no known downstream address** still fails closed; there is no durable unknown-route reservoir with eventual route discovery.
+4. Lake volumes, wet/dry seasons and erosion overlays are not durably coupled to evolving terrain and sediment transport. Groundwater, snowpack, infiltration, physical calibration and multi-window lake identity remain open.
+5. Receipt history remains unbounded; no safe garbage collection or large-scale long-horizon benchmark. Checkpointing remains single-writer local-file only, without concurrent-writer protection or production game-save integration.
