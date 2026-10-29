@@ -227,7 +227,7 @@ No production deployment, Render billing change, or paid database modifications.
 - **Full CI PASSED** after both corrections: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915632220 (`c898648d817a85405447476d89d0312c23f011b3`).
 - **Full CI PASSED** for connected terrain windows and finite erosion feedback: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915799128 (`d4e6114e0e6ab2c76543def0f4b97f5678028c67`).
 - **Full CI PASSED** for seasonal lake substeps: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915880215 (`53c277762ffd73370be8141b567953bf568d1524`).
-- Cross-region acceptance test commit `001052617fcdffe7ee38757d6802c4d7bf5575b1`: Maven tests passed; **full workflow still running at documentation time**: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915960178 . Do not mark its full CI green until the workflow finishes.
+- Cross-region acceptance test commit `001052617fcdffe7ee38757d6802c4d7bf5575b1`: **Full CI PASSED**: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915960178 . This includes the shared-vertex/confluence and stable outlet-identity acceptance tests.
 
 **Unfinished acceptance gaps (hydrology NOT complete):**
 
