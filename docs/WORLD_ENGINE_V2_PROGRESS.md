@@ -155,3 +155,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Added `HydrologyEpochInboxV2`, an in-memory inbox built on the idempotent transfer ledger. It rejects late deliveries to consumed epochs, prevents re-claiming an epoch, and snapshots/restores both receipts and consumption markers.
 - Added tests for duplicate receipt, one-time claim, snapshot restore, conflicting replay and epoch isolation.
 - Important: the snapshot and world update **must be committed atomically by a future persistent runtime**. This class does not guarantee crash-safe exactly-once delivery on its own.
+
+### 2026-10-29 — Durable-state serialization contracts
+
+- Added `HydrologyInboxCodecV2`, a deterministic versioned text codec for boundary transfer receipts and consumed epoch markers. Tests cover stable roundtrip, consumed-state replay rejection, malformed input and duplicate receipts.
+- Added `HydrologyCheckpointV2` immutable checkpoint value pairing an opaque serialized world state with a validated inbox snapshot, plus restoration tests.
+- These classes provide **serialization and checkpoint contracts, not actual crash-safe database persistence**. The production adapter must atomically write the checkpoint, recover after failures, and coordinate exactly-once acknowledgement with world-state advancement. No production storage was modified.
