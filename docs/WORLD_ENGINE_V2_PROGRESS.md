@@ -75,3 +75,10 @@ No production deployment, Render billing change, or paid database modifications.
 - `LakeSpillV2Test` and `RegionalHydrologyV2Test` cover depressions, spill termination, input validation and deterministic composition.
 - Full workflow for latest implementation: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884912314 (verify outcome).
 - **Important**: Current river discharge still follows raw downhill D8 routing and is not yet redirected along lake spill paths. Global river identities, catchment exchange, erosion, persistence and gameplay integration remain outstanding.
+
+## 2026-10-29 — Lake-aware authoritative regional river extraction
+
+- `SpillDischargeV2` accumulates nonnegative rainfall over the acyclic priority-flood spill forest, conserves total rainfall at the mosaic's boundary outlets and exposes mosaic-local terminal outlet indices. Verified CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40885814735 .
+- `RiverNetworkV2.extract(LakeSpillV2.Result, SpillDischargeV2.Discharge, double)` extracts channels from conserved lake-spill flow. `RegionalHydrologyV2.generate` now uses this overload instead of the legacy raw-D8 channel extraction.
+- The old D8 extraction overload is retained for compatibility. Integration tests for the lake-aware river flow were added. Latest CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40886028435 (check status).
+- Next limitations: stable IDs across different mosaics, boundary exchange with unloaded regions, realistic seasonal lake storage/evaporation, river incision/erosion, and runtime gameplay persistence.
