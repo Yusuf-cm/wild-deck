@@ -50,8 +50,14 @@ public final class HydrologyDurableEpochV2 {
         Objects.requireNonNull(inbox);
         Objects.requireNonNull(mosaics);
         var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
-        var incoming=staged.claim(epoch);
-        var nodes=HydrologyEpochSolverV2.prepare(mosaics,incoming);
+        // Only consume water whose receiving vertex is actually loaded.
+        // Preserve receipts addressed to unloaded regions with their original
+        // edge/epoch identity until a later solve includes that vertex.
+        var loaded=HydrologyMosaicJoinV2.merge(mosaics);
+        var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:loaded)addresses.add(node.address());
+        var incoming=staged.claimAvailable(epoch,addresses);
+        var nodes=HydrologyEpochSolverV2.prepare(List.of(loaded),incoming);
         var result=HydrologyFlowGraphV2.solve(nodes);
         var dispatch=HydrologyFrontierDispatchV2.export(Math.addExact(epoch,1),nodes,result);
         if(!dispatch.unresolved().isEmpty())
