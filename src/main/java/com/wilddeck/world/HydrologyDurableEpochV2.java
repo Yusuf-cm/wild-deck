@@ -78,8 +78,11 @@ public final class HydrologyDurableEpochV2 {
         Objects.requireNonNull(mosaics);
         // Never mutate the original inbox before durable checkpoint success.
         var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
-        var incoming=staged.claim(epoch);
-        var result=HydrologyEpochSolverV2.solve(mosaics,incoming);
+        var loaded=HydrologyMosaicJoinV2.merge(mosaics);
+        var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:loaded)addresses.add(node.address());
+        var incoming=staged.claimAvailable(epoch,addresses);
+        var result=HydrologyEpochSolverV2.solve(List.of(loaded),incoming);
         var checkpoint=HydrologyCheckpointV2.capture(epoch,serializedWorld,staged);
         HydrologyCheckpointStoreV2.save(destination,checkpoint);
         return new Committed(result,staged,checkpoint);
