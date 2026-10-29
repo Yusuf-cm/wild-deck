@@ -14,6 +14,11 @@ public final class SpillDischargeV2 {
             if(width<1||height<1||flow.length!=width*height||outlet.length!=width*height)
                 throw new IllegalArgumentException("Invalid discharge grid");
             flow=flow.clone();outlet=outlet.clone();
+            for(int i=0;i<flow.length;i++) {
+                if(!Double.isFinite(flow[i])||flow[i]<0||
+                   outlet[i]<0||outlet[i]>=flow.length)
+                    throw new IllegalArgumentException("Invalid discharge or outlet");
+            }
         }
         @Override public double[] flow(){return flow.clone();}
         @Override public int[] outlet(){return outlet.clone();}
@@ -49,7 +54,10 @@ public final class SpillDischargeV2 {
             int i=queue.remove();visited++;
             int downstream=next[i];
             if(downstream>=0){
-                flow[downstream]+=flow[i];
+                double sum=flow[downstream]+flow[i];
+                if(!Double.isFinite(sum))
+                    throw new IllegalArgumentException("Downstream discharge overflow");
+                flow[downstream]=sum;
                 if(--remaining[downstream]==0)queue.add(downstream);
             }
         }
