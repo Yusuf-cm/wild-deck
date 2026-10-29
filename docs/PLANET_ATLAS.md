@@ -40,3 +40,7 @@ Save metadata and preview JSON include the generator version and seed. The curre
 PlanetSurfaceGeneratorTest covers repeatability, request-order/detail independence, different/high-bit seeds, seams and poles, suitability, bounds, clustering, detached arrays, exact metadata and the version-one reference fingerprint.
 
 PlanetAtlasServerTest checks real HTTP responses, sampled Java values, bounds, read-only behaviour and rejected parameters. The browser check exercises seed changes, repeatability, resource layers, inspection, globe rotation, exact large seeds, errors, export, mobile layout and offline rendering.
+
+Verified on 2026-10-29: [CI run 40846413278](https://github.com/Yusuf-cm/wild-deck/actions/runs/40846413278) passed 200 Java tests with zero failures/errors/skips, six existing browser-script tests, the executable world experiment and the actual Chromium atlas checks. Flat/globe screenshots were inspected after the run. The portable HTML was also checked offline with no HTTP requests.
+
+The three 360×180 review worlds have approximately 47.2%, 32.9% and 51.7% area-weighted land coverage for seeds 42, 1598 and -7. Counts of positive iron/copper/Stormglass preview samples are respectively 9031/2817/1112, 4245/1908/319 and 6443/5458/566. Sample counts are neither area measurements nor resource inventories.

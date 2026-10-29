@@ -20,4 +20,6 @@ The planet's surface is undefined. There are no landmasses, oceans, elevations, 
 
 The earlier three-site WorldSimulation experiment remains separate and is not attached to the planet. Existing matches are not changed. The immediate scope is only the empty planet; additions to its surface come in a later step.
 
+Update: the next step is now available as the separate [seeded surface generator and atlas](PLANET_ATLAS.md). Planet itself still defines geometry only; PlanetSurfaceGenerator supplies the optional geography/deposit layer.
+
 Verified on 2026-10-29: [code CI](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841583900) passed six planet tests, 190 total Java tests and six browser-script checks. Planet checks cover dimensions, wrapping at the longitude seam, poles, antipodal distance, geocentric axes, invalid coordinates and distance symmetry/scaling.
