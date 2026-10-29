@@ -18,6 +18,11 @@ public final class HydrologyEpochInboxV2 {
             delivered=Set.copyOf(delivered);
             if(!receipts.keySet().containsAll(delivered))
                 throw new IllegalArgumentException("Delivered receipt missing from ledger");
+            for(long epoch:consumedEpochs)
+                if(epoch<0)throw new IllegalArgumentException("Invalid consumed epoch");
+            for(var key:delivered)
+                if(!consumedEpochs.contains(key.epoch()))
+                    throw new IllegalArgumentException("Delivered receipt has unclaimed source epoch");
         }
         /** Backwards-compatible snapshot: a claimed epoch delivered all its receipts. */
         public Snapshot(Map<HydrologyTransferLedgerV2.Key,Double> receipts,
