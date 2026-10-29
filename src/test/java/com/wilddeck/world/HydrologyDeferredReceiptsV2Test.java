@@ -75,6 +75,38 @@ class HydrologyDeferredReceiptsV2Test {
                 "\nC,1\nD,1,2,4,4,3,5,3\n"));
     }
 
+    @Test void delayedConfluencePreservesEachSourceAndDoesNotReplay() throws IOException {
+        Path path=directory.resolve("confluence.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
+        var a=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
+        var b=new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4),at(5));
+        runner.receive(a,4);
+        runner.receive(b,7);
+        runner.advanceAndQueueKnownFrontier("unloaded-1",terminal(7,0));
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        runner.advanceAndQueueKnownFrontier("unloaded-2",terminal(7,0));
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(12,runner.advanceAndQueueKnownFrontier("loaded",terminal(5,1))
+            .committed().flow().terminalOutflow().get(at(5)),1e-9);
+        assertEquals(Set.of(a,b),runner.inboxSnapshot().delivered());
+        assertEquals(1,runner.advanceAndQueueKnownFrontier("next",terminal(5,1))
+            .committed().flow().terminalOutflow().get(at(5)),1e-9);
+    }
+
+    @Test void receiptOnlyCheckpointCannotForgeDelivery() throws IOException {
+        Path path=directory.resolve("receipt-only.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
+        var key=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
+        runner.receive(key,3);
+        var before=HydrologyCheckpointStoreV2.load(path);
+        var forged=HydrologyCheckpointV2.restoreInbox(before);
+        forged.claimAvailable(1,Set.of(at(5)));
+        assertThrows(IOException.class,()->HydrologyCheckpointStoreV2.saveIncoming(path,
+            HydrologyCheckpointV2.capture(0,"seed",forged)));
+        assertEquals(before,HydrologyCheckpointStoreV2.load(path));
+    }
+
     @Test void aggregationOverflowDoesNotMarkReceiptsDelivered(){
         var inbox=new HydrologyEpochInboxV2();
         var a=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
