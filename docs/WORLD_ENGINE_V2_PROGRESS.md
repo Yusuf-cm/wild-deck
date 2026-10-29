@@ -268,3 +268,11 @@ No production deployment, Render billing change, or paid database modifications.
 - `HydrologyWorldRunnerV2.pendingWaterRegions` exposes these hints after checkpoint restoration, allowing a caller to prioritize regions where parked water awaits delivery. Tests verify hints across a restart, boundary ownership, and removal once water has been delivered.
 - This is a **hint API**, not an automatic terrain loader, verified downstream route finder, or memory/cache scheduler. The existing `HydrologyRegionSchedulerV2.load` still needs a caller-provided region node provider.
 - Code/test commits: `400d4a0427fd55767729edb231a4065b5deedd43`, `529663e93e3887231065e6addc3c81106ee27cdb`, `922c81864ecb8827d22f7a6da8a11ee187f956f7`, `f7a470b931c66ef9e4bc2db9dbe7766278d3bc74`. **CI pending at writing**; inspect https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
+
+### 2026-10-29 — Verification update for delayed discharge and region hints
+
+- Full workflow **PASSED** for multi-epoch parking, legacy snapshot migration, and overflow rollback: https://github.com/Yusuf-cm/wild-deck/actions/runs/40925293302 (`3b8e65f7369588acc23f465f2c98eb6afc8bc3e9`).
+- Full workflow **PASSED** for delayed two-branch confluence and receipt-only checkpoint anti-forgery: https://github.com/Yusuf-cm/wild-deck/actions/runs/40925435492 (`42763d76d1c5038f675fd97a4115e821a74df778`).
+- Full workflow **PASSED** for deterministic pending-region ownership and runner hint integration: https://github.com/Yusuf-cm/wild-deck/actions/runs/40925581968 (`f7a470b931c66ef9e4bc2db9dbe7766278d3bc74`).
+- Additional tests reject mixed-resolution region hints (`a90303a4f14495b9ccab480716514e8548fb0be8`) and verify that two different source epochs of the same river edge can both wait for a later loaded destination without collision (`d15cf91c9078e21ff1159e583b08cca500802da7`). **Their full CI workflows are pending at this writing**: https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
+- The system now preserves known-edge incoming discharge across arbitrary numbers of unloaded epochs in the tested single-writer runtime. **Unknown downstream routing, world-scale physical calibration, bounded ledger retention, and actual automatic terrain loading remain unimplemented.**
