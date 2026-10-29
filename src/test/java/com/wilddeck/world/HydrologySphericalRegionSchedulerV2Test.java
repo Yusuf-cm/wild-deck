@@ -1,10 +1,14 @@
 package com.wilddeck.world;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HydrologySphericalRegionSchedulerV2Test {
+    @TempDir Path directory;
     private static HydrologyRegionSchedulerV2.Region region(long x,long y) {
         return new HydrologyRegionSchedulerV2.Region(x,y);
     }
@@ -46,6 +50,26 @@ class HydrologySphericalRegionSchedulerV2Test {
                 return List.of();
             });
         assertEquals(List.of(region(0,1),region(3,1)),visited);
+    }
+
+    @Test void checkpointRunnerLoadsPendingDatelineDestinationAutomatically()
+            throws IOException {
+        Path checkpoint=directory.resolve("spherical-runner.chk");
+        var runner=HydrologyWorldRunnerV2.open(checkpoint,0,"seed");
+        var seam=new HydrologyTransferLedgerV2.Key(1,at(7,3),at(0,3));
+        assertTrue(runner.receive(seam,4));
+        var visited=new ArrayList<HydrologyRegionSchedulerV2.Region>();
+        var first=runner.advanceSphericalPendingRegionsAndQueue(
+            "loaded",List.of(),1,0,1,r->{
+                visited.add(r);
+                return List.of(new HydrologyFlowGraphV2.Node(at(0,3),1,null,true));
+            });
+        assertEquals(List.of(region(0,1)),visited);
+        assertEquals(5,first.committed().flow().terminalOutflow().get(at(0,3)),1e-12);
+        var restored=HydrologyWorldRunnerV2.open(checkpoint,0,"ignored");
+        assertTrue(restored.pendingWaterRegions().isEmpty());
+        assertEquals(Set.of(seam),restored.inboxSnapshot().delivered());
+        assertEquals(1,restored.epoch());
     }
 
     @Test void realSeededProviderConservesWaterAcrossWrappedHalo() {

@@ -137,6 +137,22 @@ public final class HydrologyWorldRunnerV2 {
         return advanceAndQueueKnownFrontier(nextWorldState,List.of(core.coreNodes()));
     }
 
+    /**
+     * Opt-in spherical region loading with longitude wrap, polar clamping,
+     * and parked-water destination hints. The provider must use canonical
+     * spherical addresses and globally consistent elevation samples.
+     * The loaded-region budget is checked before any durable state changes.
+     */
+    public synchronized HydrologyDurableEpochV2.Routed advanceSphericalPendingRegionsAndQueue(
+            String nextWorldState,
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            int level,int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) throws IOException {
+        var loaded=HydrologySphericalRegionSchedulerV2.loadWithPending(
+            focus,inbox.snapshot(),level,radius,maximumRegions,provider);
+        return advanceAndQueueKnownFrontier(nextWorldState,loaded);
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
