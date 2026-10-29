@@ -33,4 +33,16 @@ class SpillDischargeV2Test {
         rain[4]=-1;
         assertThrows(IllegalArgumentException.class,()->SpillDischargeV2.accumulate(lakes,rain));
     }
+    @Test void rejectsOverflowAfterUpstreamConfluence() {
+        var lakes=LakeSpillV2.fill(3,3,new double[]{
+            5,5,5,5,0,5,5,5,5});
+        double[] rain=new double[9];
+        java.util.Arrays.fill(rain,Double.MAX_VALUE);
+        assertThrows(IllegalArgumentException.class,()->
+            SpillDischargeV2.accumulate(lakes,rain));
+        assertThrows(IllegalArgumentException.class,()->
+            new SpillDischargeV2.Discharge(1,1,
+                new double[]{Double.POSITIVE_INFINITY},new int[]{0}));
+    }
+
 }
