@@ -306,3 +306,12 @@ No production deployment, Render billing change, or paid database modifications.
 3. Water with **no known downstream address** still fails closed; there is no durable unknown-route reservoir with eventual route discovery.
 4. Lake volumes, wet/dry seasons and erosion overlays are not durably coupled to evolving terrain and sediment transport. Groundwater, snowpack, infiltration, physical calibration and multi-window lake identity remain open.
 5. Receipt history remains unbounded; no safe garbage collection or large-scale long-horizon benchmark. Checkpointing remains single-writer local-file only, without concurrent-writer protection or production game-save integration.
+
+### 2026-10-29 — Final CI confirmation for numerical guards and stable river reaches
+
+The previously pending full workflows have now **PASSED** (not merely Maven tests):
+- `a6b26cfbbb5f6fa369cce6c80c42d21261b3feb2`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40934912883 .
+- `047ee84ebf6783a6ca9fcd65280265ea891caeeb`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40934918896 .
+- `33b43ed4fa026bee99a68162db86b6325ee9d898`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40934989499 .
+
+These checks establish the finite-grid numerical and identity regression tests; they do **not** establish authoritative global routing, lake/sediment persistence, calibrated physical units, or multiplayer-safe checkpointing.
