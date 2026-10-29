@@ -1,5 +1,7 @@
 # Wild Deck
 
+**Current world-building status and decisions:** [World-building handover](docs/WORLD_BUILDING_HANDOVER.md).
+
 Wild Deck is an AI-refereed emergent strategy card game.
 
 For the browser playtest, see [Quick Match](docs/QUICK_MATCH.md) and [browser sessions, saves, and server configuration](docs/BROWSER_SAVES.md). The web entry point requires a stable WILD_DECK_SAVE_KEY; its browser-held saves cover quick/full matches, while terminal and legacy sandbox modes remain temporary.
