@@ -38,9 +38,12 @@ public final class HydrologyEpochInboxV2 {
      */
     public synchronized Map<GlobalHydrologyAddressV2.Sample,Double> claim(long epoch) {
         if(epoch<0)throw new IllegalArgumentException("Invalid epoch");
-        if(!consumed.add(epoch))
+        if(consumed.contains(epoch))
             throw new IllegalStateException("Epoch already consumed");
-        return ledger.incoming(epoch);
+        // Validate/aggregate before marking consumed: overflow must not burn the epoch.
+        var incoming=ledger.incoming(epoch);
+        consumed.add(epoch);
+        return incoming;
     }
 
     public synchronized Snapshot snapshot() {
