@@ -46,6 +46,13 @@ class HydrologyGlobalSlopeRouterV2Test {
             .terminalOutflow().get(at(7,3)),1e-9);
         assertEquals(HydrologyRiverIdentityV2.knownReaches(combined),
             HydrologyRiverIdentityV2.knownReaches(joined));
+        assertTrue(HydrologyRiverIdentityV2.catchments(
+            HydrologyFlowGraphV2.solve(left)).isEmpty());
+        var resolved=HydrologyRiverIdentityV2.catchments(
+            HydrologyFlowGraphV2.solve(combined));
+        assertEquals(5,resolved.size());
+        for(var id:resolved.values())
+            assertEquals(new HydrologyRiverIdentityV2.CatchmentId(at(7,3)),id);
         Collections.reverse(all);
         assertEquals(combined,HydrologyGlobalSlopeRouterV2.route(all,
             HydrologyGlobalSlopeRouterV2Test::height,verified));
