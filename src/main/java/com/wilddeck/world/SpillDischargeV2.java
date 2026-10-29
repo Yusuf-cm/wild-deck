@@ -19,13 +19,21 @@ public final class SpillDischargeV2 {
         @Override public int[] outlet(){return outlet.clone();}
     }
     public static Discharge accumulate(LakeSpillV2.Result lakes,double[] rainfall){
-        Objects.requireNonNull(lakes);Objects.requireNonNull(rainfall);
+        return accumulate(lakes,rainfall,new double[rainfall.length]);
+    }
+    /** Adds nonnegative incoming water at globally reconciled grid samples. */
+    public static Discharge accumulate(LakeSpillV2.Result lakes,double[] rainfall,double[] incoming){
+        Objects.requireNonNull(lakes);Objects.requireNonNull(rainfall);Objects.requireNonNull(incoming);
         int width=lakes.width(),height=lakes.height(),size=width*height;
-        if(rainfall.length!=size)throw new IllegalArgumentException("Invalid rainfall grid");
+        if(rainfall.length!=size||incoming.length!=size)throw new IllegalArgumentException("Invalid water input grid");
         int[] next=lakes.spillTo();
-        double[] flow=rainfall.clone();
-        for(double value:flow)if(!Double.isFinite(value)||value<0)
-            throw new IllegalArgumentException("Invalid rainfall");
+        double[] flow=new double[size];
+        for(int i=0;i<size;i++){
+            if(!Double.isFinite(rainfall[i])||rainfall[i]<0||!Double.isFinite(incoming[i])||incoming[i]<0)
+                throw new IllegalArgumentException("Invalid water input");
+            flow[i]=rainfall[i]+incoming[i];
+            if(!Double.isFinite(flow[i]))throw new IllegalArgumentException("Water input overflow");
+        }
         int[] remaining=new int[size];
         for(int i=0;i<size;i++){
             if(next[i]<-1||next[i]>=size||next[i]==i)
