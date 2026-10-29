@@ -29,6 +29,16 @@ class RiverNetworkV2Test {
         assertEquals(0,RiverNetworkV2.extract(drainage,5).channels().size());
         assertThrows(IllegalArgumentException.class,()->RiverNetworkV2.extract(drainage,0));
     }
+    @Test void lakeAwareRiverCarriesWaterThroughDepression(){
+        double[] terrain={5,5,5,5,0,5,5,5,5};
+        var lakes=LakeSpillV2.fill(3,3,terrain);
+        var rain=new double[]{0,0,0,0,3,0,0,0,0};
+        var discharge=SpillDischargeV2.accumulate(lakes,rain);
+        var rivers=RiverNetworkV2.extract(lakes,discharge,2);
+        assertTrue(rivers.channels().stream().anyMatch(c->c.index()==4&&c.flow()==3));
+        int outlet=discharge.outlet()[4];
+        assertTrue(rivers.channels().stream().anyMatch(c->c.index()==4&&c.outlet()==outlet));
+    }
     @Test void generatedMosaicProducesRepeatableChannels(){
         var world=new PlanetSurfaceV2(Planet.emptyEarthSized(),42);
         var climate=new PlanetClimateV2(world);
