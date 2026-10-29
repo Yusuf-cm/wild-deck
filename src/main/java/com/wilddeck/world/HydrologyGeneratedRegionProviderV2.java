@@ -33,7 +33,9 @@ public final class HydrologyGeneratedRegionProviderV2
     @Override public Collection<HydrologyFlowGraphV2.Node> load(
             HydrologyRegionSchedulerV2.Region region) {
         Objects.requireNonNull(region);
-        // Reject invalid planetary tile addresses before sampling.\n        new PlanetRegionGrid.Region(level,region.column(),region.row());\n        var generated=RegionalHydrologyV2.generate(
+        // Reject invalid planetary tile addresses before sampling.
+        new PlanetRegionGrid.Region(level,region.column(),region.row());
+        var generated=RegionalHydrologyV2.generate(
             terrain,climate,level,region.column(),region.row(),
             1,1,divisions,riverThreshold);
         var nodes=HydrologyGraphAdapterV2.nodes(
