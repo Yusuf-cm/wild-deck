@@ -42,6 +42,18 @@ class HydrologyRegionSchedulerV2Test {
         assertTrue(HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot()).isEmpty());
     }
 
+    @Test void pendingHintsRejectMixedSamplingResolutions(){
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,3,3),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,3)),1);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(3,4,3,3),
+            new GlobalHydrologyAddressV2.Sample(3,4,4,3)),1);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot()));
+    }
+
     @Test void rejectsOverflowAndInvalidLimits(){
         assertThrows(ArithmeticException.class,()->
             HydrologyRegionSchedulerV2.load(
