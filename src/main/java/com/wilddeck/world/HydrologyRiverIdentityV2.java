@@ -20,6 +20,7 @@ public final class HydrologyRiverIdentityV2 {
     public record ReachId(GlobalHydrologyAddressV2.Sample from,
                           GlobalHydrologyAddressV2.Sample to) {
         public ReachId {
+            Objects.requireNonNull(to);
             // Reuse the validated one-step graph-edge contract.
             new HydrologyFlowGraphV2.Node(from,0,to,false);
         }
