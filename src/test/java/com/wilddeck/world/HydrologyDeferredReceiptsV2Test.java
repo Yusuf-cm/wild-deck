@@ -107,6 +107,21 @@ class HydrologyDeferredReceiptsV2Test {
         assertEquals(before,HydrologyCheckpointStoreV2.load(path));
     }
 
+    @Test void pendingWaterSuggestsStableOwningRegionsUntilDelivery() throws IOException {
+        Path path=directory.resolve("region-hints.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,at(4),at(5)),2);
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,at(7),at(8)),3);
+        assertEquals(List.of(new HydrologyRegionSchedulerV2.Region(1,0)),
+            runner.pendingWaterRegions()); // x=8 belongs to western tile at boundary
+        runner.advanceAndQueueKnownFrontier("loaded-5",terminal(5,0));
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(List.of(new HydrologyRegionSchedulerV2.Region(1,0)),
+            runner.pendingWaterRegions());
+        runner.advanceAndQueueKnownFrontier("loaded-8",terminal(8,0));
+        assertTrue(runner.pendingWaterRegions().isEmpty());
+    }
+
     @Test void aggregationOverflowDoesNotMarkReceiptsDelivered(){
         var inbox=new HydrologyEpochInboxV2();
         var a=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
