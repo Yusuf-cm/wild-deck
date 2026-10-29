@@ -107,6 +107,38 @@ public final class HydrologyGlobalSlopeRouterV2 {
         };
     }
 
+    /**
+     * Emit globally unique rainfall vertices for one INTERIOR region. Shared
+     * west/north vertices are owned by the preceding region, matching the
+     * existing rainfall-ownership contract. Planet-edge tiles are rejected
+     * until seam and polar geometry has an authoritative ownership model.
+     * Climate moisture is a dimensionless proxy: the caller supplies its
+     * conversion to per-vertex water volume; this is not calibrated rainfall.
+     */
+    public static List<Source> seededOwnedInteriorRegion(
+            PlanetClimateV2 climate,PlanetRegionGrid.Region region,
+            int divisions,double volumePerMoisture) {
+        Objects.requireNonNull(climate);
+        Objects.requireNonNull(region);
+        if(divisions<1||divisions>128||!Double.isFinite(volumePerMoisture)||
+           volumePerMoisture<0)
+            throw new IllegalArgumentException("Invalid seeded source parameters");
+        long columns=2L<<region.level(),rows=1L<<region.level();
+        if(region.column()==0||region.column()==columns-1||
+           region.row()==0||region.row()==rows-1)
+            throw new IllegalArgumentException("Seam and polar ownership unresolved");
+        var sources=new ArrayList<Source>(divisions*divisions);
+        for(int y=1;y<=divisions;y++)for(int x=1;x<=divisions;x++){
+            var address=new GlobalHydrologyAddressV2.Sample(
+                region.level(),divisions,
+                region.column()*divisions+x,region.row()*divisions+y);
+            double water=climate.sample(PlanetRegionGrid.point(region,x,y,divisions))
+                .moisture()*volumePerMoisture;
+            sources.add(new Source(address,water));
+        }
+        return List.copyOf(sources);
+    }
+
     private static double checked(double elevation) {
         if(!Double.isFinite(elevation))
             throw new IllegalArgumentException("Non-finite global elevation");
