@@ -80,7 +80,8 @@ class HydrologyCheckpointStoreV2Test {
         HydrologyCheckpointStoreV2.saveIncoming(file,appended);
         assertEquals(7,HydrologyCheckpointV2.restoreInbox(
             HydrologyCheckpointStoreV2.load(file)).snapshot().receipts().get(key));
-        assertThrows(IOException.class,()->HydrologyCheckpointStoreV2.save(file,appended));
+        HydrologyCheckpointStoreV2.save(file,appended); // exact retry is idempotent
+        assertThrows(IOException.class,()->HydrologyCheckpointStoreV2.save(file,initial));
         assertThrows(IOException.class,()->
             HydrologyCheckpointStoreV2.saveIncoming(file,initial));
         assertThrows(IOException.class,()->
