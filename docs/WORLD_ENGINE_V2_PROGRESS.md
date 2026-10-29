@@ -139,3 +139,7 @@ No production deployment, Render billing change, or paid database modifications.
 
 ### End-to-end regression
 - `HydrologyEndToEndV2Test` checks seeded terrain + climate + lake-aware flow, global-address graph water conservation, pending frontier snapshot roundtrip, finite lake reservoir storage, river incision and downstream sediment conservation in one integration scenario. Commit `53d2a13fd6ad7029138fe4cf76d714601ad1abaa`; CI must pass before acceptance. This test does not prove planet-wide streaming or multi-year stability.
+
+### Duplicate boundary-delivery protection
+- `HydrologyTransferLedgerV2` accepts a directed adjacent-sample transfer at most once per epoch, ignores exact replays, rejects conflicting replays, aggregates independent incoming confluences, and supports an immutable in-memory snapshot/restore. Tests cover epoch separation and replay. Commits `a6bf3bb3fdace6ef9c4bca28e5500e54213624ee`, `5e1a769ad6d0063e81ee91388b510420d6232fee`. CI pending.
+- **Still required**: an atomic durable transfer store and a scheduler to reconcile region loading, route discovery and hydrologic time. The ledger alone does not make asynchronous streaming transactional.
