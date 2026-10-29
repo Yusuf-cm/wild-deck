@@ -357,3 +357,34 @@ All previously pending workflows **PASSED**, including Maven tests, world experi
 - Documentation update `7c4bdccf7e6ca6df05ac92142622f344cddf33e4`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40943903423 .
 
 **Verified scope:** finite loaded-graph water conservation, durable known-edge receipts through multiple unloaded epochs and restarts, deterministic pending/delivered receipt accounting, and a prototype multi-season catchment storage budget. **Not verified/unfinished:** planet-wide authoritative routes (including seams and poles), physically calibrated climate and lakes, persistent sediment/terrain feedback, receipt garbage collection, distributed transactions, and production gameplay integration.
+
+### 2026-10-29 — Global-sample downhill routing and checkpointed lake storage (latest run)
+
+**Scope:** Changes confined to `feature/world-engine-v2`. No merges, PRs, production deployments or paid services.
+
+**Baseline:** Existing full CI for `0e09c802db9ec5dce559170aa3d6f03268d1f115` was **PASSED**: https://github.com/Yusuf-cm/wild-deck/actions/runs/40944092167 . No pre-existing CI failure required repair.
+
+**Implemented:**
+- `HydrologyGlobalSlopeRouterV2` chooses one strictly downhill D8 neighbor from a caller-supplied global elevation sampler, using deterministic tie-breaking independent of loaded window extent. Downhill edges to unloaded neighbors retain stable global addresses; flats and depressions remain unresolved rather than invented outlets. `planetElevations` samples canonical seeded planet terrain at global addresses. `seededOwnedInteriorRegion` emits unique moisture-derived water sources per interior tile with west/north shared-vertex ownership, rejecting seam/polar tiles pending authoritative geometry. Climate moisture requires a caller-supplied volume scale and is **not calibrated rainfall**.
+- Added routing tests for independently loaded windows matching the combined solve, confluence water conservation, stable reach IDs, two frontier transfers through checkpoint restart and exactly-once delivery, flat sink fail-closed behavior, shared-boundary seeded elevations, and deduplicated independently seeded interior tiles.
+- `HydrologyLakeStateV2` provides deterministic, versioned, explicitly opt-in lake-volume serialization within the existing checksummed atomic world+inbox checkpoint. Each lake key is a caller-verified globally addressed basin anchor. Existing opaque world-state payloads are **not** automatically migrated or reinterpreted.
+- `HydrologyLakeEpochV2` advances caller-provided lake basins through seasonal substeps, retains lake storage across unloaded epochs and restarts, and injects verified lake spill **once** into a loaded outlet graph vertex before the durable routed-epoch commit. Missing outlets, changed basin capacities and invalid lake inputs abort before commit. Catchment runoff feeding a lake **must not also be supplied as graph local rainfall**, or the caller would double-count it.
+- `LakeReservoirV2` now rejects overflowing potential evaporation instead of silently treating non-finite evaporation as valid water removal.
+- Lake tests cover codec canonicalization/malformed input, wet/spill/dry conservation over multiple restarts, unloaded lake preservation, failed geometry/outlet rollback, and separate upstream receipt plus lake spill conservation.
+
+**Verified full CI at documentation time:**
+- Global-sample downhill routing implementation `0fd920684793253c328cf25195c7b0073566f24f`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952196331 .
+- Independently loaded route/confluence/restart tests `84649866feba12eddecbef5711dc5683aedfab6d`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952237348 .
+- Lake-state codec `e53a64c0034f597bc7501a41bb883d17dd6477df`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952328601 .
+- Initial lake epoch implementation `e2ab76b18ba22cee26996159c63be6b6477b7ffd`: **FAILED** (Java compact-record constructor assignment); fixed in `15c63c19b56366dfa848ee0248b6be73f71fbe68`, **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952403729 .
+- Lake storage, spill and restart acceptance `324468ba775c8bf90ad70c429f44a78e4c581619`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952473425 .
+- Lake evaporation overflow guard and regression `ba7411071804cba2a8cbc348192ff75509b433cd`, `282350524bd4787f060a4a50406982650358eac7`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952501420 and https://github.com/Yusuf-cm/wild-deck/actions/runs/40952521589 .
+- Seeded canonical terrain sampling `ed7f7e47939137d5f193d396c9aa8310af663aea`, boundary regression `88527447ee5419b483876306402afe1db7172274`, owned-source implementation `458cd23f61a625831c7d2b69cb38d386adc272ca` and ownership test `8f22e9de13a17cc8e39db5ee6567b9efe3a10f4a`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952587435 , https://github.com/Yusuf-cm/wild-deck/actions/runs/40952635834 , https://github.com/Yusuf-cm/wild-deck/actions/runs/40952717789 , https://github.com/Yusuf-cm/wild-deck/actions/runs/40952789819 .
+- Additional lake mass-budget and separate river-receipt integration assertions `37e1bd1203706645863ebcd7a7b929842bea41fb`, `8ea391d83c6a56c8c0b06794271a3c01572dd29e`: **full CI pending** when this paragraph was written. Check https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 before claiming these passed.
+
+**Unfinished acceptance gaps:**
+1. Global D8 downhill routes are window-independent *where strict descent exists*, but cannot drain closed depressions, resolve equal-elevation flats, prove basin-wide outlet identity, or reconcile terrain edits. Planetary priority-flood/global depression filling and authoritative catchment topology remain unimplemented.
+2. Longitude seam and pole geometry are still noncanonical; the new seeded ownership API explicitly rejects edge regions. World-scale water volume and ocean-boundary conservation remain unverified.
+3. Lake IDs, basin geometry and outlet ownership remain caller-verified; no global multi-window lake extraction, sediment-changing basin geometry, lake-routing discovery or terrain erosion persistence. Lake payload is opt-in, not integrated into production world saves.
+4. Climate moisture is not rainfall volume, no calibrated seasonal forcing, groundwater, infiltration, snow, evapotranspiration, or full watershed/river/lake coupling. Caller must prevent double-counting lake catchment inflow.
+5. Pending receipt history is unbounded. Persistence remains local single-writer; no distributed transaction, automatic region cache eviction, large-scale stress test or multiplayer-safe production integration.
