@@ -143,3 +143,9 @@ No production deployment, Render billing change, or paid database modifications.
 ### Duplicate boundary-delivery protection
 - `HydrologyTransferLedgerV2` accepts a directed adjacent-sample transfer at most once per epoch, ignores exact replays, rejects conflicting replays, aggregates independent incoming confluences, and supports an immutable in-memory snapshot/restore. Tests cover epoch separation and replay. Commits `a6bf3bb3fdace6ef9c4bca28e5500e54213624ee`, `5e1a769ad6d0063e81ee91388b510420d6232fee`. CI pending.
 - **Still required**: an atomic durable transfer store and a scheduler to reconcile region loading, route discovery and hydrologic time. The ledger alone does not make asynchronous streaming transactional.
+
+### 2026-10-29 — Merged graph epoch orchestration
+
+- Added `HydrologyEpochSolverV2`: merges adjacent/overlapping globally addressed flow-node collections using `HydrologyMosaicJoinV2`, applies explicitly supplied prior-epoch incoming frontier water at loaded addresses, then uses `HydrologyFlowGraphV2.solve` to produce terminal and unresolved frontier outflow. Unit tests cover shared rainfall deduplication, unresolved flow, prior-epoch injection and cycle rejection.
+- Important: callers must persist and consume prior-epoch incoming exactly once, using `HydrologyTransferLedgerV2` and their durable runtime. The helper does not schedule asynchronous region loads or atomically consume snapshots. Passing same previous-epoch water repeatedly will repeat it.
+- The global solver follows explicit known graph links only; it does not infer terrain beyond the loaded mosaic, nor provide a planet-wide physically calibrated watershed simulation.
