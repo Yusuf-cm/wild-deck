@@ -130,3 +130,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Workflow history: https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2
 - The prior corrected integration CI passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40888556437
 - Newest sediment, merge and integration workflows may still be running; check exact latest commit before marking the entire change set verified.
+
+### Follow-up: frontier snapshot format and route validation
+- `HydrologyFrontierCodecV2` serializes pending boundary discharge in deterministic global-address order and rejects malformed/duplicate/invalid snapshots. This supports a future unload/reload persistence adapter, but **does not itself save anything to disk or coordinate asynchronous region loads**. Commits `f4f8f67b5e064efdf7a65d57cc524b231740de53`, `75c116a30cd5fdf584427b28df8c89ddad005a32`. CI pending.
+- Global graph routes now reject nonlocal sample teleportation, with regression coverage. Commits `9b1b1467b5feb1471cd8269af0ebd68c0a897a18`, `bb40d7085b242d5d452eeb01d4a891520da56c7e`. This intentionally does not yet support seam-wrapped or pole-normalized planetary neighbors.
+- The shared-vertex merge test passed CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40896018996 .
+- The erosion-to-sediment integration test passed CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40896144502 .
