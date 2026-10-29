@@ -61,6 +61,13 @@ class SeasonalLakeCycleV2Test {
         assertEquals(9,refined.seasons().get(0).lake().evaporated(),1e-9);
     }
 
+    @Test void rejectsPotentialEvaporationOverflowInsteadOfSilentlyDrainingLake(){
+        var huge=new LakeReservoirV2.Basin(
+            new double[]{0},new double[]{Double.MAX_VALUE},1);
+        assertThrows(IllegalArgumentException.class,()->
+            LakeReservoirV2.step(huge,Double.MAX_VALUE,0,2));
+    }
+
     @Test void substepBudgetIsBounded(){
         assertThrows(IllegalArgumentException.class,()->
             SeasonalLakeCycleV2.simulateSubsteps(basin(),0,1,List.of(),0));
