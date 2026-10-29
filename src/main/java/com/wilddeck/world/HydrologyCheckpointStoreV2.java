@@ -39,6 +39,17 @@ public final class HydrologyCheckpointStoreV2 {
         Path parent=target.getParent();
         if(parent==null||!Files.isDirectory(parent))
             throw new IOException("Checkpoint parent directory must exist");
+        // A stale writer must never roll the authoritative epoch backwards.
+        // Rewriting an epoch with different state would also replay consumed water.
+        if(Files.exists(target)) {
+            var previous=load(target);
+            if(checkpoint.epoch()<previous.epoch())
+                throw new IOException("Checkpoint epoch regression");
+            if(checkpoint.epoch()==previous.epoch()) {
+                if(previous.equals(checkpoint))return; // idempotent retry
+                throw new IOException("Conflicting checkpoint for same epoch");
+            }
+        }
         byte[] encoded=encode(checkpoint);
         Path temporary=Files.createTempFile(parent,target.getFileName().toString()+".",".pending");
         try {
