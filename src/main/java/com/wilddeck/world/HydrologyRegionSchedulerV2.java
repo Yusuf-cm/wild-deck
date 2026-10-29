@@ -24,6 +24,30 @@ public final class HydrologyRegionSchedulerV2 {
     }
 
     /**
+     * Deterministic load hints for outstanding cross-region receipts.
+     * At shared vertices, west/north owns the sample, matching the rainfall
+     * ownership convention. A hint is not a verified downstream route.
+     * Mixed sampling resolutions cannot share this unqualified Region type.
+     */
+    public static List<Region> pendingRegions(HydrologyEpochInboxV2.Snapshot snapshot) {
+        Objects.requireNonNull(snapshot);
+        var selected=new TreeSet<Region>();
+        GlobalHydrologyAddressV2.Sample resolution=null;
+        for(var key:snapshot.receipts().keySet()){
+            if(snapshot.delivered().contains(key))continue;
+            var destination=key.to();
+            if(resolution==null)resolution=destination;
+            else if(resolution.level()!=destination.level()||
+                    resolution.divisions()!=destination.divisions())
+                throw new IllegalArgumentException("Mixed pending receipt resolutions");
+            long column=destination.x()==0?0:(destination.x()-1)/destination.divisions();
+            long row=destination.y()==0?0:(destination.y()-1)/destination.divisions();
+            selected.add(new Region(column,row));
+        }
+        return List.copyOf(selected);
+    }
+
+    /**
      * Selects a square Chebyshev-radius neighborhood around each focus,
      * deduplicates overlaps and loads regions in stable row-major order.
      * The cap protects callers from accidental planet-scale materialization.
