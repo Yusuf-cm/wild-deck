@@ -30,4 +30,22 @@ class SedimentBudgetV2Test {
             SedimentBudgetV2.erodedMass(new double[]{1},new double[]{2},
                                         new double[]{1},2000));
     }
+
+    @Test void erosionOverlayFeedsConservativeSedimentTransport() {
+        double[] terrain={0,0,0,0,10,0,0,0,0};
+        double[] rain={1,1,1,1,1,1,1,1,1};
+        double[] area={1,1,1,1,1,1,1,1,1};
+        var lakes=LakeSpillV2.fill(3,3,terrain);
+        var discharge=SpillDischargeV2.accumulate(lakes,rain);
+        var eroded=RiverErosionV2.erode(terrain,lakes,discharge,0.1,2);
+        var mass=SedimentBudgetV2.erodedMass(terrain,eroded,area,2000);
+        assertTrue(mass[4]>0);
+        var sediment=SedimentBudgetV2.route(lakes,mass,
+            new double[]{10000,10000,10000,10000,10000,10000,10000,10000,10000});
+        double erodedTotal=0,accounted=0;
+        for(double value:mass)erodedTotal+=value;
+        for(double value:sediment.deposited())accounted+=value;
+        for(double value:sediment.outletExport())accounted+=value;
+        assertEquals(erodedTotal,accounted,1e-8);
+    }
 }
