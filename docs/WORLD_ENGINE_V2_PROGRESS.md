@@ -161,3 +161,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Added `HydrologyInboxCodecV2`, a deterministic versioned text codec for boundary transfer receipts and consumed epoch markers. Tests cover stable roundtrip, consumed-state replay rejection, malformed input and duplicate receipts.
 - Added `HydrologyCheckpointV2` immutable checkpoint value pairing an opaque serialized world state with a validated inbox snapshot, plus restoration tests.
 - These classes provide **serialization and checkpoint contracts, not actual crash-safe database persistence**. The production adapter must atomically write the checkpoint, recover after failures, and coordinate exactly-once acknowledgement with world-state advancement. No production storage was modified.
+
+### 2026-10-29 — Local checkpoint rollback protection
+
+- `HydrologyCheckpointStoreV2` now rejects overwriting a newer checkpoint with an older epoch and rejects conflicting contents at an already committed epoch. An identical checkpoint retry is a no-op.
+- Added tests for idempotent retries, epoch regression and same-epoch conflicts.
+- The store is single-writer and local-filesystem scoped. It relies on atomic rename support and does not coordinate concurrent writers, databases or multiplayer world processes.
