@@ -104,6 +104,11 @@ public final class HydrologyWorldRunnerV2 {
         return advance(nextWorldState,loaded);
     }
 
+    /** Return deterministic region hints for receipts still awaiting delivery. */
+    public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
+        return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
+    }
+
     public synchronized HydrologyEpochInboxV2.Snapshot inboxSnapshot(){
         return inbox.snapshot();
     }
