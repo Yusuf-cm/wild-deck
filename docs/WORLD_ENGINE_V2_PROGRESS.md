@@ -47,3 +47,17 @@ No production deployment, Render billing change, or paid database modifications.
 4. Site identity tied to spatial coordinates and safe stock initialization from authoritative world objects.
 5. Durable world overlay persistence and save schema.
 6. Integration into the existing Wild Deck card/match command path and human playtest.
+
+## Regional drainage prototype
+
+- `RegionalDrainageV2` routes each cell to its steepest strictly downhill D8 neighbor and accumulates nonnegative rainfall in descending elevation order. No routing cycles are possible because downstream elevation must decrease.
+- Local sinks and tile-edge outlets are left explicit, not artificially filled. This avoids pretending that isolated regional grids are complete planetary watersheds.
+- `RegionalDrainageV2Test` checks mass accumulation in a simple chain, basin accumulation, flats, repeatability, bounds and invalid inputs.
+- CI for drainage test commit: https://github.com/Yusuf-cm/wild-deck/actions/runs/40883742540 . Confirm success before marking verified.
+- Climate CI already passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40882868544 .
+
+### Drainage limitations
+
+- Accumulation is a unitless moisture proxy, not calibrated discharge in cubic metres per second.
+- The current algorithm is regional and cannot route across region boundaries.
+- No depression filling, lake overflow, globally consistent river topology, sediment transport or erosion yet.
