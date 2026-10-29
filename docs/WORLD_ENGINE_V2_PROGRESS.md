@@ -388,3 +388,10 @@ All previously pending workflows **PASSED**, including Maven tests, world experi
 3. Lake IDs, basin geometry and outlet ownership remain caller-verified; no global multi-window lake extraction, sediment-changing basin geometry, lake-routing discovery or terrain erosion persistence. Lake payload is opt-in, not integrated into production world saves.
 4. Climate moisture is not rainfall volume, no calibrated seasonal forcing, groundwater, infiltration, snow, evapotranspiration, or full watershed/river/lake coupling. Caller must prevent double-counting lake catchment inflow.
 5. Pending receipt history is unbounded. Persistence remains local single-writer; no distributed transaction, automatic region cache eviction, large-scale stress test or multiplayer-safe production integration.
+
+### 2026-10-29 — CI follow-up: lake/river accounting and numerical guards
+
+- Lake mass-budget assertion `37e1bd1203706645863ebcd7a7b929842bea41fb`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952843173 .
+- Mixed lake spill and independent upstream receipt acceptance `8ea391d83c6a56c8c0b06794271a3c01572dd29e`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952944194 . The test verifies 10 units of lake spill plus 4 units of separately delivered river water become 14 units at the outlet, with no later replay.
+- Progress-document baseline `a77c127b53e2d5a67eb86b960dc1fd283537ee6d`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40953013888 .
+- Additional strict-downhill overflow rejection `c05930861c77acb7b96a36e3cccf81b157e90b91`, extreme-elevation test `e58585665d3c1bd657edaae84aa44ba4bc499733`, and verified-outlet-only catchment identity test `0b5d874fddd0c9ba9357f0f1bd96b0323c88bbed`: **full CI pending** at this documentation update. These do not address seam/pole topology, depressions, calibrated lake physics, or global basin discovery.
