@@ -42,8 +42,11 @@ class HydrologyTerrainHaloV2Test {
         assertEquals(25,core.coreNodes().size());
         assertEquals(25,new HashSet<>(core.coreNodes().stream()
             .map(HydrologyFlowGraphV2.Node::address).toList()).size());
-        assertTrue(core.coreNodes().stream().allMatch(node->
-            node.downstream()!=null||node.terminal()||!node.terminal()));
+        for(var node:core.coreNodes()) {
+            if(!node.terminal()&&node.downstream()==null)
+                assertTrue(node.address().x()==0||node.address().y()==0,
+                    "Only a true planet-edge vertex may remain unresolved");
+        }
     }
 
     @Test void rejectsInvalidCoreBoundsAndHalo() {
