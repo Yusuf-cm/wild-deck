@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild Deck · Planet Atlas</title>
+<style>
+:root{color-scheme:dark;--bg:#0b151c;--panel:#12232d;--edge:#2a414c;--text:#ece7d9;--muted:#9cafaF;--gold:#d8b978;--green:#87b9a2}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#192d36,var(--bg) 65%);color:var(--text);font:14px system-ui,sans-serif;min-height:100vh}main{max-width:1560px;margin:auto;padding:28px 32px}
+header,.row,.controls,.presets,.tabs{display:flex;align-items:center;gap:12px}header{justify-content:space-between;border-bottom:1px solid var(--edge);padding-bottom:20px}.brand{font:20px Georgia,serif;letter-spacing:2px}.sigil{color:var(--gold);font-size:28px;margin-right:10px}.eyebrow{font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}.muted{color:var(--muted)}h1{font:40px Georgia,serif;margin:24px 0 10px}p{line-height:1.6}button,input,select{font:inherit;border:1px solid var(--edge);border-radius:5px;background:#152b35;color:var(--text);padding:11px 14px}button{cursor:pointer}button:hover{border-color:var(--gold)}button:focus-visible,input:focus-visible,select:focus-visible,canvas:focus-visible{outline:2px solid var(--gold);outline-offset:3px}button:disabled{opacity:.5;cursor:wait}.primary{background:var(--gold);border-color:var(--gold);color:#14232a;font-weight:650}input{width:226px;font-family:monospace;font-size:15px}label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted)}.controls{align-items:flex-end;flex-wrap:wrap;margin:20px 0 14px}.controls button{height:42px}.presets{gap:7px;margin:0 0 20px;flex-wrap:wrap;font-size:11px}.presets button{padding:5px 12px;font-size:11px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.stat{border-top:1px solid var(--edge);padding:14px 0}.stat strong{display:block;font:24px Georgia,serif;margin-top:7px}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:16px}.map-panel,aside{border:1px solid var(--edge);border-radius:9px;background:var(--panel);overflow:hidden}.map-toolbar{padding:14px 18px;display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid var(--edge);flex-wrap:wrap}.tabs{gap:0}.tabs button{border-radius:0;padding:7px 12px;font-size:12px}.tabs button:first-child{border-radius:4px 0 0 4px}.tabs button:last-child{border-radius:0 4px 4px 0}.tabs button[aria-pressed=true]{background:#35514f;color:#fff;border-color:#6c9281}.map-wrap{background:#08151f;position:relative}canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}.map-caption{padding:11px 18px;font-size:11px;border-top:1px solid var(--edge);display:flex;justify-content:space-between;gap:15px;color:var(--muted)}aside{padding:21px}aside h2{font:24px Georgia,serif;margin:8px 0 18px}.readout{border-top:1px solid var(--edge);padding:13px 0}.readout span{display:block;font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}.readout strong{display:block;font-size:16px;margin-top:7px;font-weight:500}.deposits{display:flex;flex-direction:column;gap:12px;margin-top:12px}.deposit{display:flex;justify-content:space-between;font-size:12px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}.iron{background:#e5947c}.copper{background:#e6bd72}.stormglass{background:#b6a2ef}.note{font-size:11px;color:var(--muted);line-height:1.7;border-top:1px solid var(--edge);padding-top:14px;margin-top:20px}.legend{display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:11px;margin-top:16px}.ramp{height:9px;width:230px;border-radius:9px;background:linear-gradient(90deg,#123043,#397c8a,#d1d3b0,#709879,#9a9976,#e6e2d1)}.legend-scale{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:5px}.status{min-height:22px;margin:12px 0;color:var(--green);font-size:12px}.status.error{color:#efa691}.scope{color:var(--muted);font-size:11px;line-height:1.8;margin-top:24px}.badge{font-size:11px;border:1px solid var(--edge);padding:6px 10px;border-radius:4px;color:var(--muted)}#version{font-family:monospace}
+@media(max-width:950px){main{padding:20px 16px}.workspace{grid-template-columns:1fr}aside{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}aside h2,.note{grid-column:1/-1}h1{font-size:32px}.stats{gap:8px}.stat strong{font-size:20px}}
+@media(max-width:540px){header{align-items:flex-start}.badge{display:none}.stats{grid-template-columns:1fr 1fr}input{width:190px}.map-toolbar{padding:10px}select{max-width:175px;padding:8px}aside{display:block}.map-caption{font-size:10px}h1{font-size:29px}}
+</style></head><body><main>
+<header><div class="brand"><span class="sigil" aria-hidden="true">◈</span>WILD DECK</div><div class="row"><span class="eyebrow">World-building laboratory</span><span class="badge" id="mode">Java generation · local atlas</span></div></header>
+<div class="eyebrow" style="margin-top:26px">Geography / First layer</div><h1>An uncharted world.</h1>
+<p class="muted">One seed. An entire sphere. Continents, oceans and buried possibilities.</p>
+<form class="controls" id="generate-form"><label for="seed">WORLD SEED · SIGNED 64-BIT INTEGER<input id="seed" name="seed" value="42" autocomplete="off" spellcheck="false" required></label><button class="primary" id="generate" type="submit">Generate world</button><button id="random" type="button">New seed</button><label for="resolution">INSPECTION DETAIL<select id="resolution"><option value="180">180 × 90</option><option value="360" selected>360 × 180</option><option value="720">720 × 360</option></select></label><button id="download" type="button" disabled>Export snapshot</button></form>
+<div class="presets"><span class="muted">Compare worlds:</span><button type="button" data-seed="42">42</button><button type="button" data-seed="1598">1598</button><button type="button" data-seed="-7">−7</button></div>
+<div id="status" class="status" role="status" aria-live="polite">Preparing the atlas…</div>
+<div class="stats"><div class="stat"><span class="eyebrow">Planet diameter</span><strong id="diameter">—</strong></div><div class="stat"><span class="eyebrow">Land coverage · area weighted</span><strong id="land">—</strong></div><div class="stat"><span class="eyebrow">Ocean coverage</span><strong id="ocean">—</strong></div><div class="stat"><span class="eyebrow">Surface area</span><strong id="area">—</strong></div></div>
+<section class="workspace"><div><div class="map-panel"><div class="map-toolbar"><div class="tabs" role="group" aria-label="Projection"><button id="map-view" type="button" aria-pressed="true">Flat atlas</button><button id="globe-view" type="button" aria-pressed="false">Globe</button></div><label for="layer" style="flex-direction:row;align-items:center">LAYER<select id="layer"><option value="terrain">Elevation</option><option value="all">All deposits</option><option value="iron">Iron potential</option><option value="copper">Copper potential</option><option value="stormglass">Stormglass potential</option></select></label></div>
+<div class="map-wrap"><canvas id="map" width="1080" height="540" tabindex="0" role="img" aria-label="Generated planetary elevation map. Click a position to inspect it. In globe view, drag or use arrow keys to rotate."></canvas></div>
+<div class="map-caption"><span id="instruction">Click anywhere to inspect a coarse surface sample.</span><span id="version">Waiting for generator</span></div></div>
+<div class="legend"><div><div class="ramp"></div><div class="legend-scale"><span>Deep ocean</span><span>Coast</span><span>High elevation</span></div></div><span><i class="dot iron"></i>Iron</span><span><i class="dot copper"></i>Copper</span><span><i class="dot stormglass"></i>Stormglass · fictional mineral</span></div></div>
+<aside><div class="eyebrow">Surface inspection</div><h2 id="place">Choose a location</h2><div class="readout"><span>Latitude / longitude</span><strong id="coordinates">—</strong></div><div class="readout"><span>Elevation relative to sea level</span><strong id="elevation">—</strong></div><div class="readout"><span>Local deposit potential</span><div class="deposits"><div class="deposit"><span><i class="dot iron"></i>Iron</span><b id="iron">—</b></div><div class="deposit"><span><i class="dot copper"></i>Copper</span><b id="copper">—</b></div><div class="deposit"><span><i class="dot stormglass"></i>Stormglass</span><b id="stormglass">—</b></div></div></div><p class="note">These are terrain-dependent deposit signals, not stockpiles or mining yields. Elevation colours do not represent generated biomes. This is an omniscient development view; kingdom discovery is a later layer.</p></aside></section>
+<p class="scope">Scope: seeded geography and three deposit fields. Climate, rivers, living ecosystems, magical effects, kingdoms and interactions are not generated here. Map pixels are inspection samples; the underlying globe can be sampled at any latitude and longitude.</p>
+</main><script>/*ATLAS_EMBED*/</script><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const canvas=$('map'),ctx=canvas.getContext('2d');
+const texture=document.createElement('canvas'),tx=texture.getContext('2d');
+const presets=window.ATLAS_PRESETS||null;
+let world=null,pixels=null,view='map',layer='terrain',longitude=0,latitude=15,selected=null,drag=null,sequence=0,controller=null,frame=0;
+const palette={iron:[229,148,124],copper:[230,189,114],stormglass:[182,162,239]};
+function setStatus(message,error=false){$('status').textContent=message;$('status').classList.toggle('error',error);}
+function canonicalSeed(value){
+ if(!/^-?\d+$/.test(value.trim()))throw Error('Enter an integer seed.');
+ const number=BigInt(value.trim());
+ if(number<-(1n<<63n)||number>(1n<<63n)-1n)throw Error('Seed is outside the signed 64-bit range.');
+ return number.toString();
+}
+function validate(data){
+ if(data.generatorVersion!=='planet-surface-v1'||typeof data.seed!=='string'||![180,360,720].includes(data.width)||data.height!==data.width/2||!Number.isFinite(data.landFraction)||data.landFraction<0||data.landFraction>1||!Number.isFinite(data.radiusKm)||data.radiusKm<=0)throw Error('Unsupported atlas data.');
+ for(const key of ['elevation','iron','copper','stormglass']){
+  const a=data[key];if(!Array.isArray(a)||a.length!==data.width*data.height)throw Error('Incomplete atlas data.');
+  if(a.some(n=>!Number.isInteger(n)||(key==='elevation'?n< -11000||n>9000:n<0||n>100)))throw Error('Invalid atlas samples.');
+ }
+ return data;
+}
+async function generate(){
+ const request=++sequence;
+ if(controller)controller.abort();
+ try{
+  const seed=canonicalSeed($('seed').value);$('seed').value=seed;
+  $('generate').disabled=true;$('random').disabled=true;setStatus('Generating continental shapes and deposit fields…');
+  let data;
+  if(presets){if(!presets[seed])throw Error('This portable review contains seeds 42, 1598 and -7. Run the Java atlas server for any other seed.');data=presets[seed];}
+  else{
+   controller=new AbortController();
+   const response=await fetch('/api/world?seed='+encodeURIComponent(seed)+'&width='+$('resolution').value+'&version=planet-surface-v1',{signal:controller.signal});
+   if(!response.ok)throw Error(await response.text());data=await response.json();
+  }
+  if(request!==sequence)return;
+  world=validate(data);selected=null;buildTexture();render();
+  $('diameter').textContent=(world.radiusKm*2).toLocaleString()+' km';
+  $('land').textContent=(world.landFraction*100).toFixed(1)+'%';
+  $('ocean').textContent=((1-world.landFraction)*100).toFixed(1)+'%';
+  $('area').textContent=(4*Math.PI*world.radiusKm**2/1e6).toFixed(1)+' million km²';
+  $('version').textContent=world.generatorVersion+' · seed '+world.seed;
+  $('download').disabled=false;
+  for(const id of ['coordinates','elevation','iron','copper','stormglass'])$(id).textContent='—';
+  $('place').textContent='Choose a location';
+  setStatus('World ready · '+world.width+' × '+world.height+' inspection samples · repeatable seed '+world.seed);
+  if(!presets)try{history.replaceState(null,'','?seed='+encodeURIComponent(seed));}catch{}
+ }catch(error){if(error.name!=='AbortError'&&request===sequence)setStatus(error.message,true);}
+ finally{if(request===sequence){$('generate').disabled=false;$('random').disabled=false;}}
+}
+const stops=[[-11000,[7,23,40]],[-4500,[17,48,67]],[-800,[38,91,110]],[0,[73,130,141]],[1,[191,199,153]],[500,[112,151,119]],[1800,[105,125,101]],[3500,[151,147,115]],[6000,[198,190,164]],[9000,[236,230,211]]];
+function terrainColour(height){
+ let i=1;while(i<stops.length-1&&height>stops[i][0])i++;
+ const a=stops[i-1],b=stops[i],t=Math.max(0,Math.min(1,(height-a[0])/(b[0]-a[0])));
+ return a[1].map((v,k)=>v+(b[1][k]-v)*t);
+}
+function buildTexture(){
+ const w=world.width,h=world.height;texture.width=w;texture.height=h;
+ const image=tx.createImageData(w,h),out=image.data;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x,height=world.elevation[i];let colour=terrainColour(height);
+  const west=world.elevation[y*w+(x+w-1)%w],east=world.elevation[y*w+(x+1)%w];
+  const north=world.elevation[Math.max(0,y-1)*w+x],south=world.elevation[Math.min(h-1,y+1)*w+x];
+  let shade=Math.max(.72,Math.min(1.15,.95+(west-east+south-north)*.000085));
+  if(layer!=='terrain'){
+   const resource=layer==='all'?['iron','copper','stormglass'].reduce((a,b)=>world[a][i]>=world[b][i]?a:b):layer;
+   const amount=world[resource][i];colour=colour.map(c=>c*.48);
+   if(amount>0){const strength=.55+.45*amount/100;colour=colour.map((c,k)=>c*(1-strength)+palette[resource][k]*strength);}
+  }
+  out[i*4]=Math.min(255,colour[0]*shade);out[i*4+1]=Math.min(255,colour[1]*shade);out[i*4+2]=Math.min(255,colour[2]*shade);out[i*4+3]=255;
+ }
+ tx.putImageData(image,0,0);pixels=out;
+}
+function indexAt(lat,lon){
+ const row=Math.max(0,Math.min(world.height-1,Math.floor((90-lat)/180*world.height)));
+ const col=((Math.floor((lon+180)/360*world.width)%world.width)+world.width)%world.width;
+ return row*world.width+col;
+}
+function spherePoint(px,py){
+ const radius=canvas.height*.455,u=(px-canvas.width/2)/radius,v=-(py-canvas.height/2)/radius;
+ if(u*u+v*v>1)return null;
+ const d=Math.sqrt(Math.max(0,1-u*u-v*v)),lat=latitude*Math.PI/180,lon=longitude*Math.PI/180;
+ const x=-Math.sin(lon)*u-Math.sin(lat)*Math.cos(lon)*v+Math.cos(lat)*Math.cos(lon)*d;
+ const y=Math.cos(lon)*u-Math.sin(lat)*Math.sin(lon)*v+Math.cos(lat)*Math.sin(lon)*d;
+ const z=Math.cos(lat)*v+Math.sin(lat)*d;
+ return {lat:Math.asin(Math.max(-1,Math.min(1,z)))*180/Math.PI,lon:Math.atan2(y,x)*180/Math.PI,depth:d};
+}
+function render(){
+ if(!world)return;
+ canvas.width=Math.max(320,Math.min(1100,Math.round(canvas.clientWidth||1080)));canvas.height=canvas.width/2;
+ const w=canvas.width,h=canvas.height;ctx.fillStyle='#08151f';ctx.fillRect(0,0,w,h);
+ if(view==='map'){
+  ctx.imageSmoothingEnabled=true;ctx.drawImage(texture,0,0,w,h);
+  ctx.strokeStyle='rgba(200,218,205,.12)';ctx.lineWidth=.6;
+  for(let x=1;x<12;x++){ctx.beginPath();ctx.moveTo(x*w/12,0);ctx.lineTo(x*w/12,h);ctx.stroke();}
+  for(let y=1;y<6;y++){ctx.beginPath();ctx.moveTo(0,y*h/6);ctx.lineTo(w,y*h/6);ctx.stroke();}
+  if(selected!==null){
+   const x=(selected%world.width+.5)/world.width*w,y=(Math.floor(selected/world.width)+.5)/world.height*h;
+   ctx.strokeStyle='#fff3ca';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.stroke();
+  }
+ }else{
+  const output=ctx.getImageData(0,0,w,h),dest=output.data,r=h*.455,cx=w/2,cy=h/2;
+  for(let y=Math.floor(cy-r);y<Math.ceil(cy+r);y++)for(let x=Math.floor(cx-r);x<Math.ceil(cx+r);x++){
+   const p=spherePoint(x,y);if(!p)continue;
+   const source=indexAt(p.lat,p.lon)*4,target=(y*w+x)*4,shade=.42+.58*p.depth;
+   dest[target]=pixels[source]*shade;dest[target+1]=pixels[source+1]*shade;dest[target+2]=pixels[source+2]*shade;dest[target+3]=255;
+  }
+  ctx.putImageData(output,0,0);ctx.strokeStyle='#60888c';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#9cafaf';ctx.font='11px system-ui';ctx.fillText('Drag to rotate',20,h-20);
+ }
+}
+function queueRender(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;render();});}
+function inspect(event){
+ if(!world)return;
+ const box=canvas.getBoundingClientRect(),x=(event.clientX-box.left)/box.width*canvas.width,y=(event.clientY-box.top)/box.height*canvas.height;
+ const p=view==='globe'?spherePoint(x,y):{lat:90-y/canvas.height*180,lon:x/canvas.width*360-180};
+ if(!p)return;
+ selected=indexAt(p.lat,p.lon);
+ const lat=90-(Math.floor(selected/world.width)+.5)*180/world.height,lon=-180+(selected%world.width+.5)*360/world.width;
+ $('coordinates').textContent=lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';
+ const height=world.elevation[selected];$('place').textContent=height<=0?'Ocean sample':height>3000?'Highland sample':'Land sample';
+ $('elevation').textContent=height.toLocaleString()+' m';
+ for(const resource of ['iron','copper','stormglass'])$(resource).textContent=world[resource][selected]+'%';
+ queueRender();
+}
+$('generate-form').addEventListener('submit',event=>{event.preventDefault();generate();});
+document.querySelectorAll('[data-seed]').forEach(button=>button.addEventListener('click',()=>{$('seed').value=button.dataset.seed;generate();}));
+$('random').addEventListener('click',()=>{
+ if(presets){const keys=Object.keys(presets);$('seed').value=keys[(keys.indexOf(world?.seed)+1)%keys.length];}
+ else{const values=crypto.getRandomValues(new Uint32Array(2));$('seed').value=BigInt.asIntN(64,(BigInt(values[0])<<32n)|BigInt(values[1])).toString();}
+ generate();
+});
+$('resolution').addEventListener('change',generate);
+$('layer').addEventListener('change',()=>{layer=$('layer').value;if(world){buildTexture();render();}});
+for(const mode of ['map','globe'])$(mode+'-view').addEventListener('click',()=>{
+ view=mode;for(const name of ['map','globe'])$(name+'-view').setAttribute('aria-pressed',String(name===view));
+ $('instruction').textContent=view==='globe'?'Drag or use arrow keys to rotate; click to inspect.':'Click anywhere to inspect a coarse surface sample.';queueRender();
+});
+canvas.addEventListener('pointerdown',event=>{if(view==='globe'){drag={x:event.clientX,y:event.clientY,lon:longitude,lat:latitude,moved:false};canvas.setPointerCapture(event.pointerId);}});
+canvas.addEventListener('pointermove',event=>{
+ if(!drag)return;
+ if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>3)drag.moved=true;
+ longitude=drag.lon-(event.clientX-drag.x)*.4;latitude=Math.max(-80,Math.min(80,drag.lat+(event.clientY-drag.y)*.4));queueRender();
+});
+canvas.addEventListener('pointerup',event=>{const moved=drag?.moved;drag=null;if(!moved)inspect(event);});
+canvas.addEventListener('pointercancel',()=>{drag=null;});
+canvas.addEventListener('keydown',event=>{
+ if(view!=='globe'||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+ event.preventDefault();longitude+=event.key==='ArrowLeft'?-10:event.key==='ArrowRight'?10:0;latitude=Math.max(-80,Math.min(80,latitude+(event.key==='ArrowUp'?10:event.key==='ArrowDown'?-10:0)));queueRender();
+});
+$('download').addEventListener('click',()=>{
+ if(!world)return;const blob=new Blob([JSON.stringify(world)],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+ anchor.href=url;anchor.download='wild-deck-'+world.seed+'-'+world.generatorVersion+'.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+new ResizeObserver(queueRender).observe(canvas);
+if(presets){$('mode').textContent='Portable review · 3 Java-generated worlds';$('random').textContent='Next sample';$('resolution').disabled=true;}
+$('seed').value=new URLSearchParams(location.search).get('seed')||'42';
+generate();
+</script></body></html>

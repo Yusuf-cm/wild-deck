@@ -1,0 +1,73 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const {spawn}=require('node:child_process');
+const {createInterface}=require('node:readline');
+const {pathToFileURL}=require('node:url');
+const path=require('node:path');
+const fs=require('node:fs/promises');
+async function main(){
+ const output=process.env.ATLAS_OUTPUT||'target/planet-atlas';
+ await fs.mkdir(output,{recursive:true});
+ const processServer=spawn('java',['-cp',process.env.ATLAS_CLASSPATH||'target/classes','com.wilddeck.world.PlanetAtlasServer','0'],{stdio:['ignore','pipe','pipe']});
+ const errors=[];processServer.stderr.on('data',data=>errors.push(String(data)));
+ let browser,lines;
+ try{
+  const url=await new Promise((resolve,reject)=>{
+   const timer=setTimeout(()=>reject(Error('Atlas server did not start: '+errors.join(''))),15000);
+   lines=createInterface({input:processServer.stdout});
+   lines.on('line',line=>{if(line.startsWith('Wild Deck planet atlas: ')){clearTimeout(timer);resolve(line.slice('Wild Deck planet atlas: '.length));}});
+   processServer.once('exit',code=>{clearTimeout(timer);reject(Error('Server exited: '+code+' '+errors.join('')));});
+  });
+  browser=await chromium.launch({headless:true,...(process.env.ATLAS_CHROME?{executablePath:process.env.ATLAS_CHROME}:{})});
+  const page=await browser.newPage({viewport:{width:1440,height:1100},acceptDownloads:true});
+  const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  const ready=seed=>page.waitForFunction(seed=>document.getElementById('status').textContent.startsWith('World ready')&&world.seed===seed,seed);
+  const image=()=>page.locator('#map').evaluate(canvas=>canvas.toDataURL());
+  await page.goto(url);await ready('42');const seed42=await image();
+  assert.match(await page.locator('#land').textContent(),/47\.2%/);
+  await page.screenshot({path:path.join(output,'atlas-map.png'),fullPage:true});
+  await page.locator('[data-seed="1598"]').click();await ready('1598');assert.notEqual(await image(),seed42);
+  await page.locator('[data-seed="42"]').click();await ready('42');assert.equal(await image(),seed42);
+  await page.selectOption('#layer','stormglass');assert.notEqual(await image(),seed42);
+  await page.locator('#map').click({position:{x:200,y:120}});
+  assert.notEqual(await page.locator('#coordinates').textContent(),'—');
+  await page.selectOption('#layer','terrain');await page.locator('#globe-view').click();
+  await page.waitForTimeout(100);const globe=await image();assert.notEqual(globe,seed42);
+  const bounds=await page.locator('#map').boundingBox();
+  await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
+  await page.mouse.down();await page.mouse.move(bounds.x+bounds.width/2+85,bounds.y+bounds.height/2+25,{steps:8});await page.mouse.up();
+  await page.waitForTimeout(100);assert.notEqual(await image(),globe);
+  await page.screenshot({path:path.join(output,'atlas-globe.png'),fullPage:true});
+  await page.fill('#seed','9223372036854775807');await page.locator('#generate').click();await ready('9223372036854775807');
+  await page.fill('#seed','9223372036854775808');await page.locator('#generate').click();
+  await page.waitForFunction(()=>document.getElementById('status').classList.contains('error'));
+  assert.equal(await page.evaluate(()=>world.seed),'9223372036854775807');
+  const downloaded=page.waitForEvent('download');await page.locator('#download').click();
+  const download=await downloaded;assert.match(download.suggestedFilename(),/9223372036854775807/);
+  await download.saveAs(path.join(output,'browser-export.json'));
+  const snapshot=JSON.parse(await fs.readFile(path.join(output,'browser-export.json'),'utf8'));
+  assert.equal(snapshot.seed,'9223372036854775807');assert.equal(snapshot.generatorVersion,'planet-surface-v1');
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile layout overflows');
+  const portable=await browser.newPage({viewport:{width:1440,height:1100}});
+  portable.on('pageerror',error=>pageErrors.push(error.message));
+  const network=[];portable.on('request',request=>{if(/^https?:/.test(request.url()))network.push(request.url());});
+  await portable.goto(pathToFileURL(path.resolve(output,'wild-deck-planet-atlas.html')).href);
+  await portable.waitForFunction(()=>world&&world.seed==='42'&&document.getElementById('status').textContent.startsWith('World ready'));
+  assert.equal(await portable.locator('#map').evaluate(canvas=>canvas.toDataURL()),seed42);
+  await portable.locator('[data-seed="-7"]').click();await portable.waitForFunction(()=>world.seed==='-7');
+  assert.equal(await portable.locator('#resolution').isDisabled(),true);
+  await portable.fill('#seed','1234');await portable.locator('#generate').click();
+  await portable.waitForFunction(()=>document.getElementById('status').classList.contains('error'));
+  assert.match(await portable.locator('#status').textContent(),/portable review/);
+  assert.deepEqual(network,[]);assert.deepEqual(pageErrors,[]);
+  console.log('Atlas browser checks passed: repeatable/different seeds; layers and inspection; globe rotation; exact 64-bit seeds; export and errors; mobile layout; offline Java-generated preview.');
+ }finally{
+  if(browser)await browser.close();
+  if(lines)lines.close();
+  processServer.kill('SIGTERM');
+ }
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});
+
