@@ -30,4 +30,12 @@ class HydrologyEpochInboxV2Test {
         assertEquals(3,inbox.claim(1).get(at(5)));
         assertEquals(8,inbox.claim(2).get(at(5)));
     }
+
+    @Test void overflowDoesNotMarkEpochConsumed(){
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(4,at(4),at(5)),Double.MAX_VALUE);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(4,at(6),at(5)),Double.MAX_VALUE);
+        assertThrows(IllegalArgumentException.class,()->inbox.claim(4));
+        assertFalse(inbox.snapshot().consumedEpochs().contains(4L));
+    }
 }
