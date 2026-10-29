@@ -26,6 +26,28 @@ public final class HydrologyRiverIdentityV2 {
         }
     }
 
+    /**
+     * Stable reach identities for every verified one-step downstream edge,
+     * even when its receiving region is unloaded and no outlet is known.
+     * This does NOT assign a speculative catchment to unresolved reaches.
+     */
+    public static Set<ReachId> knownReaches(
+            Collection<HydrologyFlowGraphV2.Node> nodes) {
+        Objects.requireNonNull(nodes);
+        var order=Comparator.comparing(ReachId::from,HydrologyFlowGraphV2.ADDRESS_ORDER)
+            .thenComparing(ReachId::to,HydrologyFlowGraphV2.ADDRESS_ORDER);
+        var result=new TreeSet<ReachId>(order);
+        var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:nodes) {
+            Objects.requireNonNull(node);
+            if(!addresses.add(node.address()))
+                throw new IllegalArgumentException("Duplicate river source");
+            if(node.downstream()!=null)
+                result.add(new ReachId(node.address(),node.downstream()));
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
     public static Map<GlobalHydrologyAddressV2.Sample,CatchmentId> catchments(
             HydrologyFlowGraphV2.Result graph) {
         Objects.requireNonNull(graph);
