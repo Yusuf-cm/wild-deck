@@ -39,8 +39,7 @@ public final class HydrologyFlowGraphV2 {
             if (downstream != null && (downstream.level() != address.level()
                     || downstream.divisions() != address.divisions()
                     || downstream.equals(address)
-                    || Math.abs(downstream.x()-address.x())>1
-                    || Math.abs(downstream.y()-address.y())>1))
+                    || !HydrologySphericalTopologyV2.adjacent(address,downstream)))
                 throw new IllegalArgumentException("Invalid downstream sample");
         }
     }
