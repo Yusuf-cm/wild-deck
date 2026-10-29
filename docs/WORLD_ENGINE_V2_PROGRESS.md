@@ -237,3 +237,27 @@ No production deployment, Render billing change, or paid database modifications.
 4. Seasonal substeps are numerical approximations with caller-supplied climate inputs and areas. Lake volumes, cross-window lake identity, snowpack, groundwater, floodplain storage, infiltration and long-run calibration are missing.
 5. Erosion reroutes a returned finite-grid overlay but does not persist terrain changes, conserve sediment through deposition, or couple evolving river/lake geometry to gameplay.
 6. The runtime remains single-writer local-file scoped. Distributed locking, game save integration, full-region cache management, physical units/time calibration and large-world performance/long-horizon conservation tests are still outstanding.
+
+### 2026-10-29 — Durable multi-epoch parking for incoming boundary water
+
+**Branch:** `feature/world-engine-v2` exclusively. No main merge, PR, deployment or paid infrastructure changes.
+
+**Implemented:**
+- `HydrologyEpochInboxV2` now tracks **per-receipt delivery markers** separately from original source-epoch consumption. `claimAvailable(epoch, loadedAddresses)` consumes only receipts whose receiving global vertex is present in the loaded graph, while keeping receipts for unloaded destinations under their original (source epoch, source edge, destination) identity. Repeated later epochs cannot inject already-delivered water twice. It validates aggregation before mutating delivery markers.
+- The versioned `HydrologyInboxCodecV2` now **writes v3 snapshots** containing deterministic `D` delivery rows, while still reading legacy v2 snapshots and inferring delivered receipts for already-consumed epochs. Invalid or duplicate markers are rejected. `HydrologyCheckpointStoreV2.saveIncoming` forbids receipt-only updates from altering delivery history.
+- Both `HydrologyDurableEpochV2.commit` and `commitAndQueueKnownFrontier` now use loaded-address-aware receipt claims, so `HydrologyWorldRunnerV2.advance`, `advanceRegions`, and `advanceAndQueueKnownFrontier` can progress while other destination regions remain unloaded. A later restart and region load injects the deferred water exactly once.
+- Added `HydrologyDeferredReceiptsV2Test`: multi-epoch disk restart and exactly-once delivery, normal advance delivery, legacy v2-to-v3 migration, aggregation overflow without consumption, delayed confluence conservation and receipt-only checkpoint mutation rejection.
+
+**CI checked:**
+- Earlier baseline `653bcb711194ccc6ca951a727a9253599248aa30`: **passed**, https://github.com/Yusuf-cm/wild-deck/actions/runs/40916166119 .
+- First v3 codec edit `5129f8dafc89811bb16c631da8c87ca020b8d513` failed due to an escaped newline typo; fixed by `3037e02023361b99b2051d4cdb296e01d94d60d6`. The latter **passed**, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925226771 .
+- Deferred receipt implementation `20896fdb73c406696ce259161c2ec31e632a3f92`: **passed**, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925258140 .
+- Initial multi-epoch restart/legacy/overflow acceptance tests `3b8e65f7369588acc23f465f2c98eb6afc8bc3e9`: **passed**, https://github.com/Yusuf-cm/wild-deck/actions/runs/40925293302 .
+- Additional tests and invariant enforcement at `4ccb5a594472868cb84895a29413aad1ddc9495e`, `64ba868203e077cfa516b98e3bcec21f11a1ff9a`, `42763d76d1c5038f675fd97a4115e821a74df778`: **CI in progress at documentation time**, check https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 before marking them passed.
+
+**Still unfinished (do not mark hydrology complete):**
+1. This solves **delayed delivery of already known edges**, not routing across unknown terrain. A frontier node with no verified downstream still causes `commitAndQueueKnownFrontier` to fail closed. There is no global terrain route oracle or persistent unknown-route reservoir.
+2. No automatic policy to prioritize/load regions holding deferred water. Receipt history grows without pruning; safe garbage collection, bounded storage and long-horizon benchmarks are required.
+3. Global longitude-seam/pole routing, authoritative planetary outlet catalog, multi-window lake and catchment identity, and consistent cross-window priority flood are not solved.
+4. Seasonal rainfall, evaporation and erosion remain approximations; lake storage and sediment feedback are not coupled to durable changing terrain, snowpack/groundwater, or calibrated climate.
+5. Persistence is a single-writer local-file checkpoint. No distributed transaction, concurrent-writer safety, production game-save integration, or multi-process exactly-once guarantees.
