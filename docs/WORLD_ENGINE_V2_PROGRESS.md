@@ -107,3 +107,26 @@ No production deployment, Render billing change, or paid database modifications.
 - `ConnectedHydrologyV2` runs a single connected lake-aware hydrology solve across a rectangular region mosaic and exports internal channel links in globally stable sample coordinates. This is a working bounded multi-region calculation, **not** a streaming unloaded-tile solver. Cross-tile links are informational because water is already accumulated in the shared solve and must not be injected a second time.
 - Added deterministic, rainfall-conservation integration test. Latest CI is pending; inspect workflow for commit `6702d5955cf664d135f1bb512b8d9fca22adbc5c`.
 - Outstanding: independent asynchronous tile-to-tile routing with cycles handled, planet-wide catchment identity, global ocean routing, realistic lake storage and seasons, erosion feedback, and persistence. Do not mark water subsystem complete.
+
+## 2026-10-29 17:49 EAT — Water continuation: global graph, lakes, sediment
+
+### Implemented
+- `HydrologyFlowGraphV2`: deterministic topological routing over unique globally addressed samples. Each source is counted once, confluences aggregate, cycles and duplicate sources are rejected, and discharge reaching a currently unloaded downstream address is retained as **pending frontier outflow**. Only nodes reaching an explicitly declared terminal get resolved catchment anchors; unknown frontiers do **not** masquerade as stable planet-wide catchments. Graph code + tests: commits `b7d7d5de995b0b14c50e480673650616b9dd73af`, `a47b7148f9a05ee8af538e02075f5c0d4bc51893`; both CI passed.
+- `HydrologyGraphAdapterV2`: converts finite priority-flood mosaics into globally addressed nodes, distinguishes known sea-level outlets from unresolved land boundaries, and permits validated one-step boundary continuation. Test covers conservation for seeded connected terrain and resuming into a neighboring sample. Commits `10c980720ca2f9482cee743b7a10dda354af557a`, `d24180d1dcff9a85dff34633c0c45d7e33f35ee1`; CI passed.
+- `HydrologyMosaicJoinV2`: merges overlapping shared-vertex samples without counting rainfall twice, continues a route when one tile has a known downstream and another has an unresolved boundary, and rejects conflicting known routing. Commit `82dd081401e303e07d174ac3109ef3ae4f159f05`; tests in `8368c946af8bff8e19e115ea7b4e0cb8d13fb758`. CI status must be checked.
+- `LakeReservoirV2`: finite-volume storage with bed-elevation/area stage curve, spill capacity, bounded evaporation, and conservation. `LakeBasinExtractorV2`: finds connected flooded depressions in finite priority-flood mosaics and builds reservoir geometry. Tests cover separated and connected basins, spill overflow and geometry validation. Commits `bf8821b4930115ea047aa2f943a90fa616625e02`, `1958b49ece26c36529ad5418d554f47f881c68b1`, `89c768d717535a7caa94529af4d78e1efde4d2fc`, `b721fdeec0efa7827d0585064c0187ed03c9ff07`; CI passed for all.
+- `SedimentBudgetV2`: erosion volume to mass conversion, capacity-limited downstream sediment routing, deposition, and explicit outlet export, with mass conservation and cycle rejection. Tests include incision-to-sediment integration. Commits `2422bc454f3ea62ba3884474dbbf5d2e7fc139ff`, `d36ea679658a1b10e9025b2bbfb963623694d629`, `b62221c9e3a5225a5183a9dc7c19f6e40bb56a7b`. CI status must be checked.
+
+### Acceptance gaps (NOT COMPLETE)
+1. Unloaded tile continuation requires a previously known external one-step route. No on-demand planet-wide terrain oracle, global priority-flood, or persistent frontier queue exists. Pending flux is conserved but does not magically choose an unknown downstream.
+2. Overlapping independently solved mosaics can disagree about spill routes. The join rejects such conflicts; it does not repair them. A connected mosaic solve is still needed for authoritative local topology.
+3. Resolved catchment IDs are global sample anchors only when the full downstream chain reaches a known terminal. A stable planet-wide basin map and coastline/ocean routing are not yet available.
+4. Lake extraction/volume calculations are finite-grid approximations. Reservoirs are not yet driven by persistent seasonal climate, and cross-mosaic lake identities/capacities are provisional. No tides, groundwater, floodplain or ice/snow storage.
+5. Sediment deposition is not fed back into terrain and river rerouting; sediment transport capacity is caller supplied. No multi-season erosion simulation or runtime save/load integration.
+6. No global physical-unit calibration or large-world performance benchmarks. These systems remain testable foundations, not a completed planetary hydrology engine.
+
+### CI
+- Branch: `feature/world-engine-v2` only; never merged into `main`.
+- Workflow history: https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2
+- The prior corrected integration CI passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40888556437
+- Newest sediment, merge and integration workflows may still be running; check exact latest commit before marking the entire change set verified.
