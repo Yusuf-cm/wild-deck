@@ -59,6 +59,7 @@ public final class HydrologyDurableEpochV2 {
         var incoming=staged.claimAvailable(epoch,addresses);
         var nodes=HydrologyEpochSolverV2.prepare(List.of(loaded),incoming);
         var result=HydrologyFlowGraphV2.solve(nodes);
+        HydrologyConservationV2.verify(nodes,result);
         var dispatch=HydrologyFrontierDispatchV2.export(Math.addExact(epoch,1),nodes,result);
         if(!dispatch.unresolved().isEmpty())
             throw new IllegalStateException("Unresolved routes require durable parking before advance");
@@ -82,7 +83,9 @@ public final class HydrologyDurableEpochV2 {
         var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
         for(var node:loaded)addresses.add(node.address());
         var incoming=staged.claimAvailable(epoch,addresses);
-        var result=HydrologyEpochSolverV2.solve(List.of(loaded),incoming);
+        var prepared=HydrologyEpochSolverV2.prepare(List.of(loaded),incoming);
+        var result=HydrologyFlowGraphV2.solve(prepared);
+        HydrologyConservationV2.verify(prepared,result);
         var checkpoint=HydrologyCheckpointV2.capture(epoch,serializedWorld,staged);
         HydrologyCheckpointStoreV2.save(destination,checkpoint);
         return new Committed(result,staged,checkpoint);
