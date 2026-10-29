@@ -315,3 +315,27 @@ The previously pending full workflows have now **PASSED** (not merely Maven test
 - `33b43ed4fa026bee99a68162db86b6325ee9d898`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40934989499 .
 
 These checks establish the finite-grid numerical and identity regression tests; they do **not** establish authoritative global routing, lake/sediment persistence, calibrated physical units, or multiplayer-safe checkpointing.
+
+### 2026-10-29 — Per-epoch conservation audit, long-horizon delayed-water regression and seasonal catchment cycle
+
+**Changes committed only to `feature/world-engine-v2`:**
+- `HydrologyConservationV2.verify` independently checks each uniquely owned loaded graph's finite-volume accounting: local water (including delivered inflow prepared as node water) must equal verified outlet discharge plus parked/unloaded frontier discharge within a bounded floating-point tolerance. Internal graph discharge is intentionally not counted again. Both durable epoch commit paths now run this audit before writing their checkpoint. Audit tests deliberately inject lost/duplicated water and mismatched source sets.
+- `HydrologyLongHorizonConservationV2Test` exercises six sequential epochs, three known boundary transfers, multiple unloaded waiting epochs, restart after every stage, duplicate receipt rejection, delivery markers and final downstream outlet conservation (5 + 2 + 3 + 1 = 11 units). This is a bounded integration regression, **not** a planet-scale endurance test.
+- `SeasonalCatchmentCycleV2` carries per-cell storage between wet/dry seasons using `SeasonalWaterBalanceV2.step`; returns cumulative runoff, evaporation and final storage, with defensive array snapshots and per-cell conservation/validation tests. Evaporation remains a caller-supplied fraction, not climate-calibrated potential evapotranspiration.
+- `HydrologyReceiptBudgetV2` audits durable parked versus already delivered receipt volumes and pending destinations, with deterministic ordering and explicit overflow rejection. Tests cover delayed confluence through serialized restoration, duplicate replay, and delivery accounting.
+
+**Verification (full CI, not merely unit test execution):**
+- Initial branch baseline `c3a5392b0480729458667427c38f2c208ff487d2`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40935218169 .
+- Conservation audit implementation `ca2799d76af5b1b7520833bbfdf01ddc7e89260c`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943441610 .
+- Conservation rejection tests `17b2b5816dceb81b701a66c7f4d74c437ab3ffda`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943462048 .
+- Durable-commit audit integration `7a718f8063053f1c6c7f3a8f928d003b9769445c`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943478522 .
+- Six-epoch delayed-water regression `fb5d71579e86726bf1c713728a25ad2240ac03a3`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943516051 .
+- Seasonal catchment implementation `63344bb093a2399671eee5028d977ed138a8068a`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943592663 .
+- Seasonal catchment tests `b5f37151195ba2a4ab97e8b577cff515c48ab398` and receipt budget implementation/tests `2ab9ec1b8c16ad58609fff8425530d1b063ce770`, `7628039dac79f99988ee31a36a936b5b617c2742`: **full CI still running at this documentation update**. See https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 . Do not mark these as passed until completed.
+
+**Still unfinished / blocked by architecture rather than these tests:**
+1. Authoritative routing across independently loaded terrain windows, longitude seam and polar adjacency, and globally resolved outlets/catchments. Finite halos cannot establish a planet-wide drainage invariant.
+2. Unknown downstream routes still fail closed; water parked on a known edge is supported, but arbitrary terrain exploration and a persistent unresolved-route reservoir are not.
+3. Dynamic terrain loading/cache eviction and player-interest scheduling; region providers are still caller supplied. Full game-save integration and concurrent/multiplayer-safe checkpoint transactions remain missing.
+4. Lake water volume, catchment storage, sediment and erosion overlays are not durably evolved together in the live world; calibrated infiltration, groundwater, snow, evaporation and time stepping remain open.
+5. Receipt history is unbounded, and long-horizon stress/property testing at realistic world scale remains outstanding. Receipt summaries are observability, **not** safe history garbage collection.
