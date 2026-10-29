@@ -29,3 +29,21 @@ Date: 2026-10-29. Development branch: `feature/world-engine-v2`.
 ## Safety
 
 No production deployment, Render billing change, or paid database modifications. CI runs are ordinary repository test workflows.
+
+## 2026-10-29 — Finite resources and climate
+
+- `WorldResourceDeposits` converts the existing mineral suitability signal to finite per-site stock using stable derived seeds. This is a prototype allocation model; geological deposit shapes and mining constraints remain future work.
+- `WorldResourceLedger` provides bounded extraction, immutable snapshots, ordered events, and deterministic replay. It is an in-memory overlay, **not durable persistence across process restarts**.
+- `ResourceExtractionDemo` is now exercised in CI; full workflow passed at `02790f6061fcd0510e85b7ee102d0ca0ffdb5209`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40878849660 .
+- `PlanetClimateV2` adds a seeded first-pass temperature/moisture/biome classification with latitude, elevation lapse rate and coarse spherical moisture noise. It does **not** claim physical atmospheric circulation, river routing, erosion, seasonal weather, or high-resolution ecology.
+- `PlanetClimateV2Test` covers deterministic sampling, seam/pole consistency, polar temperatures, moisture bounds and seed variation.
+- Climate CI run: https://github.com/Yusuf-cm/wild-deck/actions/runs/40882816987 (check result before marking verified).
+
+### Remaining high-priority acceptance gaps
+
+1. Climate and geography overlays in the atlas, including reference images and statistical validation.
+2. Physically motivated geology, river basins, lake routing and erosion-inspired terrain.
+3. Finer-scale terrain detail and mixed-LOD crack-free rendering.
+4. Site identity tied to spatial coordinates and safe stock initialization from authoritative world objects.
+5. Durable world overlay persistence and save schema.
+6. Integration into the existing Wild Deck card/match command path and human playtest.
