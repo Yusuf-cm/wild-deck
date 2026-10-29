@@ -83,6 +83,34 @@ class HydrologyGlobalSlopeRouterV2Test {
         assertEquals(lookup.at(at(8,6)),lookup.at(at(8,6)),0);
     }
 
+    @Test void independentlyGeneratedInteriorRegionsOwnRainfallOnce() {
+        var world=new PlanetSurfaceV2(Planet.emptyEarthSized(),1234567);
+        var climate=new PlanetClimateV2(world);
+        var west=HydrologyGlobalSlopeRouterV2.seededOwnedInteriorRegion(
+            climate,new PlanetRegionGrid.Region(2,1,1),4,10);
+        var east=HydrologyGlobalSlopeRouterV2.seededOwnedInteriorRegion(
+            climate,new PlanetRegionGrid.Region(2,2,1),4,10);
+        assertEquals(16,west.size());
+        assertEquals(16,east.size());
+        var all=new ArrayList<HydrologyGlobalSlopeRouterV2.Source>(west);
+        all.addAll(east);
+        assertEquals(32,new HashSet<>(all.stream().map(
+            HydrologyGlobalSlopeRouterV2.Source::address).toList()).size());
+        var elevation=HydrologyGlobalSlopeRouterV2.planetElevations(world);
+        var nodes=HydrologyGlobalSlopeRouterV2.route(all,elevation,Set.of());
+        var left=HydrologyGlobalSlopeRouterV2.route(west,elevation,Set.of());
+        var right=HydrologyGlobalSlopeRouterV2.route(east,elevation,Set.of());
+        var joined=new ArrayList<>(left);
+        joined.addAll(right);
+        joined.sort(Comparator.comparing(HydrologyFlowGraphV2.Node::address,
+            HydrologyFlowGraphV2.ADDRESS_ORDER));
+        assertEquals(nodes,joined);
+        HydrologyConservationV2.verify(nodes,HydrologyFlowGraphV2.solve(nodes));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyGlobalSlopeRouterV2.seededOwnedInteriorRegion(
+                climate,new PlanetRegionGrid.Region(2,0,1),4,10));
+    }
+
     @Test void flatSinkStaysUnresolvedAndInvalidInputsFailClosed() {
         var flat=HydrologyGlobalSlopeRouterV2.route(
             List.of(source(4,3,4)),p->10,Set.of());
