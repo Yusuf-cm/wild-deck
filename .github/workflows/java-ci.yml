@@ -2,7 +2,7 @@ name: Java CI
 
 on:
   push:
-    branches: [ main, warfare-engine-v1, feature/live-world-playtest, feature/diplomacy-v1 ]
+    branches: [ main, warfare-engine-v1, feature/live-world-playtest, feature/diplomacy-v1, feature/world-engine-v2 ]
   pull_request:
     branches: [ main ]
 
