@@ -428,3 +428,9 @@ All initially pending full workflows have now **PASSED**, including Maven tests,
 - Initial implementation/verification documentation `82b3b93697f91fd385b6029fbeaa7644cfc639f0`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40960889804 .
 
 **Acceptance is bounded:** finite known terrain with caller-verified outlets, conditional spill surfaces, deterministic sediment mass bookkeeping and in-memory erosion/deposition overlays. None of these CI results establish global outlet truth, a physically calibrated annual water cycle, or durable evolving terrain across independent windows.
+
+### 2026-10-30 — Generated terrain hydrology region provider
+
+- Added `HydrologyGeneratedRegionProviderV2` implementing the bounded region scheduler's provider interface. It generates one-region connected drainage from seeded `PlanetSurfaceV2` and `PlanetClimateV2`, adapts lake spill routing to global hydrology addresses, and applies shared-vertex rainfall ownership.
+- Added reproducibility, valid node-count and invalid region-address tests.
+- Caveat: independent one-region priority-flood routing can disagree on shared boundaries. Mosaic joining deliberately rejects contradictory routes. A future shared multi-region solve or authoritative boundary routing is required for robust adjacent region streaming; this provider does not claim to solve that.
