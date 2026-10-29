@@ -96,3 +96,7 @@ No production deployment, Render billing change, or paid database modifications.
 - `SeasonalWaterBalanceV2.step` provides deterministic rainfall + previous-storage = evaporation + stored + runoff accounting with finite nonnegative inputs. Tests added. IMPORTANT: evaporation fraction and capacity are caller-supplied; no seasonal climate integration, lake-volume geometry or time-stepping orchestration yet.
 - CI for new additions: https://github.com/Yusuf-cm/wild-deck/actions/runs/40888086920 and https://github.com/Yusuf-cm/wild-deck/actions/runs/40888126404 (check final status).
 - Remaining water work: connected multi-mosaic flux solver, double-count-free rainfall sampling, stable global catchments, ocean/tidal boundary conditions, climate-calibrated seasons, lake dynamics, sediment and erosion, long-run numerical stability and gameplay persistence. Water subsystem is **NOT complete**.
+
+### River incision prototype (same date)
+
+- `RiverErosionV2.erode` produces a bounded, deterministic elevation overlay from spill-route descent and discharge. It does not modify the seed terrain, and has no sediment transport, deposition, re-routing, or persistent state. Tests added; CI pending at time of writing.
