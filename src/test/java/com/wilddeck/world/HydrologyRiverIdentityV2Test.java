@@ -39,6 +39,22 @@ class HydrologyRiverIdentityV2Test {
         assertEquals(id,new HydrologyRiverIdentityV2.ReachId(at(4),at(5)));
     }
 
+    @Test void rejectsCatchmentIdentitiesFromDifferentGraphSolution(){
+        var authoritative=List.of(
+            new HydrologyFlowGraphV2.Node(at(4),2,at(5),false),
+            new HydrologyFlowGraphV2.Node(at(5),3,at(6),false),
+            new HydrologyFlowGraphV2.Node(at(6),1,null,true));
+        var altered=List.of(
+            new HydrologyFlowGraphV2.Node(at(4),2,at(5),false),
+            new HydrologyFlowGraphV2.Node(at(5),3,null,true),
+            new HydrologyFlowGraphV2.Node(at(6),1,null,true));
+        var mismatched=HydrologyFlowGraphV2.solve(altered);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverIdentityV2.resolvedReaches(authoritative,mismatched));
+        var correct=HydrologyFlowGraphV2.solve(authoritative);
+        assertEquals(2,HydrologyRiverIdentityV2.resolvedReaches(authoritative,correct).size());
+    }
+
     @Test void invalidReachCannotTeleportAcrossPlanet(){
         assertThrows(IllegalArgumentException.class,()->
             new HydrologyRiverIdentityV2.ReachId(at(4),at(8)));
