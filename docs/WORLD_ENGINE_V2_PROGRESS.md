@@ -418,3 +418,13 @@ The previously pending full workflows are now **PASSED**:
 - `HydrologyRiverIdentityV2.resolvedReaches` now independently re-solves supplied nodes and rejects catchment evidence from a different graph. This prevents mismatched solved results from fabricating stable reach/catchment assignments. `0002e937ee330c15d40d6af29bcce9ddaeef6fe1`, test `cec4bbc575de31363a5ab02f3bb8c082a02c6941`: **full CI pending** at initial documentation.
 
 **Unfinished and deliberately not claimed:** priority-flood paths are conditional and only valid within the *supplied complete window and verified outlet assumptions*. Unknown terrain beyond the window can change true spill height; this is not a global basin oracle or automatic river routing through unfilled lakes. Seam/pole topology, globally reconciled basin IDs and outlet certification, seasonal climate calibration, snow/groundwater, durable evolving terrain/sediment/lake geometry, receipt garbage collection, global-scale performance and distributed multiplayer save integration remain outstanding. The new sediment overlay is in-memory only and has no production persistence adapter.
+
+### 2026-10-30 — Final CI confirmation for verified-outlet and sediment run
+
+All initially pending full workflows have now **PASSED**, including Maven tests, finite-resource replay, browser save controls, planet export and atlas browser checks:
+- Verified lake basin, two-season storage/evaporation/overflow conservation and terminal routing `b844cdedc418ae9d7e93b379c598d68f9d66508c`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40960758371 .
+- Graph-solution validation before assigning resolved reach/catchment IDs `0002e937ee330c15d40d6af29bcce9ddaeef6fe1`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40960801152 .
+- Mismatched river graph identity rejection regression `cec4bbc575de31363a5ab02f3bb8c082a02c6941`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40960815090 .
+- Initial implementation/verification documentation `82b3b93697f91fd385b6029fbeaa7644cfc639f0`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40960889804 .
+
+**Acceptance is bounded:** finite known terrain with caller-verified outlets, conditional spill surfaces, deterministic sediment mass bookkeeping and in-memory erosion/deposition overlays. None of these CI results establish global outlet truth, a physically calibrated annual water cycle, or durable evolving terrain across independent windows.
