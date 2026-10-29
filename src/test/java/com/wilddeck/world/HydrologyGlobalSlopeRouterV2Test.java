@@ -71,6 +71,18 @@ class HydrologyGlobalSlopeRouterV2Test {
         assertEquals(0,again.receiptBudget().pendingVolume(),1e-9);
     }
 
+    @Test void seededPlanetElevationAgreesAtSharedRegionVertex() {
+        var world=new PlanetSurfaceV2(Planet.emptyEarthSized(),1234567);
+        var lookup=HydrologyGlobalSlopeRouterV2.planetElevations(world);
+        var left=new PlanetRegionGrid.Region(2,1,1);
+        var right=new PlanetRegionGrid.Region(2,2,1);
+        double a=world.sample(PlanetRegionGrid.point(left,4,2,4)).elevationMeters();
+        double b=world.sample(PlanetRegionGrid.point(right,0,2,4)).elevationMeters();
+        assertEquals(a,b,0);
+        assertEquals(a,lookup.at(at(8,6)),0);
+        assertEquals(lookup.at(at(8,6)),lookup.at(at(8,6)),0);
+    }
+
     @Test void flatSinkStaysUnresolvedAndInvalidInputsFailClosed() {
         var flat=HydrologyGlobalSlopeRouterV2.route(
             List.of(source(4,3,4)),p->10,Set.of());
