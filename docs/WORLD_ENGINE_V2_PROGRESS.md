@@ -193,3 +193,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Added `HydrologyDurableEpochV2.commit`: stages a cloned inbox, claims a simulation epoch, merges/solves loaded region graphs with incoming water, then atomically writes the paired world/inbox checkpoint using the existing local store. Returns the committed result and staged inbox for the caller to adopt.
 - Integration tests cover water conservation across a boundary, disk reload and consumed-epoch replay rejection, cycle/solve failure without mutation, and checkpoint-write failure without mutation.
 - Scope: local single-writer checkpoint only. Caller must adopt the returned inbox and restore both world and inbox from disk after restart. No production database, multiplayer concurrency, real world simulation loop, or automatic region scheduling is wired yet.
+
+### 2026-10-29 — Sequential checkpointed world runner
+
+- Added `HydrologyWorldRunnerV2`: opens an existing checkpoint or initializes one; exposes committed epoch/world state; accepts future-epoch water transfers; advances one epoch by staging water consumption, solving loaded graph nodes, and checkpointing world/inbox together. Reload restores committed state and consumed water receipts.
+- Tests exercise multiple epochs, restart, incoming water consumed only in its target epoch, and failed-solve rollback.
+- Explicit limits: single-writer local filesystem, no automatic region discovery/loading, no terrain-driven route updates, no wall-clock scheduler, no complete world-state serializer. The runner is a deterministic integration boundary, not a complete running planet.
