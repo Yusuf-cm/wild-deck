@@ -121,6 +121,22 @@ public final class HydrologyWorldRunnerV2 {
         return advanceAndQueueKnownFrontier(nextWorldState,loaded);
     }
 
+    /**
+     * Generate a connected terrain halo around a bounded core, use only the
+     * core's rainfall vertices, and durably queue known outward river edges.
+     * Unknown routes at the planet/halo boundary fail closed. This does not
+     * resolve the entire planetary watershed or mutate persistent terrain.
+     */
+    public synchronized HydrologyDurableEpochV2.Routed advanceTerrainCoreAndQueue(
+            String nextWorldState,PlanetSurfaceV2 terrain,PlanetClimateV2 climate,
+            int level,long firstColumn,long firstRow,int columns,int rows,
+            int divisions,int haloRegions,double riverThreshold) throws IOException {
+        var core=HydrologyTerrainWindowV2.generateCoreWithHalo(
+            terrain,climate,level,firstColumn,firstRow,columns,rows,
+            divisions,haloRegions,riverThreshold);
+        return advanceAndQueueKnownFrontier(nextWorldState,List.of(core.coreNodes()));
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
