@@ -44,4 +44,28 @@ class SeasonalLakeCycleV2Test {
             SeasonalLakeCycleV2.simulate(basin(),1,Double.MAX_VALUE,
                 List.of(new SeasonalLakeCycleV2.Period(2,0,0,1))));
     }
+    @Test void substepsAccountForEvaporationWhilePreviouslyDryLakeFills(){
+        var shallow=new LakeReservoirV2.Basin(new double[]{0},new double[]{10},10);
+        var periods=List.of(new SeasonalLakeCycleV2.Period(1,1,0,1));
+        var coarse=SeasonalLakeCycleV2.simulate(shallow,0,10,periods);
+        var refined=SeasonalLakeCycleV2.simulateSubsteps(shallow,0,10,periods,10);
+        assertEquals(coarse,SeasonalLakeCycleV2.simulateSubsteps(shallow,0,10,periods,1));
+        assertEquals(10,coarse.finalVolume(),1e-9);
+        assertEquals(1,refined.finalVolume(),1e-9);
+        assertEquals(9,refined.totalEvaporation(),1e-9);
+        assertEquals(0,refined.totalOverflow(),1e-9);
+        assertEquals(10,refined.totalInput(),1e-9);
+        assertEquals(refined.initialVolume()+refined.totalInput(),
+            refined.finalVolume()+refined.totalEvaporation()+refined.totalOverflow(),1e-8);
+        assertEquals(1,refined.seasons().size());
+        assertEquals(9,refined.seasons().get(0).lake().evaporated(),1e-9);
+    }
+
+    @Test void substepBudgetIsBounded(){
+        assertThrows(IllegalArgumentException.class,()->
+            SeasonalLakeCycleV2.simulateSubsteps(basin(),0,1,List.of(),0));
+        assertThrows(IllegalArgumentException.class,()->
+            SeasonalLakeCycleV2.simulateSubsteps(basin(),0,1,List.of(),4097));
+    }
+
 }

@@ -70,4 +70,50 @@ public final class SeasonalLakeCycleV2 {
         }
         return new Result(seasons,initialVolume,volume,input,evaporation,overflow);
     }
+    /**
+     * Subdivide each season into equal water/evaporation increments. This
+     * reduces the start-of-step wetted-area bias for filling or drying lakes.
+     * Each returned Season still represents one full input period.
+     *
+     * This is a numerical approximation, not a climate-calibrated timestep.
+     */
+    public static Result simulateSubsteps(LakeReservoirV2.Basin basin,double initialVolume,
+                                          double contributingArea,Collection<Period> periods,
+                                          int substeps) {
+        Objects.requireNonNull(basin);
+        Objects.requireNonNull(periods);
+        if(substeps<1||substeps>4096)
+            throw new IllegalArgumentException("Invalid seasonal substep count");
+        if(!Double.isFinite(contributingArea)||contributingArea<0||
+           !Double.isFinite(initialVolume)||initialVolume<0||
+           initialVolume>basin.capacity())
+            throw new IllegalArgumentException("Invalid lake initial state");
+        double volume=initialVolume,input=0,evaporation=0,overflow=0;
+        var seasons=new ArrayList<Season>();
+        for(var period:periods){
+            Objects.requireNonNull(period);
+            double runoff=period.rainfallDepth()*contributingArea*period.runoffFraction();
+            double inflow=runoff+period.upstreamInflow();
+            if(!Double.isFinite(runoff)||!Double.isFinite(inflow))
+                throw new IllegalArgumentException("Seasonal water overflow");
+            double evaporatedThisSeason=0,spilledThisSeason=0;
+            for(int i=0;i<substeps;i++){
+                var step=LakeReservoirV2.step(basin,volume,inflow/substeps,
+                                              period.evaporationDepth()/substeps);
+                volume=step.volume();
+                evaporatedThisSeason+=step.evaporated();
+                spilledThisSeason+=step.overflow();
+            }
+            input+=inflow;
+            evaporation+=evaporatedThisSeason;
+            overflow+=spilledThisSeason;
+            if(!Double.isFinite(input)||!Double.isFinite(evaporation)||
+               !Double.isFinite(overflow))
+                throw new IllegalArgumentException("Seasonal totals overflow");
+            seasons.add(new Season(runoff,new LakeReservoirV2.Step(
+                volume,basin.stageAt(volume),evaporatedThisSeason,spilledThisSeason)));
+        }
+        return new Result(seasons,initialVolume,volume,input,evaporation,overflow);
+    }
+
 }
