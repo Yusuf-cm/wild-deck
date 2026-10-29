@@ -27,9 +27,25 @@ public final class HydrologySeededSlopeRegionProviderV2
             PlanetSurfaceV2 terrain,PlanetClimateV2 climate,
             int level,int divisions,double volumePerMoisture,
             Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets) {
+        this(terrain,climate,level,divisions,volumePerMoisture,
+             verifiedOutlets,null);
+    }
+
+    /**
+     * Optional checkpoint-restored terrain overlay. Edited elevations are
+     * used for neighbor routing even when the edited tile is unloaded.
+     * The caller must use one consistent overlay snapshot for an epoch.
+     */
+    public HydrologySeededSlopeRegionProviderV2(
+            PlanetSurfaceV2 terrain,PlanetClimateV2 climate,
+            int level,int divisions,double volumePerMoisture,
+            Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets,
+            HydrologyTerrainOverlayV2.State overlay) {
         this.climate=Objects.requireNonNull(climate);
-        this.elevations=HydrologyGlobalSlopeRouterV2.planetElevations(
+        var seeded=HydrologyGlobalSlopeRouterV2.planetElevations(
             Objects.requireNonNull(terrain));
+        this.elevations=overlay==null?seeded:
+            HydrologyTerrainOverlayV2.elevations(seeded,overlay);
         Objects.requireNonNull(verifiedOutlets);
         if(level<0||level>30||divisions<1||divisions>128||
            !Double.isFinite(volumePerMoisture)||volumePerMoisture<0)
