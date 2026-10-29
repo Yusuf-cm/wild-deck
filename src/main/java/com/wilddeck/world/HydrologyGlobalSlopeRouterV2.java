@@ -85,6 +85,28 @@ public final class HydrologyGlobalSlopeRouterV2 {
         return List.copyOf(nodes);
     }
 
+    /**
+     * Canonical seeded-terrain elevation lookup for global sample addresses.
+     * Shared region vertices resolve through one canonical region coordinate,
+     * regardless of the region currently loaded. This does NOT connect the
+     * duplicated +/-180-degree seam or the singular pole samples.
+     */
+    public static Elevations planetElevations(PlanetSurfaceV2 terrain) {
+        Objects.requireNonNull(terrain);
+        return address->{
+            Objects.requireNonNull(address);
+            long columns=2L<<address.level(),rows=1L<<address.level();
+            int divisions=address.divisions();
+            long column=Math.min(address.x()/divisions,columns-1);
+            long row=Math.min(address.y()/divisions,rows-1);
+            int x=Math.toIntExact(address.x()-column*divisions);
+            int y=Math.toIntExact(address.y()-row*divisions);
+            var region=new PlanetRegionGrid.Region(address.level(),column,row);
+            return terrain.sample(PlanetRegionGrid.point(region,x,y,divisions))
+                .elevationMeters();
+        };
+    }
+
     private static double checked(double elevation) {
         if(!Double.isFinite(elevation))
             throw new IllegalArgumentException("Non-finite global elevation");
