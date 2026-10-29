@@ -20,6 +20,8 @@ jobs:
         run: mvn --batch-mode test
       - name: Run the smallest world experiment
         run: java -cp target/classes com.wilddeck.world.WorldSandboxDemo
+      - name: Verify finite resource extraction and replay
+        run: java -cp target/classes com.wilddeck.world.ResourceExtractionDemo
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
