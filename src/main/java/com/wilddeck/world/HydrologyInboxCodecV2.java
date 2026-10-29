@@ -39,7 +39,7 @@ public final class HydrologyInboxCodecV2 {
             out.append("D,").append(key.epoch()).append(',')
                .append(from.level()).append(',').append(from.divisions()).append(',')
                .append(from.x()).append(',').append(from.y()).append(',')
-               .append(to.x()).append(',').append(to.y()).append('\\n');
+               .append(to.x()).append(',').append(to.y()).append((char)10);
         }
         return out.toString();
     }
