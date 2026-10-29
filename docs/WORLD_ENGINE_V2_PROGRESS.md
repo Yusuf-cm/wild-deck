@@ -206,3 +206,34 @@ No production deployment, Render billing change, or paid database modifications.
 - Wired `HydrologyWorldRunnerV2.advanceRegions` to load selected regions before committing the next hydrology epoch.
 - Added scheduler and runner tests for overlap, deterministic ordering, budget failures, arithmetic overflow, and focused-region advancement.
 - The provider currently supplies prepared graph nodes; automatic terrain generation, region cache management, route reconciliation across unloaded tiles and player-interest scheduling are not yet implemented.
+
+
+### 2026-10-29 — Durable receipts, cross-region frontier queue, terrain windows, seasonal lakes and erosion feedback
+
+**Branch safety:** all implementation and test commits in this section target `feature/world-engine-v2` only. No PR/merge to `main`, production deployment or paid infrastructure change.
+
+**Implemented and verified:**
+
+- `HydrologyCheckpointStoreV2.saveIncoming` now allows *monotonic* future-epoch receipt additions to the existing world checkpoint without rewriting committed world state or consumed markers. Normal `save` still rejects conflicting same-epoch replacements. `HydrologyWorldRunnerV2.receive` stages the receipt and writes the updated checksum-protected atomic checkpoint **before acknowledging** it. Tests cover restart before advancing, duplicate receipt idempotence, conflicting replay, rejected rollback, rejected receipt deletion/consumption changes, and failed write leaving in-memory state unchanged.
+- `HydrologyDurableEpochV2.commitAndQueueKnownFrontier` and `HydrologyWorldRunnerV2.advanceAndQueueKnownFrontier` export known one-step unloaded-boundary edges as **next-epoch** idempotent receipts and commit them with world state and the consumed incoming epoch. The solver's `prepare` method exposes exactly the merged/injected graph used for both solving and frontier conservation validation. Integration tests cover two-source confluence, disk restart, downstream consumption, no replay, and fail-closed behavior when a route has no known downstream.
+- `HydrologyTerrainWindowV2` generates one connected seeded terrain/climate/lake-spill mosaic and its globally addressed flow nodes across a bounded rectangular region window. Shared vertices are sampled only once inside the window. Tests cover 2x2-region conservation (81 unique samples), deterministic regeneration, matching rainfall at overlapping global addresses, and bounds.
+- `ErodingWatershedV2` performs a bounded incision overlay step, then recomputes priority-flood routing and discharge on the modified finite terrain. Tests check deterministic bounded cuts, source terrain immutability, zero-strength behavior and conservation of rainfall after rerouting. **No sediment deposition or persistent terrain mutation is claimed.**
+- `SeasonalLakeCycleV2.simulateSubsteps` subdivides seasonal rainfall/inflow/evaporation into bounded equal increments while reporting one aggregate result per season. This reduces the dry-lake start-of-step evaporation bias. Tests check a filling lake, substep=1 equivalence, conservation and invalid budgets.
+- `HydrologyCrossRegionAcceptanceV2Test` exercises shared-vertex rainfall deduplication, two-branch confluence, replay-safe unloaded boundary delivery, and stable verified outlet/reach identity when downstream terrain is known.
+
+**CI (explicitly checked):**
+
+- Initial commits `8961aebe47fc85ad718e953a8da7a9c20b7c48dc` and `3ace888a92037429e78672ce3016d78029005457` had failures: one test incorrectly expected an exact idempotent checkpoint retry to throw, and another test omitted a two-coordinate address helper. Both were corrected in `a6a1a8b446f08619051f641c3e9cf77a2ec88f1c` and `c898648d817a85405447476d89d0312c23f011b3`.
+- **Full CI PASSED** after both corrections: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915632220 (`c898648d817a85405447476d89d0312c23f011b3`).
+- **Full CI PASSED** for connected terrain windows and finite erosion feedback: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915799128 (`d4e6114e0e6ab2c76543def0f4b97f5678028c67`).
+- **Full CI PASSED** for seasonal lake substeps: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915880215 (`53c277762ffd73370be8141b567953bf568d1524`).
+- Cross-region acceptance test commit `001052617fcdffe7ee38757d6802c4d7bf5575b1`: Maven tests passed; **full workflow still running at documentation time**: https://github.com/Yusuf-cm/wild-deck/actions/runs/40915960178 . Do not mark its full CI green until the workflow finishes.
+
+**Unfinished acceptance gaps (hydrology NOT complete):**
+
+1. Unknown unloaded-terrain downstream routes still cannot be inferred. `advanceAndQueueKnownFrontier` fails closed rather than dropping parked water; a durable route-discovery/parking queue is required.
+2. Receipts target a specific next epoch. If the receiving region is unavailable then, advancement fails safely; there is no collision-free multi-epoch deferral or region-load orchestration for delayed receivers.
+3. Connected finite windows may disagree at their outer edges; no global priority-flood, seam/pole normalization, stable planetary watershed catalog or verified ocean boundary conditions. Global catchment IDs remain outlet-anchored only for fully known paths.
+4. Seasonal substeps are numerical approximations with caller-supplied climate inputs and areas. Lake volumes, cross-window lake identity, snowpack, groundwater, floodplain storage, infiltration and long-run calibration are missing.
+5. Erosion reroutes a returned finite-grid overlay but does not persist terrain changes, conserve sediment through deposition, or couple evolving river/lake geometry to gameplay.
+6. The runtime remains single-writer local-file scoped. Distributed locking, game save integration, full-region cache management, physical units/time calibration and large-world performance/long-horizon conservation tests are still outstanding.
