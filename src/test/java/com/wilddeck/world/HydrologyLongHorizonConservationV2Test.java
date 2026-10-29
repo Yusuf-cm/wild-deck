@@ -28,6 +28,8 @@ class HydrologyLongHorizonConservationV2Test {
         assertEquals(1,first.queuedTransfers());
         assertEquals(5,first.committed().flow().pendingOutflow().get(at(5)),1e-9);
         assertEquals(1,runner.epoch());
+        assertEquals(5,runner.receiptBudget().pendingVolume(),1e-9);
+        assertEquals(0,runner.receiptBudget().deliveredVolume(),1e-9);
 
         runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
         assertEquals(List.of(new HydrologyRegionSchedulerV2.Region(1,0)),
@@ -41,6 +43,8 @@ class HydrologyLongHorizonConservationV2Test {
         var third=runner.advanceAndQueueKnownFrontier("step3",loaded(5,2,6L,false));
         assertEquals(1,third.queuedTransfers());
         assertEquals(7,third.committed().flow().pendingOutflow().get(at(6)),1e-9);
+        assertEquals(7,runner.receiptBudget().pendingVolume(),1e-9);
+        assertEquals(5,runner.receiptBudget().deliveredVolume(),1e-9);
 
         runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
         runner.advanceAndQueueKnownFrontier("step4",loaded(12,0,null,true));
@@ -54,6 +58,9 @@ class HydrologyLongHorizonConservationV2Test {
         var sixth=runner.advanceAndQueueKnownFrontier("step6",loaded(7,1,null,true));
         assertEquals(11,sixth.committed().flow().terminalOutflow().get(at(7)),1e-9);
         assertEquals(0,runner.pendingWaterRegions().size());
+        assertEquals(0,runner.receiptBudget().pendingVolume(),1e-9);
+        // The same 11 units cross several edges: receipt totals are NOT new rainfall.
+        assertEquals(22,runner.receiptBudget().deliveredVolume(),1e-9);
 
         var recovered=HydrologyWorldRunnerV2.open(path,0,"ignored");
         assertEquals(6,recovered.epoch());
