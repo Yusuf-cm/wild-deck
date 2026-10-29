@@ -339,3 +339,11 @@ These checks establish the finite-grid numerical and identity regression tests; 
 3. Dynamic terrain loading/cache eviction and player-interest scheduling; region providers are still caller supplied. Full game-save integration and concurrent/multiplayer-safe checkpoint transactions remain missing.
 4. Lake water volume, catchment storage, sediment and erosion overlays are not durably evolved together in the live world; calibrated infiltration, groundwater, snow, evaporation and time stepping remain open.
 5. Receipt history is unbounded, and long-horizon stress/property testing at realistic world scale remains outstanding. Receipt summaries are observability, **not** safe history garbage collection.
+
+### 2026-10-29 — Full CI follow-up and runtime receipt observability
+
+- Seasonal catchment wet/dry conservation and defensive-array tests `b5f37151195ba2a4ab97e8b577cff515c48ab398`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943620719 .
+- Receipt budget implementation `2ab9ec1b8c16ad58609fff8425530d1b063ce770`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943704011 .
+- Receipt budget delayed-confluence serialization/overflow tests `7628039dac79f99988ee31a36a936b5b617c2742`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943729837 .
+- Exposed `HydrologyWorldRunnerV2.receiptBudget()` to inspect parked and already delivered receipt water without consuming it (`0b01ea5ff142fb0ce01b1de083224f618446dc42`). Extended six-epoch integration assertions (`1412779b624166b0544ee7b5a4bfb127b8bfb48f`) to distinguish 11 units of original water from 22 units of *cumulative boundary receipts* across three edges. The latter is **not** new rainfall and must never be added to a global water budget.
+- The runner observability and new assertions require final full CI verification; see https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 . Global routing, lake persistence, calibrated erosion, and multiplayer-safe save integration remain unfinished.
