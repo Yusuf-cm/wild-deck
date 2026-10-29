@@ -451,3 +451,9 @@ Heat spends a finite charge to ignite reachable dry combustible material. Ticks 
 [Code CI](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841070706) passed for 7642331: eight new world tests, 184 total Java tests, no failures/errors/skips, six browser-script checks, and the actual executable demo. The scout retreated at health 2/3; extinguished trees retained 2/3 fuel; movement reopened; wet trees resisted reignition; the same rule burned a wooden gate and rejected stone. Tests also cover alternate response timing, depletion, drying, fireproof movement, incapacitation, distance, resource preservation on failed actions, snapshot isolation and deterministic repetition.
 
 No AI decision-making, automatic fire spread, flooding, smoke concealment, graphical client, match integration or world-save format is claimed. No hosting or billing changes. See [World laboratory](WORLD_LAB.md) for exact rules, run instructions and evidence.
+
+## 2026-10-29 — Define only the planet
+
+User clarified that the immediate next step is an empty Earth-sized planet before continents, interactions or AI. Added Planet: an ideal sphere with mean radius 6,371 km, continuous latitude/longitude coordinates, great-circle distance and geocentric XYZ positions. No grid is allocated and no land, water, elevation, inhabitants or simulation processes are assigned to this sphere. The earlier three-site laboratory is not integrated into it.
+
+[Code CI](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841583900) passed for 8524243: six new planet tests, 190 total Java tests with no failures/errors/skips, and six browser checks. Tests verify planet scale, wrapping, poles, opposite-side distances, coordinate axes, invalid inputs and distance symmetry/scaling. No hosting changes. Exact scope and units are in [Planet foundation](PLANET.md).

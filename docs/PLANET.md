@@ -19,3 +19,5 @@ Coordinates address positions continuously; no fixed grid, provinces, tiles or t
 The planet's surface is undefined. There are no landmasses, oceans, elevations, climate, resources, settlements, life, cards or interactions on this planet yet. This is a spatial definition, not a generated Earth landscape or a graphical planet renderer. Its ideal spherical geometry is not a model of Earth's ellipsoid or physical processes.
 
 The earlier three-site WorldSimulation experiment remains separate and is not attached to the planet. Existing matches are not changed. The immediate scope is only the empty planet; additions to its surface come in a later step.
+
+Verified on 2026-10-29: [code CI](https://github.com/Yusuf-cm/wild-deck/actions/runs/40841583900) passed six planet tests, 190 total Java tests and six browser-script checks. Planet checks cover dimensions, wrapping at the longitude seam, poles, antipodal distance, geocentric axes, invalid coordinates and distance symmetry/scaling.
