@@ -13,6 +13,16 @@ class RegionalHydrologyV2Test {
         assertArrayEquals(a.lakes().waterSurface(),b.lakes().waterSurface());
         assertArrayEquals(a.lakes().spillTo(),b.lakes().spillTo());
         assertEquals(a.rivers(),b.rivers());
+        assertArrayEquals(a.spillDischarge().flow(),b.spillDischarge().flow());
+        assertArrayEquals(a.spillDischarge().outlet(),b.spillDischarge().outlet());
+        double totalRain=0,totalOutflow=0;
+        double[] rainfall=a.terrain().rainfall(),flow=a.spillDischarge().flow();
+        int[] spill=a.lakes().spillTo();
+        for(int i=0;i<rainfall.length;i++){
+            totalRain+=rainfall[i];
+            if(spill[i]<0)totalOutflow+=flow[i];
+        }
+        assertEquals(totalRain,totalOutflow,1e-7);
         for(int i=0;i<a.terrain().elevation().length;i++)
             assertTrue(a.lakes().waterSurface()[i]>=a.terrain().elevation()[i]);
     }
