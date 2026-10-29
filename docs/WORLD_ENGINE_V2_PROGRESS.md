@@ -61,3 +61,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Accumulation is a unitless moisture proxy, not calibrated discharge in cubic metres per second.
 - The current algorithm is regional and cannot route across region boundaries.
 - No depression filling, lake overflow, globally consistent river topology, sediment transport or erosion yet.
+
+## Connected hydrology and river-channel milestone
+
+- `ConnectedDrainageV2` samples a contiguous rectangular mosaic of equal-level regions into a common grid, removing artificial internal tile barriers for downhill D8 routing. CI passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884063021 .
+- `RiverNetworkV2` identifies channel cells using an accumulation threshold, follows downhill chains to a terminal outlet and groups cells by that outlet. It is deterministic for a **fixed mosaic** and resolution. CI for its tests: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884355136 .
+- Remaining: global catchment IDs independent of mosaic extent, off-mosaic river continuation, depression filling and lake overflow, erosion, calibrated flow and river persistence in authoritative world saves. No claims of planet-wide completed hydrology.
