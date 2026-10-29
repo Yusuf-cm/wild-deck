@@ -73,6 +73,7 @@ public final class HydrologyCheckpointStoreV2 {
         var before=HydrologyInboxCodecV2.decode(previous.inboxState());
         var after=HydrologyInboxCodecV2.decode(checkpoint.inboxState());
         if(!before.consumedEpochs().equals(after.consumedEpochs())||
+           !before.delivered().equals(after.delivered())||
            !after.receipts().entrySet().containsAll(before.receipts().entrySet()))
             throw new IOException("Cannot remove or change committed receipts");
         for(var key:after.receipts().keySet())
