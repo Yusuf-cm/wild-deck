@@ -18,9 +18,10 @@ class RiverNetworkV2Test {
         var drainage=RegionalDrainageV2.route(5,1,new double[]{1,3,5,3,1},
                                               new double[]{1,1,1,1,1});
         var network=RiverNetworkV2.extract(drainage,1);
-        assertEquals(2,network.channels().size());
+        assertEquals(3,network.channels().size());
         assertEquals(0,network.channels().get(0).outlet());
-        assertEquals(4,network.channels().get(1).outlet());
+        assertEquals(0,network.channels().get(1).outlet());
+        assertEquals(4,network.channels().get(2).outlet());
     }
     @Test void thresholdFiltersChannels(){
         var drainage=RegionalDrainageV2.route(3,1,new double[]{3,2,1},
