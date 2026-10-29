@@ -57,8 +57,11 @@ class HydrologyLakeEpochV2Test {
         assertEquals(10,HydrologyLakeStateV2.decode(
             HydrologyWorldRunnerV2.open(path,0,"ignored").worldState())
             .volumes().get(at(4)),1e-9);
-        // 30 units of input = 10 stored + 10 overflow + 10 evaporation.
-        assertEquals(30,10+10+10,1e-9);
+        // 30 units of new inflow = remaining storage + spill + evaporation.
+        double stored=HydrologyLakeStateV2.decode(third.worldState())
+            .volumes().get(at(4));
+        assertEquals(30,stored+spill.lakes().get(at(4)).lake().overflow()+
+            dry.lakes().get(at(4)).lake().evaporated(),1e-9);
     }
 
     @Test void unloadedLakeStateSurvivesEpochWithoutLakeUpdate() throws IOException {
