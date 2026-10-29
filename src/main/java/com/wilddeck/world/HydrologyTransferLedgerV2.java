@@ -18,7 +18,7 @@ public final class HydrologyTransferLedgerV2 {
             Objects.requireNonNull(from);Objects.requireNonNull(to);
             if(epoch<0||from.level()!=to.level()||
                from.divisions()!=to.divisions()||from.equals(to)||
-               Math.abs(from.x()-to.x())>1||Math.abs(from.y()-to.y())>1)
+               !HydrologySphericalTopologyV2.adjacent(from,to))
                 throw new IllegalArgumentException("Invalid transfer key");
         }
     }
