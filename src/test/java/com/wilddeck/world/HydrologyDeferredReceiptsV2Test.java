@@ -94,6 +94,23 @@ class HydrologyDeferredReceiptsV2Test {
             .committed().flow().terminalOutflow().get(at(5)),1e-9);
     }
 
+    @Test void sameEdgeDifferentEpochsParkWithoutReceiptCollision() throws IOException {
+        Path path=directory.resolve("epoch-identity.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
+        var first=new HydrologyTransferLedgerV2.Key(1,at(4),at(5));
+        var second=new HydrologyTransferLedgerV2.Key(2,at(4),at(5));
+        runner.receive(first,2);
+        runner.advanceAndQueueKnownFrontier("one",terminal(7,0));
+        runner.receive(second,3);
+        runner.advanceAndQueueKnownFrontier("two",terminal(7,0));
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(6,runner.advanceAndQueueKnownFrontier("three",terminal(5,1))
+            .committed().flow().terminalOutflow().get(at(5)),1e-9);
+        assertEquals(Set.of(first,second),runner.inboxSnapshot().delivered());
+        assertEquals(1,runner.advanceAndQueueKnownFrontier("four",terminal(5,1))
+            .committed().flow().terminalOutflow().get(at(5)),1e-9);
+    }
+
     @Test void receiptOnlyCheckpointCannotForgeDelivery() throws IOException {
         Path path=directory.resolve("receipt-only.chk");
         var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
