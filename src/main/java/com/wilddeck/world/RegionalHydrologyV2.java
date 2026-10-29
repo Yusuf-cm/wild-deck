@@ -19,9 +19,8 @@ public final class RegionalHydrologyV2 {
         var mosaic=ConnectedDrainageV2.generate(world,climate,level,column,row,columns,rows,divisions);
         var lakes=LakeSpillV2.fill(mosaic.width(),mosaic.height(),mosaic.elevation());
         var spillDischarge=SpillDischargeV2.accumulate(lakes,mosaic.rainfall());
-        // Legacy channel extraction remains based on raw D8 drainage;
-        // spill-aware discharge is separately available for integration.
-        var rivers=RiverNetworkV2.extract(mosaic.drainage(),riverThreshold);
+        // River channels now follow the conserved spill discharge network.
+        var rivers=RiverNetworkV2.extract(lakes,spillDischarge,riverThreshold);
         return new Hydrology(mosaic,lakes,spillDischarge,rivers);
     }
 }
