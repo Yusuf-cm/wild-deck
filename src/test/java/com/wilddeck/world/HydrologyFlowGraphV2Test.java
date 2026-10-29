@@ -61,6 +61,8 @@ class HydrologyFlowGraphV2Test {
         var a=sample(1,1);
         var other=new GlobalHydrologyAddressV2.Sample(4,4,1,1);
         assertThrows(IllegalArgumentException.class,()->new HydrologyFlowGraphV2.Node(a,-1,null,true));
+        assertThrows(IllegalArgumentException.class,()->new HydrologyFlowGraphV2.Node(
+            a,1,sample(10,1),false));
         assertThrows(IllegalArgumentException.class,()->HydrologyFlowGraphV2.solve(List.of(
             new HydrologyFlowGraphV2.Node(a,1,null,true),
             new HydrologyFlowGraphV2.Node(other,1,null,true))));
