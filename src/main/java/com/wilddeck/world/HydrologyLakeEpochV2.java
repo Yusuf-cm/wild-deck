@@ -40,7 +40,7 @@ public final class HydrologyLakeEpochV2 {
             var ordered=new TreeMap<GlobalHydrologyAddressV2.Sample,SeasonalLakeCycleV2.Season>(
                 HydrologyFlowGraphV2.ADDRESS_ORDER);
             ordered.putAll(lakes);
-            this.lakes=Collections.unmodifiableMap(ordered);
+            lakes=Collections.unmodifiableMap(ordered);
         }
     }
 
