@@ -38,7 +38,9 @@ public final class HydrologyFlowGraphV2 {
                 throw new IllegalArgumentException("Terminal cannot have downstream");
             if (downstream != null && (downstream.level() != address.level()
                     || downstream.divisions() != address.divisions()
-                    || downstream.equals(address)))
+                    || downstream.equals(address)
+                    || Math.abs(downstream.x()-address.x())>1
+                    || Math.abs(downstream.y()-address.y())>1))
                 throw new IllegalArgumentException("Invalid downstream sample");
         }
     }
