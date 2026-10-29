@@ -33,6 +33,19 @@ class HydrologyWorldRunnerV2Test {
         assertEquals(3,next.terminalOutflow().get(at(6)),1e-9);
         assertEquals(2,HydrologyWorldRunnerV2.open(path,0,"ignored").epoch());
     }
+    @Test void loadsFocusedRegionAndAdvancesWithProvider() throws IOException {
+        var runner=HydrologyWorldRunnerV2.open(directory.resolve("focused.chk"),0,"initial");
+        var visited=new ArrayList<HydrologyRegionSchedulerV2.Region>();
+        var result=runner.advanceRegions("next",
+            List.of(new HydrologyRegionSchedulerV2.Region(10,20)),0,1,region->{
+                visited.add(region);
+                return graph().get(0);
+            });
+        assertEquals(List.of(new HydrologyRegionSchedulerV2.Region(10,20)),visited);
+        assertEquals(3,result.terminalOutflow().get(at(6)),1e-9);
+        assertEquals(1,runner.epoch());
+    }
+
     @Test void failedAdvancePreservesEpochAndInbox() throws IOException {
         var runner=HydrologyWorldRunnerV2.open(directory.resolve("world.chk"),0,"initial");
         runner.receive(new HydrologyTransferLedgerV2.Key(1,at(4),at(5)),5);
