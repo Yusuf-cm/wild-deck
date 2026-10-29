@@ -67,6 +67,16 @@ public final class HydrologyWorldRunnerV2 {
         return committed.flow();
     }
 
+    /** Select bounded regions deterministically, then advance one epoch. */
+    public synchronized HydrologyFlowGraphV2.Result advanceRegions(
+            String nextWorldState,
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) throws IOException {
+        var loaded=HydrologyRegionSchedulerV2.load(focus,radius,maximumRegions,provider);
+        return advance(nextWorldState,loaded);
+    }
+
     public synchronized HydrologyEpochInboxV2.Snapshot inboxSnapshot(){
         return inbox.snapshot();
     }
