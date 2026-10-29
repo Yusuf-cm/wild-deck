@@ -395,3 +395,13 @@ All previously pending workflows **PASSED**, including Maven tests, world experi
 - Mixed lake spill and independent upstream receipt acceptance `8ea391d83c6a56c8c0b06794271a3c01572dd29e`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40952944194 . The test verifies 10 units of lake spill plus 4 units of separately delivered river water become 14 units at the outlet, with no later replay.
 - Progress-document baseline `a77c127b53e2d5a67eb86b960dc1fd283537ee6d`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40953013888 .
 - Additional strict-downhill overflow rejection `c05930861c77acb7b96a36e3cccf81b157e90b91`, extreme-elevation test `e58585665d3c1bd657edaae84aa44ba4bc499733`, and verified-outlet-only catchment identity test `0b5d874fddd0c9ba9357f0f1bd96b0323c88bbed`: **full CI pending** at this documentation update. These do not address seam/pole topology, depressions, calibrated lake physics, or global basin discovery.
+
+### 2026-10-29 — Final CI verification for downhill routing and lake state run
+
+The previously pending full workflows are now **PASSED**:
+- Downhill elevation-difference overflow guard `c05930861c77acb7b96a36e3cccf81b157e90b91`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40953060919 .
+- Extreme finite-elevation overflow regression `e58585665d3c1bd657edaae84aa44ba4bc499733`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40953089706 .
+- Catchment IDs assigned only after a verified outlet is loaded `0b5d874fddd0c9ba9357f0f1bd96b0323c88bbed`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40953157388 .
+- Documentation follow-up `d5658747056ad8d79003d6a5050f0576af10ca5a`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40953214806 .
+
+**Verified boundaries:** globally addressed strictly downhill edges and independently owned interior rainfall sources, single-writer lake storage persistence with spill routed into a loaded outlet, and finite-grid water conservation across restart. **Not proven:** depression drainage, seam/pole geometry, globally reconciled basin IDs, terrain erosion persistence, climate calibration, bounded receipt history, distributed persistence or complete production integration.
