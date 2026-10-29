@@ -67,6 +67,10 @@ public final class HydrologyRiverIdentityV2 {
             HydrologyFlowGraphV2.Result graph) {
         Objects.requireNonNull(nodes);
         Objects.requireNonNull(graph);
+        // A resolved catchment is only authoritative for the graph that was
+        // actually solved. Reject mismatched results instead of fabricating IDs.
+        if(!HydrologyFlowGraphV2.solve(nodes).equals(graph))
+            throw new IllegalArgumentException("River identity graph/result mismatch");
         var order=Comparator.comparing(ReachId::from,HydrologyFlowGraphV2.ADDRESS_ORDER)
             .thenComparing(ReachId::to,HydrologyFlowGraphV2.ADDRESS_ORDER);
         var result=new TreeMap<ReachId,CatchmentId>(order);
