@@ -46,6 +46,8 @@ class HydrologySphericalTopologyV2Test {
         assertEquals(at(1,5),right.get(0).downstream());
         var combined=new ArrayList<HydrologyFlowGraphV2.Node>(left);
         combined.addAll(right);
+        combined.sort(Comparator.comparing(HydrologyFlowGraphV2.Node::address,
+            HydrologyFlowGraphV2.ADDRESS_ORDER));
         var solved=HydrologyFlowGraphV2.solve(combined);
         assertEquals(12,solved.terminalOutflow().get(at(1,5)),1e-10);
         assertEquals(3,HydrologyFlowGraphV2.solve(left).pendingOutflow().get(at(0,5)),1e-10);
