@@ -64,6 +64,29 @@ class HydrologyLakeEpochV2Test {
             dry.lakes().get(at(4)).lake().evaporated(),1e-9);
     }
 
+    @Test void lakeSpillAndSeparateCrossRegionReceiptAreCountedOnce() throws IOException {
+        Path path=directory.resolve("lake-and-river.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,initial());
+        HydrologyLakeEpochV2.advance(runner,"first",outlet(),List.of(lake(1,0)),1);
+        var restored=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var upstream=new GlobalHydrologyAddressV2.Sample(2,4,5,2);
+        assertTrue(restored.receive(new HydrologyTransferLedgerV2.Key(
+            2,upstream,at(5)),4));
+        var result=HydrologyLakeEpochV2.advance(restored,"second",outlet(),
+            List.of(lake(2,0)),1);
+        // 10 units of lake spill + 4 independent upstream receipt.
+        assertEquals(14,result.routed().committed().flow()
+            .terminalOutflow().get(at(5)),1e-9);
+        var reloaded=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(20,HydrologyLakeStateV2.decode(reloaded.worldState())
+            .volumes().get(at(4)),1e-9);
+        assertEquals(0,reloaded.receiptBudget().pendingVolume(),1e-9);
+        assertEquals(4,reloaded.receiptBudget().deliveredVolume(),1e-9);
+        assertEquals(0,HydrologyLakeEpochV2.advance(reloaded,"third",outlet(),
+            List.of(),1).routed().committed().flow()
+            .terminalOutflow().get(at(5)),1e-9);
+    }
+
     @Test void unloadedLakeStateSurvivesEpochWithoutLakeUpdate() throws IOException {
         Path path=directory.resolve("parked-lake.chk");
         var runner=HydrologyWorldRunnerV2.open(path,0,initial());
