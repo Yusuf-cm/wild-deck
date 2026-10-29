@@ -54,6 +54,18 @@ class HydrologyCheckpointStoreV2Test {
         assertThrows(IOException.class,()->HydrologyCheckpointStoreV2.load(file));
     }
 
+    @Test void rejectsStaleEpochAndConflictingSameEpochButAllowsRetry() throws IOException {
+        Path file=directory.resolve("world.hydrology");
+        var committed=checkpoint(9,"committed");
+        HydrologyCheckpointStoreV2.save(file,committed);
+        HydrologyCheckpointStoreV2.save(file,committed); // idempotent retry
+        assertThrows(IOException.class,()->
+            HydrologyCheckpointStoreV2.save(file,checkpoint(8,"stale")));
+        assertThrows(IOException.class,()->
+            HydrologyCheckpointStoreV2.save(file,checkpoint(9,"conflict")));
+        assertEquals(committed,HydrologyCheckpointStoreV2.load(file));
+    }
+
     @Test void missingParentFailsWithoutCreatingNewDirectories() {
         Path file=directory.resolve("missing").resolve("world.hydrology");
         assertThrows(IOException.class,()->
