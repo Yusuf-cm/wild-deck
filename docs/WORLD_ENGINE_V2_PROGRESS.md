@@ -100,3 +100,10 @@ No production deployment, Render billing change, or paid database modifications.
 ### River incision prototype (same date)
 
 - `RiverErosionV2.erode` produces a bounded, deterministic elevation overlay from spill-route descent and discharge. It does not modify the seed terrain, and has no sediment transport, deposition, re-routing, or persistent state. Tests added; CI pending at time of writing.
+
+### 2026-10-29 — Multi-region hydrology integration
+
+- `HydrologyRainfallOwnershipV2` partitions shared rainfall vertices across independently generated adjacent tiles using west/north ownership, preventing duplicate source contributions. Tests cover shared edges and four-tile corners.
+- `ConnectedHydrologyV2` runs a single connected lake-aware hydrology solve across a rectangular region mosaic and exports internal channel links in globally stable sample coordinates. This is a working bounded multi-region calculation, **not** a streaming unloaded-tile solver. Cross-tile links are informational because water is already accumulated in the shared solve and must not be injected a second time.
+- Added deterministic, rainfall-conservation integration test. Latest CI is pending; inspect workflow for commit `6702d5955cf664d135f1bb512b8d9fca22adbc5c`.
+- Outstanding: independent asynchronous tile-to-tile routing with cycles handled, planet-wide catchment identity, global ocean routing, realistic lake storage and seasons, erosion feedback, and persistence. Do not mark water subsystem complete.
