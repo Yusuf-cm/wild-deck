@@ -19,6 +19,26 @@ public final class RiverNetworkV2 {
     public record Network(int width,int height,List<RiverCell> channels) {
         public Network { channels=List.copyOf(channels); }
     }
+    /**
+     * Extracts river channels from lake-aware conserved discharge.
+     * Unlike the legacy D8 overload, these links follow priority-flood spill
+     * routes through depressions. Outlet IDs remain mosaic-local.
+     */
+    public static Network extract(LakeSpillV2.Result lakes,
+                                  SpillDischargeV2.Discharge discharge,double minFlow){
+        Objects.requireNonNull(lakes);Objects.requireNonNull(discharge);
+        if(lakes.width()!=discharge.width()||lakes.height()!=discharge.height())
+            throw new IllegalArgumentException("Mismatched hydrology grids");
+        if(!Double.isFinite(minFlow)||minFlow<=0)
+            throw new IllegalArgumentException("Invalid flow threshold");
+        int[] next=lakes.spillTo(),outlets=discharge.outlet();
+        double[] flow=discharge.flow();
+        var channels=new ArrayList<RiverCell>();
+        for(int i=0;i<next.length;i++)
+            if(next[i]>=0&&flow[i]>=minFlow)
+                channels.add(new RiverCell(i,next[i],outlets[i],flow[i]));
+        return new Network(lakes.width(),lakes.height(),channels);
+    }
     public static Network extract(RegionalDrainageV2.Drainage drainage,double minFlow){
         Objects.requireNonNull(drainage);
         if(!Double.isFinite(minFlow)||minFlow<=0)throw new IllegalArgumentException("Invalid flow threshold");
