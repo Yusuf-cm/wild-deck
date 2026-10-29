@@ -347,3 +347,13 @@ These checks establish the finite-grid numerical and identity regression tests; 
 - Receipt budget delayed-confluence serialization/overflow tests `7628039dac79f99988ee31a36a936b5b617c2742`: **full CI PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/40943729837 .
 - Exposed `HydrologyWorldRunnerV2.receiptBudget()` to inspect parked and already delivered receipt water without consuming it (`0b01ea5ff142fb0ce01b1de083224f618446dc42`). Extended six-epoch integration assertions (`1412779b624166b0544ee7b5a4bfb127b8bfb48f`) to distinguish 11 units of original water from 22 units of *cumulative boundary receipts* across three edges. The latter is **not** new rainfall and must never be added to a global water budget.
 - The runner observability and new assertions require final full CI verification; see https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 . Global routing, lake persistence, calibrated erosion, and multiplayer-safe save integration remain unfinished.
+
+### 2026-10-29 — Final full CI confirmation for this run
+
+All previously pending workflows **PASSED**, including Maven tests, world experiment, resource replay, browser save controls and atlas checks:
+- Documentation/complete integration baseline `c0ef7a1aacbe413438906ca1f888e14765444cfa`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40943794813 .
+- Runner receipt-budget accessor `0b01ea5ff142fb0ce01b1de083224f618446dc42`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40943852002 .
+- Six-epoch receipt-budget regression `1412779b624166b0544ee7b5a4bfb127b8bfb48f`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40943871106 .
+- Documentation update `7c4bdccf7e6ca6df05ac92142622f344cddf33e4`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40943903423 .
+
+**Verified scope:** finite loaded-graph water conservation, durable known-edge receipts through multiple unloaded epochs and restarts, deterministic pending/delivered receipt accounting, and a prototype multi-season catchment storage budget. **Not verified/unfinished:** planet-wide authoritative routes (including seams and poles), physically calibrated climate and lakes, persistent sediment/terrain feedback, receipt garbage collection, distributed transactions, and production gameplay integration.
