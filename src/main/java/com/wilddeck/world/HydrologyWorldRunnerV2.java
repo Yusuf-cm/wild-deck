@@ -77,6 +77,23 @@ public final class HydrologyWorldRunnerV2 {
         return committed.flow();
     }
 
+    /**
+     * Advance and durably queue known cross-region boundary edges for the
+     * next epoch. Unknown downstream routes abort instead of losing water.
+     */
+    public synchronized HydrologyDurableEpochV2.Routed advanceAndQueueKnownFrontier(
+            String nextWorldState,
+            Collection<? extends Collection<HydrologyFlowGraphV2.Node>> loaded)
+            throws IOException {
+        Objects.requireNonNull(nextWorldState);
+        long next=Math.addExact(last.epoch(),1);
+        var routed=HydrologyDurableEpochV2.commitAndQueueKnownFrontier(
+            checkpointPath,next,nextWorldState,inbox,loaded);
+        last=routed.committed().checkpoint();
+        inbox=routed.committed().inbox();
+        return routed;
+    }
+
     /** Select bounded regions deterministically, then advance one epoch. */
     public synchronized HydrologyFlowGraphV2.Result advanceRegions(
             String nextWorldState,

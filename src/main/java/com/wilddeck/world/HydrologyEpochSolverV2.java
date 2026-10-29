@@ -14,6 +14,17 @@ public final class HydrologyEpochSolverV2 {
     public static HydrologyFlowGraphV2.Result solve(
             Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics,
             Map<GlobalHydrologyAddressV2.Sample,Double> previousEpochIncoming) {
+        return HydrologyFlowGraphV2.solve(prepare(mosaics,previousEpochIncoming));
+    }
+
+    /**
+     * Return effective graph nodes after shared-vertex deduplication and
+     * one-time incoming injection. Frontier export must use these exact nodes
+     * so its conservation check includes imported water.
+     */
+    public static List<HydrologyFlowGraphV2.Node> prepare(
+            Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics,
+            Map<GlobalHydrologyAddressV2.Sample,Double> previousEpochIncoming) {
         Objects.requireNonNull(previousEpochIncoming);
         var merged=HydrologyMosaicJoinV2.merge(mosaics);
         var nodes=new ArrayList<HydrologyFlowGraphV2.Node>(merged.size());
@@ -33,6 +44,6 @@ public final class HydrologyEpochSolverV2 {
             nodes.add(new HydrologyFlowGraphV2.Node(
                 node.address(),water,node.downstream(),node.terminal()));
         }
-        return HydrologyFlowGraphV2.solve(nodes);
+        return List.copyOf(nodes);
     }
 }

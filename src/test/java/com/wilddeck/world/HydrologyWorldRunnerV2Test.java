@@ -69,6 +69,40 @@ class HydrologyWorldRunnerV2Test {
         assertEquals(0,runner.epoch());
     }
 
+    @Test void knownFrontierConfluenceSurvivesRestartAndIsConsumedOnce() throws IOException {
+        Path path=directory.resolve("frontier.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"initial");
+        var upstream=List.of(
+            new HydrologyFlowGraphV2.Node(at(4),3,at(5),false),
+            new HydrologyFlowGraphV2.Node(at(4,4),2,at(5),false));
+        var routed=runner.advanceAndQueueKnownFrontier("upstream",List.of(upstream));
+        assertEquals(2,routed.queuedTransfers());
+        assertEquals(5,routed.committed().flow().pendingOutflow().get(at(5)),1e-9);
+        var reloaded=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(2,reloaded.inboxSnapshot().receipts().size());
+        var receiver=List.of(
+            new HydrologyFlowGraphV2.Node(at(5),1,at(6),false),
+            new HydrologyFlowGraphV2.Node(at(6),0,null,true));
+        assertEquals(6,reloaded.advanceAndQueueKnownFrontier("downstream",List.of(receiver))
+            .committed().flow().terminalOutflow().get(at(6)),1e-9);
+        var again=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(2,again.epoch());
+        assertEquals(1,again.advance("another-rainfall",List.of(receiver))
+            .terminalOutflow().get(at(6)),1e-9);
+        assertThrows(IllegalArgumentException.class,()->again.receive(
+            new HydrologyTransferLedgerV2.Key(2,at(4),at(5)),3));
+    }
+
+    @Test void unknownFrontierAbortsWithoutLosingWater() throws IOException {
+        Path path=directory.resolve("unknown.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"initial");
+        var unknown=List.of(new HydrologyFlowGraphV2.Node(at(4),7,null,false));
+        assertThrows(IllegalStateException.class,()->
+            runner.advanceAndQueueKnownFrontier("should-not-save",List.of(unknown)));
+        assertEquals(0,runner.epoch());
+        assertEquals("initial",HydrologyWorldRunnerV2.open(path,0,"ignored").worldState());
+    }
+
     @Test void failedAdvancePreservesEpochAndInbox() throws IOException {
         var runner=HydrologyWorldRunnerV2.open(directory.resolve("world.chk"),0,"initial");
         runner.receive(new HydrologyTransferLedgerV2.Key(1,at(4),at(5)),5);
