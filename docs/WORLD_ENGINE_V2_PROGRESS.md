@@ -463,3 +463,13 @@ All initially pending full workflows have now **PASSED**, including Maven tests,
 - Added a regression test (`3def3c8c923e2f5f3c4e32685f35b1ff025ad281`) showing a persisted terrain edit changes a source's downhill destination across a region boundary, with stable repeat loading and unchanged original seeded routing. **Full CI pending:** https://github.com/Yusuf-cm/wild-deck/actions/runs/40968531591 .
 - The previous documentation follow-up `d2e0507d2e45196d41453f91a52e992b0e31ab97` **full CI PASSED:** https://github.com/Yusuf-cm/wild-deck/actions/runs/40968400116 .
 - This connects persisted sediment/erosion overlays to subsequent region routing only when callers restore and supply the same overlay snapshot. It does not solve unknown basin drainage, long-range flat/depression spill, multi-writer conflict resolution, seam/pole topology, global catchment reconciliation or climate calibration.
+
+### 2026-10-30 — Final verification for seeded-region erosion persistence integration
+
+All previously pending workflows in this run have now **fully PASSED**:
+- Terrain-overlay documentation baseline `f7e38c8c423dd78592c1742896333f740a00a7b8`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40968475148 .
+- Overlay-aware seeded-region provider `3be37f983c24bd73bf9c190bc9e021401b5ea54d`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40968508823 .
+- Restored-edit unloaded-neighbor routing regression `3def3c8c923e2f5f3c4e32685f35b1ff025ad281`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40968531591 .
+- Documentation of overlay-aware provider `aee91d03050ec662a9a7f6357b21a48e60f9d741`: https://github.com/Yusuf-cm/wild-deck/actions/runs/40968564734 .
+
+**Verified this run:** deterministic unique rainfall ownership across two interior regions, identical D8 routes across independent/combined loads, optional checkpointed sediment terrain overlays surviving restart and repeated epochs, conservative 16-step bounded sediment/water tests, and overlay-driven rerouting across an unloaded neighbor. **Not verified/unfinished:** globally authoritative depression and lake drainage, seam/polar ownership, lake geometry reconciliation, physically calibrated seasons, snow/groundwater, multi-window terrain-edit conflict resolution, automatic production save integration, distributed writes and bounded historical receipt storage. These remain the next water-layer priorities.
