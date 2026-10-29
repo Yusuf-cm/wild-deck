@@ -22,4 +22,25 @@ class RiverErosionV2Test {
         var flow=SpillDischargeV2.accumulate(lakes,new double[]{1,1,1,1});
         assertArrayEquals(terrain,RiverErosionV2.erode(terrain,lakes,flow,0,10));
     }
+    @Test void neverCutsBelowDownstreamBedAndRejectsOverflow() {
+        int width=5,height=5;
+        double[] terrain=new double[25],rain=new double[25];
+        for(int y=0;y<height;y++)for(int x=0;x<width;x++){
+            terrain[y*width+x]=20-x-y;
+            rain[y*width+x]=1;
+        }
+        var lakes=LakeSpillV2.fill(width,height,terrain);
+        var flow=SpillDischargeV2.accumulate(lakes,rain);
+        var eroded=RiverErosionV2.erode(terrain,lakes,flow,100,100);
+        int[] downstream=lakes.spillTo();
+        boolean cut=false;
+        for(int i=0;i<eroded.length;i++)if(downstream[i]>=0){
+            assertTrue(eroded[i]>=Math.min(terrain[i],terrain[downstream[i]])-1e-10);
+            if(eroded[i]<terrain[i])cut=true;
+        }
+        assertTrue(cut);
+        assertThrows(IllegalArgumentException.class,()->
+            RiverErosionV2.erode(terrain,lakes,flow,Double.MAX_VALUE,100));
+    }
+
 }
