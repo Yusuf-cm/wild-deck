@@ -149,3 +149,9 @@ No production deployment, Render billing change, or paid database modifications.
 - Added `HydrologyEpochSolverV2`: merges adjacent/overlapping globally addressed flow-node collections using `HydrologyMosaicJoinV2`, applies explicitly supplied prior-epoch incoming frontier water at loaded addresses, then uses `HydrologyFlowGraphV2.solve` to produce terminal and unresolved frontier outflow. Unit tests cover shared rainfall deduplication, unresolved flow, prior-epoch injection and cycle rejection.
 - Important: callers must persist and consume prior-epoch incoming exactly once, using `HydrologyTransferLedgerV2` and their durable runtime. The helper does not schedule asynchronous region loads or atomically consume snapshots. Passing same previous-epoch water repeatedly will repeat it.
 - The global solver follows explicit known graph links only; it does not infer terrain beyond the loaded mosaic, nor provide a planet-wide physically calibrated watershed simulation.
+
+### 2026-10-29 — One-time incoming epoch consumption
+
+- Added `HydrologyEpochInboxV2`, an in-memory inbox built on the idempotent transfer ledger. It rejects late deliveries to consumed epochs, prevents re-claiming an epoch, and snapshots/restores both receipts and consumption markers.
+- Added tests for duplicate receipt, one-time claim, snapshot restore, conflicting replay and epoch isolation.
+- Important: the snapshot and world update **must be committed atomically by a future persistent runtime**. This class does not guarantee crash-safe exactly-once delivery on its own.
