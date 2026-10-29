@@ -47,6 +47,40 @@ class HydrologySeededSlopeRegionProviderV2Test {
         assertTrue(right.stream().noneMatch(HydrologyFlowGraphV2.Node::terminal));
     }
 
+    @Test void checkpointRestoredErosionChangesRoutesAcrossUnloadedNeighbor() {
+        var terrain=new PlanetSurfaceV2(Planet.emptyEarthSized(),42);
+        var climate=new PlanetClimateV2(terrain);
+        var tile=new HydrologyRegionSchedulerV2.Region(1,1);
+        var original=new HydrologySeededSlopeRegionProviderV2(
+            terrain,climate,LEVEL,DIVISIONS,1,Set.of());
+        var first=List.copyOf(original.load(tile)).get(0);
+        var from=first.address();
+        var west=new GlobalHydrologyAddressV2.Sample(
+            LEVEL,DIVISIONS,from.x()-1,from.y());
+        var east=new GlobalHydrologyAddressV2.Sample(
+            LEVEL,DIVISIONS,from.x()+1,from.y());
+        var chosen=west.equals(first.downstream())?east:west;
+        double elevation=HydrologyGlobalSlopeRouterV2.planetElevations(terrain).at(from);
+        var edited=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
+            if(dx==0&&dy==0)continue;
+            edited.put(new GlobalHydrologyAddressV2.Sample(
+                LEVEL,DIVISIONS,from.x()+dx,from.y()+dy),elevation+1000);
+        }
+        edited.put(chosen,elevation-1000);
+        var saved=new HydrologyTerrainOverlayV2.State("world",edited);
+        var restored=HydrologyTerrainOverlayV2.decode(
+            HydrologyTerrainOverlayV2.encode(saved));
+        var changed=new HydrologySeededSlopeRegionProviderV2(
+            terrain,climate,LEVEL,DIVISIONS,1,Set.of(),restored);
+        var changedFirst=List.copyOf(changed.load(tile)).get(0);
+        assertEquals(from,changedFirst.address());
+        assertEquals(chosen,changedFirst.downstream());
+        assertNotEquals(first.downstream(),changedFirst.downstream());
+        assertEquals(List.copyOf(changed.load(tile)),List.copyOf(changed.load(tile)));
+        assertEquals(first,List.copyOf(original.load(tile)).get(0));
+    }
+
     @Test void failsClosedAtUnresolvedPlanetEdgesAndBadInputs() {
         var terrain=new PlanetSurfaceV2(Planet.emptyEarthSized(),42);
         var climate=new PlanetClimateV2(terrain);
