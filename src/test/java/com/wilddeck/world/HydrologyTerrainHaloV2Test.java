@@ -49,6 +49,27 @@ class HydrologyTerrainHaloV2Test {
         }
     }
 
+    @Test void generatedCoreAdvancesDurablyAndQueuesRealHaloFrontier() throws Exception {
+        var terrain=new PlanetSurfaceV2(Planet.emptyEarthSized(),20261029);
+        var climate=new PlanetClimateV2(terrain);
+        var path=java.nio.file.Files.createTempFile("wilddeck-halo-",".chk");
+        try {
+            java.nio.file.Files.delete(path);
+            var runner=HydrologyWorldRunnerV2.open(path,0,"initial");
+            var routed=runner.advanceTerrainCoreAndQueue(
+                "seeded-core",terrain,climate,2,1,1,2,1,4,1,1);
+            assertTrue(routed.queuedTransfers()>0);
+            assertTrue(routed.committed().flow().pendingOutflow().size()>0);
+            assertEquals(1,runner.epoch());
+            var recovered=HydrologyWorldRunnerV2.open(path,0,"ignored");
+            assertEquals("seeded-core",recovered.worldState());
+            assertFalse(recovered.pendingWaterRegions().isEmpty());
+            assertEquals(routed.queuedTransfers(),recovered.inboxSnapshot().receipts().size());
+        } finally {
+            java.nio.file.Files.deleteIfExists(path);
+        }
+    }
+
     @Test void rejectsInvalidCoreBoundsAndHalo() {
         var terrain=new PlanetSurfaceV2(Planet.emptyEarthSized(),77);
         var climate=new PlanetClimateV2(terrain);
