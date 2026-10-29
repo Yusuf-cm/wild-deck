@@ -33,18 +33,38 @@ public final class ErodingWatershedV2 {
 
     public static Step advance(int width,int height,double[] elevation,double[] rainfall,
                                double strength,double maximumCut) {
+        return step(width,height,elevation,rainfall,strength,maximumCut,null);
+    }
+
+    /**
+     * Recalculate erosion and post-incision drainage toward ONLY verified
+     * outlets, rather than treating every finite-grid edge as an ocean.
+     * Paths through depressions describe spill potential once filled; they
+     * do not imply water can pass an empty lake immediately.
+     */
+    public static Step advanceToVerifiedOutlets(
+            int width,int height,double[] elevation,double[] rainfall,
+            double strength,double maximumCut,Collection<Integer> outlets) {
+        Objects.requireNonNull(outlets);
+        return step(width,height,elevation,rainfall,strength,maximumCut,outlets);
+    }
+
+    private static Step step(int width,int height,double[] elevation,double[] rainfall,
+                             double strength,double maximumCut,Collection<Integer> outlets) {
         Objects.requireNonNull(elevation);
         Objects.requireNonNull(rainfall);
         if(width<1||height<1||(long)width*height!=elevation.length||
            rainfall.length!=elevation.length)
             throw new IllegalArgumentException("Invalid watershed grid");
-        var before=LakeSpillV2.fill(width,height,elevation);
+        var before=outlets==null?LakeSpillV2.fill(width,height,elevation):
+            LakeSpillV2.fillToVerifiedOutlets(width,height,elevation,outlets);
         var water=SpillDischargeV2.accumulate(before,rainfall);
         var eroded=RiverErosionV2.erode(elevation,before,water,strength,maximumCut);
         var incision=new double[elevation.length];
         for(int i=0;i<incision.length;i++)
             incision[i]=Math.max(0,elevation[i]-eroded[i]);
-        var after=LakeSpillV2.fill(width,height,eroded);
+        var after=outlets==null?LakeSpillV2.fill(width,height,eroded):
+            LakeSpillV2.fillToVerifiedOutlets(width,height,eroded,outlets);
         var rerouted=SpillDischargeV2.accumulate(after,rainfall);
         return new Step(eroded,incision,after,rerouted);
     }
