@@ -126,6 +126,10 @@ class HydrologyGlobalSlopeRouterV2Test {
                 p->Double.NaN,Set.of()));
         assertThrows(IllegalArgumentException.class,()->
             HydrologyGlobalSlopeRouterV2.route(List.of(source(4,3,1)),
+                p->p.equals(at(4,3))?Double.MAX_VALUE:-Double.MAX_VALUE,
+                Set.of()));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyGlobalSlopeRouterV2.route(List.of(source(4,3,1)),
                 HydrologyGlobalSlopeRouterV2Test::height,Set.of(at(5,3))));
     }
 }
