@@ -48,6 +48,24 @@ public final class HydrologyRegionSchedulerV2 {
     }
 
     /**
+     * Include regions containing parked incoming water in the same bounded,
+     * deterministic load plan as player/explicit focus regions. Pending
+     * destinations receive the same halo radius so their downstream neighbors
+     * can be considered, but this does not discover an unknown river route.
+     * A failed budget check happens before any provider is invoked.
+     */
+    public static List<Collection<HydrologyFlowGraphV2.Node>> loadWithPending(
+            Collection<Region> focus,HydrologyEpochInboxV2.Snapshot pending,
+            int radius,int maximumRegions,Provider provider) {
+        Objects.requireNonNull(focus);
+        Objects.requireNonNull(pending);
+        var selected=new TreeSet<Region>();
+        for(var region:focus)selected.add(Objects.requireNonNull(region));
+        selected.addAll(pendingRegions(pending));
+        return load(selected,radius,maximumRegions,provider);
+    }
+
+    /**
      * Selects a square Chebyshev-radius neighborhood around each focus,
      * deduplicates overlaps and loads regions in stable row-major order.
      * The cap protects callers from accidental planet-scale materialization.
@@ -59,6 +77,11 @@ public final class HydrologyRegionSchedulerV2 {
         if(radius<0||maximumRegions<1)
             throw new IllegalArgumentException("Invalid region scheduling limits");
         var selected=new TreeSet<Region>();
+        // A single complete neighborhood already exceeds the budget.
+        // Check before any O(radius^2) loop or provider call.
+        long side=2L*radius+1;
+        if(!focus.isEmpty()&&(side>maximumRegions||side>maximumRegions/side))
+            throw new IllegalArgumentException("Region budget exceeded");
         for(var center:focus){
             Objects.requireNonNull(center);
             for(long dy=-(long)radius;dy<=radius;dy++){
