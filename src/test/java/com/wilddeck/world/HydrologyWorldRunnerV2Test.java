@@ -12,6 +12,9 @@ class HydrologyWorldRunnerV2Test {
     private static GlobalHydrologyAddressV2.Sample at(long x){
         return new GlobalHydrologyAddressV2.Sample(2,4,x,3);
     }
+    private static GlobalHydrologyAddressV2.Sample at(long x,long y){
+        return new GlobalHydrologyAddressV2.Sample(2,4,x,y);
+    }
     private static List<List<HydrologyFlowGraphV2.Node>> graph(){
         return List.of(List.of(
             new HydrologyFlowGraphV2.Node(at(5),1,at(6),false),
