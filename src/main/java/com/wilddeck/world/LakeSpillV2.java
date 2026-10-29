@@ -24,6 +24,74 @@ public final class LakeSpillV2 {
             return Math.max(0,waterSurface[y*width+x]-terrain[y*width+x]);
         }
     }
+    /**
+     * Compute conditional spill surfaces and acyclic paths to explicitly
+     * verified physical outlets. Unlike fill(), NO rectangular boundary cell
+     * is silently assumed to be an ocean. A pit must accumulate enough water
+     * to reach its spill surface before its path can carry real discharge.
+     *
+     * This is a bounded known-terrain plan: missing cells outside the window
+     * might provide a lower outlet. Do not treat it as a planet-wide proof.
+     * Outlet indices refer to the row-major terrain array.
+     */
+    public static Result fillToVerifiedOutlets(int width,int height,double[] terrain,
+                                               Collection<Integer> verifiedOutlets) {
+        Objects.requireNonNull(terrain);
+        Objects.requireNonNull(verifiedOutlets);
+        if(width<1||height<1)throw new IllegalArgumentException("Invalid dimensions");
+        int size=Math.multiplyExact(width,height);
+        if(terrain.length!=size)throw new IllegalArgumentException("Invalid terrain size");
+        for(double value:terrain)
+            if(!Double.isFinite(value))
+                throw new IllegalArgumentException("Invalid elevation");
+        if(verifiedOutlets.isEmpty())
+            throw new IllegalArgumentException("At least one verified outlet required");
+
+        double[] surface=new double[size];
+        Arrays.fill(surface,Double.POSITIVE_INFINITY);
+        int[] spill=new int[size];
+        Arrays.fill(spill,-1);
+        boolean[] settled=new boolean[size],outlet=new boolean[size];
+        var queue=new PriorityQueue<Cell>(
+            Comparator.comparingDouble(Cell::level).thenComparingInt(Cell::index));
+        for(Integer index:verifiedOutlets) {
+            if(index==null||index<0||index>=size)
+                throw new IllegalArgumentException("Invalid verified outlet");
+            if(outlet[index])continue;
+            outlet[index]=true;
+            surface[index]=terrain[index];
+            queue.add(new Cell(index,terrain[index]));
+        }
+
+        int visited=0;
+        while(!queue.isEmpty()){
+            var current=queue.remove();
+            int index=current.index();
+            if(settled[index]||current.level()!=surface[index])continue;
+            settled[index]=true;
+            visited++;
+            int x=index%width,y=index/width;
+            for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
+                if(dx==0&&dy==0)continue;
+                int nx=x+dx,ny=y+dy;
+                if(nx<0||ny<0||nx>=width||ny>=height)continue;
+                int next=ny*width+nx;
+                if(settled[next]||outlet[next])continue;
+                double candidate=Math.max(terrain[next],surface[index]);
+                if(candidate<surface[next]||
+                   (candidate==surface[next]&&
+                    (spill[next]<0||index<spill[next]))) {
+                    surface[next]=candidate;
+                    spill[next]=index;
+                    queue.add(new Cell(next,candidate));
+                }
+            }
+        }
+        if(visited!=size)
+            throw new IllegalArgumentException("Unreachable verified outlet");
+        return new Result(width,height,surface,spill);
+    }
+
     public static Result fill(int width,int height,double[] terrain){
         if(width<1||height<1)throw new IllegalArgumentException("Invalid dimensions");
         int size=Math.multiplyExact(width,height);
