@@ -54,7 +54,7 @@ class SeasonalSnowSoilCycleV2Test {
     }
 
     @Test void inputAndOutputArraysAreDefensiveAndBadBudgetsFailClosed() {
-        var snow=new double[]{2},soil=new double[]{0};
+        double[] snow=new double[]{2},soil=new double[]{0};
         var state=new SeasonalSnowSoilCycleV2.State(snow,soil);
         snow[0]=999;
         state.snowDepth()[0]=999;
