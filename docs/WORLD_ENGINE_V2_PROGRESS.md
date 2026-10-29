@@ -261,3 +261,10 @@ No production deployment, Render billing change, or paid database modifications.
 3. Global longitude-seam/pole routing, authoritative planetary outlet catalog, multi-window lake and catchment identity, and consistent cross-window priority flood are not solved.
 4. Seasonal rainfall, evaporation and erosion remain approximations; lake storage and sediment feedback are not coupled to durable changing terrain, snowpack/groundwater, or calibrated climate.
 5. Persistence is a single-writer local-file checkpoint. No distributed transaction, concurrent-writer safety, production game-save integration, or multi-process exactly-once guarantees.
+
+### 2026-10-29 — Deferred-water load priority hints
+
+- `HydrologyRegionSchedulerV2.pendingRegions` derives deterministic row-major region hints from **undelivered** incoming receipts. Samples on shared boundaries are assigned to the west/north owner to avoid ambiguous ownership. Mixed sampling resolutions fail explicitly rather than silently combining incompatible region indices.
+- `HydrologyWorldRunnerV2.pendingWaterRegions` exposes these hints after checkpoint restoration, allowing a caller to prioritize regions where parked water awaits delivery. Tests verify hints across a restart, boundary ownership, and removal once water has been delivered.
+- This is a **hint API**, not an automatic terrain loader, verified downstream route finder, or memory/cache scheduler. The existing `HydrologyRegionSchedulerV2.load` still needs a caller-provided region node provider.
+- Code/test commits: `400d4a0427fd55767729edb231a4065b5deedd43`, `529663e93e3887231065e6addc3c81106ee27cdb`, `922c81864ecb8827d22f7a6da8a11ee187f956f7`, `f7a470b931c66ef9e4bc2db9dbe7766278d3bc74`. **CI pending at writing**; inspect https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
