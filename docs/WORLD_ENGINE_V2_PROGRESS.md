@@ -67,3 +67,11 @@ No production deployment, Render billing change, or paid database modifications.
 - `ConnectedDrainageV2` samples a contiguous rectangular mosaic of equal-level regions into a common grid, removing artificial internal tile barriers for downhill D8 routing. CI passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884063021 .
 - `RiverNetworkV2` identifies channel cells using an accumulation threshold, follows downhill chains to a terminal outlet and groups cells by that outlet. It is deterministic for a **fixed mosaic** and resolution. CI for its tests: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884355136 .
 - Remaining: global catchment IDs independent of mosaic extent, off-mosaic river continuation, depression filling and lake overflow, erosion, calibrated flow and river persistence in authoritative world saves. No claims of planet-wide completed hydrology.
+
+## 2026-10-29 — Lake spill and composed regional hydrology
+
+- `LakeSpillV2` uses priority-flood over finite regional grids to compute depression spill elevations and acyclic paths toward the mosaic boundary. It does not assume that every basin contains a permanent lake.
+- `RegionalHydrologyV2` exposes a combined result containing the connected terrain mosaic, lake spill geometry and river channel extraction.
+- `LakeSpillV2Test` and `RegionalHydrologyV2Test` cover depressions, spill termination, input validation and deterministic composition.
+- Full workflow for latest implementation: https://github.com/Yusuf-cm/wild-deck/actions/runs/40884912314 (verify outcome).
+- **Important**: Current river discharge still follows raw downhill D8 routing and is not yet redirected along lake spill paths. Global river identities, catchment exchange, erosion, persistence and gameplay integration remain outstanding.
