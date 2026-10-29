@@ -104,6 +104,23 @@ public final class HydrologyWorldRunnerV2 {
         return advance(nextWorldState,loaded);
     }
 
+    /**
+     * Load explicit focus regions together with parked-water destinations,
+     * then advance and durably queue known outgoing edges. This operation
+     * fails closed on unknown routes and never commits partial region loads.
+     * The provider must supply authoritative graph nodes for each region;
+     * this method does not invent routes through unsampled terrain.
+     */
+    public synchronized HydrologyDurableEpochV2.Routed advancePendingRegionsAndQueue(
+            String nextWorldState,
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) throws IOException {
+        var loaded=HydrologyRegionSchedulerV2.loadWithPending(
+            focus,inbox.snapshot(),radius,maximumRegions,provider);
+        return advanceAndQueueKnownFrontier(nextWorldState,loaded);
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
