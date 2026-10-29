@@ -27,10 +27,18 @@ public final class RiverErosionV2 {
             if(!Double.isFinite(elevation[i]))
                 throw new IllegalArgumentException("Invalid elevation");
             if(next[i]<0)continue;
+            if(!Double.isFinite(flow[i])||flow[i]<0)
+                throw new IllegalArgumentException("Invalid river discharge");
             double drop=Math.max(0,elevation[i]-elevation[next[i]]);
+            if(!Double.isFinite(drop))
+                throw new IllegalArgumentException("Invalid river descent");
             double potential=strength*Math.log1p(flow[i])*drop;
-            double cut=Math.min(maximumCut,potential);
-            if(Double.isFinite(cut))result[i]=elevation[i]-cut;
+            if(!Double.isFinite(potential))
+                throw new IllegalArgumentException("River incision overflow");
+            // Never cut below the downstream bed in a single step. This
+            // avoids creating an artificial uphill reach from over-incision.
+            double cut=Math.min(drop,Math.min(maximumCut,potential));
+            result[i]=elevation[i]-cut;
         }
         return result;
     }
