@@ -88,3 +88,11 @@ No production deployment, Render billing change, or paid database modifications.
 - `GlobalHydrologyAddressV2` supplies global grid sample coordinates (level, divisions, x, y), independent of the finite mosaic's origin or extent. Tests passed: https://github.com/Yusuf-cm/wild-deck/actions/runs/40886772041 .
 - `HydrologyBoundaryV2` exports interior-to-perimeter river links with stable global sample endpoints and their conserved flow. This is an interface for future cross-region transfer; **no receiving-tile injection or unloaded-region routing exists yet**.
 - Next: design incoming boundary flux and topological transfer without double-counting shared vertices, enforce conservation between mosaics, then establish stable catchment identities at planet scale. Do not confuse sample-address stability with global river identity.
+
+## 2026-10-29 — Incoming boundary flux and seasonal water budget prototypes
+
+- `SpillDischargeV2.accumulate(lakes, rainfall, incoming)` supports nonnegative injected boundary discharge and propagates it to finite mosaic outlets.
+- `HydrologyFluxTransferV2.incoming` matches globally addressed crossing endpoints to receiving mosaic perimeter samples, aggregates incoming discharge, and ignores crossings addressed to other mosaics. Tests added. IMPORTANT: there is **no end-to-end cross-region routing scheduler**, no shared-vertex rainfall ownership, and no automatic integration into `RegionalHydrologyV2.generate` yet.
+- `SeasonalWaterBalanceV2.step` provides deterministic rainfall + previous-storage = evaporation + stored + runoff accounting with finite nonnegative inputs. Tests added. IMPORTANT: evaporation fraction and capacity are caller-supplied; no seasonal climate integration, lake-volume geometry or time-stepping orchestration yet.
+- CI for new additions: https://github.com/Yusuf-cm/wild-deck/actions/runs/40888086920 and https://github.com/Yusuf-cm/wild-deck/actions/runs/40888126404 (check final status).
+- Remaining water work: connected multi-mosaic flux solver, double-count-free rainfall sampling, stable global catchments, ocean/tidal boundary conditions, climate-calibrated seasons, lake dynamics, sediment and erosion, long-run numerical stability and gameplay persistence. Water subsystem is **NOT complete**.
