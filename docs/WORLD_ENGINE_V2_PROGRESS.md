@@ -199,3 +199,10 @@ No production deployment, Render billing change, or paid database modifications.
 - Added `HydrologyWorldRunnerV2`: opens an existing checkpoint or initializes one; exposes committed epoch/world state; accepts future-epoch water transfers; advances one epoch by staging water consumption, solving loaded graph nodes, and checkpointing world/inbox together. Reload restores committed state and consumed water receipts.
 - Tests exercise multiple epochs, restart, incoming water consumed only in its target epoch, and failed-solve rollback.
 - Explicit limits: single-writer local filesystem, no automatic region discovery/loading, no terrain-driven route updates, no wall-clock scheduler, no complete world-state serializer. The runner is a deterministic integration boundary, not a complete running planet.
+
+### 2026-10-29 — Bounded deterministic region scheduling
+
+- Added `HydrologyRegionSchedulerV2` with a provider interface, stable row-major order, deduplicated focus neighborhoods, configurable radius and maximum region budget, and overflow validation.
+- Wired `HydrologyWorldRunnerV2.advanceRegions` to load selected regions before committing the next hydrology epoch.
+- Added scheduler and runner tests for overlap, deterministic ordering, budget failures, arithmetic overflow, and focused-region advancement.
+- The provider currently supplies prepared graph nodes; automatic terrain generation, region cache management, route reconciliation across unloaded tiles and player-interest scheduling are not yet implemented.
