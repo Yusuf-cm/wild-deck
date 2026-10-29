@@ -49,6 +49,20 @@ class HydrologyDeferredReceiptsV2Test {
         assertEquals(4,HydrologyWorldRunnerV2.open(path,0,"ignored").epoch());
     }
 
+    @Test void ordinaryAdvanceAlsoDeliversPreviouslyParkedReceipts() throws IOException {
+        Path path=directory.resolve("ordinary.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,"seed");
+        var key=new HydrologyTransferLedgerV2.Key(1,at(6),at(7));
+        runner.receive(key,9);
+        runner.advance("first",terminal(5,0));
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(11,runner.advance("second",terminal(7,2))
+            .terminalOutflow().get(at(7)),1e-9);
+        assertEquals(Set.of(key),runner.inboxSnapshot().delivered());
+        assertEquals(2,runner.advance("third",terminal(7,2))
+            .terminalOutflow().get(at(7)),1e-9);
+    }
+
     @Test void legacyV2ConsumedEpochMigratesToDeliveredMarkers(){
         String legacy="wilddeck-hydrology-inbox-v2\nC,1\nR,1,2,4,4,3,5,3,4.0\n";
         var decoded=HydrologyInboxCodecV2.decode(legacy);
