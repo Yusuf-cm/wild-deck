@@ -142,6 +142,11 @@ public final class HydrologyWorldRunnerV2 {
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
     }
 
+    /** Observe parked versus consumed water without mutating receipt history. */
+    public synchronized HydrologyReceiptBudgetV2.Summary receiptBudget(){
+        return HydrologyReceiptBudgetV2.summarize(inbox.snapshot());
+    }
+
     public synchronized HydrologyEpochInboxV2.Snapshot inboxSnapshot(){
         return inbox.snapshot();
     }
