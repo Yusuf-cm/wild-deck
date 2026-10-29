@@ -1,8 +1,8 @@
 # Wild Deck — World-building handover
 
-Last updated: 29 October 2026  
-Repository: Yusuf-cm/wild-deck  
-Working branch: feature/diplomacy-v1
+- Last updated: 29 October 2026
+- Repository: Yusuf-cm/wild-deck
+- Working branch: feature/diplomacy-v1
 
 Read this document before continuing development. It records the current direction, what is actually implemented, the discussions that changed the approach, and what remains proposed. Use the linked implementation notes and development log for detailed evidence.
 
