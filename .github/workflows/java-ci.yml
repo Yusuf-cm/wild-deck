@@ -18,6 +18,8 @@ jobs:
           cache: maven
       - name: Run tests
         run: mvn --batch-mode test
+      - name: Run the smallest world experiment
+        run: java -cp target/classes com.wilddeck.world.WorldSandboxDemo
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
