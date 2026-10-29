@@ -136,3 +136,6 @@ No production deployment, Render billing change, or paid database modifications.
 - Global graph routes now reject nonlocal sample teleportation, with regression coverage. Commits `9b1b1467b5feb1471cd8269af0ebd68c0a897a18`, `bb40d7085b242d5d452eeb01d4a891520da56c7e`. This intentionally does not yet support seam-wrapped or pole-normalized planetary neighbors.
 - The shared-vertex merge test passed CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40896018996 .
 - The erosion-to-sediment integration test passed CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/40896144502 .
+
+### End-to-end regression
+- `HydrologyEndToEndV2Test` checks seeded terrain + climate + lake-aware flow, global-address graph water conservation, pending frontier snapshot roundtrip, finite lake reservoir storage, river incision and downstream sediment conservation in one integration scenario. Commit `53d2a13fd6ad7029138fe4cf76d714601ad1abaa`; CI must pass before acceptance. This test does not prove planet-wide streaming or multi-year stability.
