@@ -140,4 +140,28 @@ class HydrologyIncrementalFloodCheckpointV2Test {
         assertEquals(first.advance(100), restored.advance(100));
         assertTrue(restored.snapshot().complete());
     }
+    @Test void staleRunnerCannotOverwriteNewerSettledFrontier() throws IOException {
+        var path = directory.resolve("stale.bin");
+        var first = HydrologyIncrementalPriorityFloodV2.start(
+            Set.of(OUTLET), terrain());
+        first.advance(2);
+        var old = first.checkpoint("immutable-terrain");
+        HydrologyIncrementalFloodCheckpointStoreV2.save(path, old);
+        var stale = HydrologyIncrementalPriorityFloodV2.resume(
+            old, "immutable-terrain", terrain());
+        first.advance(3);
+        var newer = first.checkpoint("immutable-terrain");
+        HydrologyIncrementalFloodCheckpointStoreV2.saveNext(path, old, newer);
+        stale.advance(4);
+        var staleNext = stale.checkpoint("immutable-terrain");
+        assertThrows(IOException.class, () ->
+            HydrologyIncrementalFloodCheckpointStoreV2.saveNext(
+                path, old, staleNext));
+        assertEquals(newer,
+            HydrologyIncrementalFloodCheckpointStoreV2.load(path));
+        var recovered = HydrologyIncrementalPriorityFloodV2.resume(
+            newer, "immutable-terrain", terrain());
+        assertEquals(first.snapshot(), recovered.snapshot());
+    }
+
 }
