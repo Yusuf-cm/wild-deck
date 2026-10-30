@@ -217,4 +217,66 @@ class HydrologyWetLakeDrainageActivationV2Test {
                 oldPlan,newPlan));
         assertEquals(0,seasonalRunner.epoch());
     }
+    @Test void optInDisappearingLakeRoutesFormerWetWaterAndReceiptsOnce(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var rebuilt=audit(old,10);
+        var newPlan=plan(10);
+        assertTrue(newPlan.lakes().isEmpty());
+        var file=dir.resolve("exposed.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        var key=receipt(old,1);
+        assertTrue(runner.receive(key,9));
+        assertFalse(runner.receive(key,9));
+        var committed=runner.activateDisplacedWetLakeDrainage(
+            old,rebuilt,plan(-5),newPlan);
+        assertEquals(1,runner.epoch());
+        assertEquals(5,committed.remap().released(),1e-8);
+        assertEquals(0,committed.remap().finalStorage(),0);
+        assertEquals(14,committed.lakeFlow().budget().terminalOutflow(),1e-7);
+        assertEquals(0,committed.lakeFlow().budget().finalStorage(),0);
+        assertEquals(0,committed.lakeFlow().budget().residual(),1e-7);
+        assertEquals(9,committed.landings().pendingVolume(),0);
+        assertEquals(0,runner.receiptBudget().pendingVolume(),0);
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        restored.verifyBoundWetLakeDrainage(rebuilt.rebuilt(),newPlan);
+        assertTrue(restored.inboxSnapshot().delivered().contains(key));
+        assertEquals(0,restored.receiptBudget().pendingVolume(),0);
+        assertEquals(1,restored.epoch());
+        assertThrows(IllegalArgumentException.class,()->
+            restored.receive(key,9));
+    }
+
+    @Test void optInDisplacementRejectsFutureReceiptsWithoutChangingCheckpoint(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var file=dir.resolve("future-exposed.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        runner.receive(receipt(old,3),7);
+        var before=runner.worldState();
+        var snapshot=runner.inboxSnapshot();
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(0,restored.epoch());
+        assertEquals(before,restored.worldState());
+        assertEquals(snapshot,restored.inboxSnapshot());
+        assertEquals(7,restored.receiptBudget().pendingVolume(),0);
+    }
+
+    @Test void optInDisplacementStillRejectsSeasonalStorage(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var state=HydrologySeasonalLakeNetworkV2.initialState("world");
+        var bound=HydrologyWetLakeDrainageActivationV2.bind(old,plan(-5),state);
+        var runner=HydrologyWorldRunnerV2.open(
+            dir.resolve("seasonal-exposed.chk"),0,bound);
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        assertEquals(bound,HydrologyWorldRunnerV2.open(
+            dir.resolve("seasonal-exposed.chk"),0,"ignored").worldState());
+    }
+
 }
