@@ -306,6 +306,26 @@ public final class HydrologyWorldRunnerV2 {
         return committed;
     }
 
+    /**
+     * Explicit opt-in to move water from newly exposed former lake cells
+     * along the rebuilt verified surface routes. Preserves the same local
+     * single-writer, quiescent and nonseasonal restrictions as wet activation.
+     */
+    public synchronized HydrologyWetLakeDrainageActivationV2.Committed
+            activateDisplacedWetLakeDrainage(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit,
+                HydrologySphericalLakeBasinsV2.Plan oldLakes,
+                HydrologySphericalLakeBasinsV2.Plan newLakes)
+            throws IOException {
+        var committed=HydrologyWetLakeDrainageActivationV2.commitDisplaced(
+            checkpointPath,Math.addExact(last.epoch(),1),last,inbox,
+            previous,audit,oldLakes,newLakes);
+        last=committed.checkpoint();
+        inbox=committed.inbox();
+        return committed;
+    }
+
     /** Fail closed if the caller loaded a drainage atlas unlike the checkpoint. */
     public synchronized void verifyBoundDrainage(
             HydrologySphericalRouteAtlasV2 atlas) {
