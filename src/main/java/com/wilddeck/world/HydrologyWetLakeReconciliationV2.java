@@ -10,11 +10,11 @@ import java.util.*;
  * new basin containing that cell, and equilibrates the resulting volume within
  * each new reservoir. Excess above the new spill stage is reported separately.
  *
- * Water in a cell that ceases to belong to ANY lake is rejected: routing that
- * displaced water over newly exposed terrain requires a separate verified
- * surface-flow solve. This is an instantaneous finite-volume remap, not a
- * transient hydraulic model. The caller must verify both basin plans and
- * deliver the returned overflow exactly once.
+ * The default reconcile() rejects water in cells no longer belonging to any
+ * lake. The explicit reconcileDisplaced() instead exports that water at its
+ * original surface vertex for a caller-verified NEW drainage solve. Both
+ * variants are instantaneous finite-volume remaps, not transient hydraulics.
+ * The caller must verify both basin plans and route released water once.
  */
 public final class HydrologyWetLakeReconciliationV2 {
     private HydrologyWetLakeReconciliationV2() {}
