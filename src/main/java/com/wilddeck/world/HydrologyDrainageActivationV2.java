@@ -20,13 +20,18 @@ import java.util.Base64;
 public final class HydrologyDrainageActivationV2 {
     private HydrologyDrainageActivationV2() {}
     private static final String MAGIC="WD-DRAINAGE-ACTIVATION-1";
+    private static final String WET_MAGIC="WD-DRAINAGE-ACTIVATION-2";
 
-    public record BoundState(String topology,String lakeState) {
+    public record BoundState(String topology,String lakeState,String lakePlan) {
+        public BoundState(String topology,String lakeState) {
+            this(topology,lakeState,null);
+        }
         public BoundState {
             Objects.requireNonNull(topology);
             Objects.requireNonNull(lakeState);
-            if(!topology.matches("[0-9a-f]{64}"))
-                throw new IllegalArgumentException("Invalid drainage topology ID");
+            if(!topology.matches("[0-9a-f]{64}") ||
+               (lakePlan!=null&&!lakePlan.matches("[0-9a-f]{64}")))
+                throw new IllegalArgumentException("Invalid drainage snapshot identity");
             HydrologyLakeStateV2.decode(lakeState);
         }
     }
@@ -52,21 +57,26 @@ public final class HydrologyDrainageActivationV2 {
 
     public static String encode(BoundState state) {
         Objects.requireNonNull(state);
-        return MAGIC+"\n"+state.topology()+"\n"+
-            Base64.getEncoder().encodeToString(
-                state.lakeState().getBytes(StandardCharsets.UTF_8))+"\n";
+        var lake=Base64.getEncoder().encodeToString(
+            state.lakeState().getBytes(StandardCharsets.UTF_8));
+        return state.lakePlan()==null ?
+            MAGIC+"\\n"+state.topology()+"\\n"+lake+"\\n" :
+            WET_MAGIC+"\\n"+state.topology()+"\\n"+
+                state.lakePlan()+"\\n"+lake+"\\n";
     }
 
     public static BoundState decode(String payload) {
         Objects.requireNonNull(payload);
-        var parts=payload.split("\\n",-1);
-        if(parts.length!=4||!MAGIC.equals(parts[0])||!parts[3].isEmpty())
+        var parts=payload.split("\\\\n",-1);
+        boolean wet=parts.length==5&&WET_MAGIC.equals(parts[0]);
+        if(!(wet || (parts.length==4&&MAGIC.equals(parts[0]))) ||
+           !parts[parts.length-1].isEmpty())
             throw new IllegalArgumentException("Unsupported drainage checkpoint");
         try {
-            var bytes=Base64.getDecoder().decode(parts[2]);
+            var bytes=Base64.getDecoder().decode(parts[wet?3:2]);
             var lake=StandardCharsets.UTF_8.newDecoder()
                 .decode(ByteBuffer.wrap(bytes)).toString();
-            var result=new BoundState(parts[1],lake);
+            var result=new BoundState(parts[1],lake,wet?parts[2]:null);
             if(!encode(result).equals(payload))
                 throw new IllegalArgumentException("Noncanonical drainage checkpoint");
             return result;
@@ -101,6 +111,8 @@ public final class HydrologyDrainageActivationV2 {
         if(!bound.topology().equals(HydrologyDrainageSnapshotIdV2.of(previous)) ||
            !bound.topology().equals(audit.previousTopology()))
             throw new IllegalArgumentException("Stale drainage checkpoint topology");
+        if(bound.lakePlan()!=null)
+            throw new IllegalArgumentException("Wet lake geometry requires lake-aware activation");
         var lake=HydrologyLakeStateV2.decode(bound.lakeState());
         if(!lake.volumes().isEmpty())
             throw new IllegalArgumentException("Live lake storage requires reconciliation");
