@@ -25,6 +25,49 @@ public final class HydrologySeasonalErosionPreviewV2 {
         }
     }
 
+    /**
+     * Checked forcing-to-erosion preview. Recomputes the seasonal water step
+     * from its previous stores, verifies every forcing area against the same
+     * planetary radius used for sediment mass, and returns both results for
+     * later (separate) checkpoint reconciliation. This does not commit either.
+     */
+    public record ForcedPreview(HydrologySnowSoilStateV2.Step season,
+                                Preview erosion) {
+        public ForcedPreview {
+            Objects.requireNonNull(season);
+            Objects.requireNonNull(erosion);
+        }
+    }
+
+    public static ForcedPreview calculateFromForcing(
+            HydrologyTerrainOverlayV2.State previous,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width,int height,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            HydrologySnowSoilStateV2.State snowSoil,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters,double sedimentDensity,
+            double erosionStrength,double maximumCut,
+            double[] transportCapacity,
+            Collection<Integer> verifiedOutlets) {
+        Objects.requireNonNull(previous);
+        Objects.requireNonNull(addresses);
+        Objects.requireNonNull(snowSoil);
+        Objects.requireNonNull(weather);
+        if(!previous.world().equals(snowSoil.world()))
+            throw new IllegalArgumentException("Seasonal and terrain worlds differ");
+        if(weather.size()!=addresses.size() ||
+           !weather.keySet().containsAll(addresses) ||
+           !weather.keySet().containsAll(snowSoil.cells().keySet()))
+            throw new IllegalArgumentException("Incomplete seasonal erosion forcing");
+        HydrologySphericalAreaContractV2.verifyWeather(weather,radiusMeters);
+        var season=HydrologySnowSoilStateV2.advance(snowSoil,weather);
+        return new ForcedPreview(season,calculate(
+            previous,addresses,width,height,seed,season,radiusMeters,
+            sedimentDensity,erosionStrength,maximumCut,
+            transportCapacity,verifiedOutlets));
+    }
+
     public static Preview calculate(
             HydrologyTerrainOverlayV2.State previous,
             List<GlobalHydrologyAddressV2.Sample> addresses,
@@ -40,6 +83,21 @@ public final class HydrologySeasonalErosionPreviewV2 {
         Objects.requireNonNull(season);
         Objects.requireNonNull(verifiedOutlets);
         HydrologySphericalCellAreaV2.planetArea(radiusMeters);
+        if(!previous.world().equals(season.state().world()))
+            throw new IllegalArgumentException("Seasonal and terrain worlds differ");
+        double initial=season.initialVolume(),precipitation=season.precipitationVolume();
+        double evaporation=season.evaporationVolume(),reportedRunoff=season.runoffVolume();
+        double stored=season.storedVolume();
+        if(!Double.isFinite(initial)||!Double.isFinite(precipitation)||
+           !Double.isFinite(evaporation)||!Double.isFinite(reportedRunoff)||
+           !Double.isFinite(stored)||initial<0||precipitation<0||
+           evaporation<0||reportedRunoff<0||stored<0)
+            throw new IllegalArgumentException("Invalid seasonal water budget");
+        double available=initial+precipitation;
+        double accounted=evaporation+reportedRunoff+stored;
+        if(!Double.isFinite(available)||!Double.isFinite(accounted)||
+           Math.abs(available-accounted)>Math.max(1e-8,available*1e-10))
+            throw new IllegalArgumentException("Unbalanced seasonal erosion input");
         if(width<1||height<1||(long)width*height!=addresses.size())
             throw new IllegalArgumentException("Invalid seasonal terrain window");
         var runoff=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
