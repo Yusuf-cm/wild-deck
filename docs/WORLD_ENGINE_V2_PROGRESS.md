@@ -723,3 +723,17 @@ The preceding pending-CI note is superseded for the following commits:
 - `a08c03bbee81d0bd6a5e0e1662d1f39de55e3b54`: full-region reuse and missing owned vertex regression.
 
 **Verification boundary:** Previous baseline CI passed; the new commits must not be described as accepted until their own GitHub Actions workflows pass. The cache gate validates *read-only* reuse of unchanged route snapshots; it does not migrate in-flight water, queued frontier receipts, wet lake storage, sediment, or erosion epochs. The underlying drainage solve still requires the complete canonical single-resolution sphere and caller-verified outlets. Incremental priority-flood across arbitrary unloaded terrain, stage-dependent spillways, mixed LOD, groundwater, climate calibration, distributed persistence, endurance and receipt compaction remain unfinished.
+
+
+#### 2026-10-30 — Region reuse and changed-reach CI accepted
+
+The preceding pending-CI note is superseded. All five implementation/test/documentation commits passed full Java CI:
+- `55fce8ff6b6a53ee06a74c5530bca615e4cceb33`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41044026016
+- `371dee9a6f90276ecb0054f2343ca19b3d6e0639`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41044042272
+- `dc86bc478c1df577f06473e843371f26f56e9a90`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41044068145
+- `a08c03bbee81d0bd6a5e0e1662d1f39de55e3b54`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41044077853
+- `246a3f2cbce13f511b1a3d13cdf53cdcf04a8beb`: **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41044115907
+
+**Verified acceptance:** Rebuild audits now invalidate reach-to-catchment mappings when outlet identity changes despite a geometrically unchanged edge. Read-only reuse of a previously loaded region is permitted only for a complete uniquely owned unchanged snapshot outside conservative old/new upstream invalidation; missing vertices, duplicate vertices, affected routes and modified nodes fail closed. These checks are verified on the existing bounded canonical spherical test fixtures.
+
+**Still not implemented:** Streaming/incremental global priority flood, live migration of lake storage and queued receipts after rerouting, automatic seasonal erosion/terrain/checkpoint coupling, unknown ocean truth, mixed-resolution drainage, stage-dependent lake spillways, climate-calibrated groundwater, large-world endurance, receipt compaction and multi-writer durability. Do not activate new routing while unreconciled water is in flight.
