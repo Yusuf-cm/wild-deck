@@ -12,8 +12,10 @@ import java.util.*;
  * and rebuilt atlases. This finite-volume remap is NOT a transient hydraulic
  * model, distributed transaction, or seasonal snow/soil migration.
  *
- * Disappearing wet cells fail closed until a surface-water displacement solver
- * can account for them. Producers must remain quiesced during activation.
+ * The default commit() rejects disappearing wet cells. The explicit
+ * commitDisplaced() routes their water from the original vertices through the
+ * rebuilt closed drainage network, without modelling flood travel time.
+ * Producers must remain quiesced during either activation.
  */
 public final class HydrologyWetLakeDrainageActivationV2 {
     private HydrologyWetLakeDrainageActivationV2() {}
