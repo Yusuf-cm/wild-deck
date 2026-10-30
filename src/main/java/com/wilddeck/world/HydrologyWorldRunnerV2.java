@@ -292,6 +292,23 @@ public final class HydrologyWorldRunnerV2 {
             throw new IllegalArgumentException("Atlas does not match durable drainage topology");
     }
 
+    /**
+     * Opt-in verified receipt entrypoint for a bound drainage checkpoint.
+     * Rejects old-topology edges after activation and forged destinations
+     * before persisting water. Existing receive() remains an unverified
+     * compatibility API; distributed senders need external coordination.
+     */
+    public synchronized boolean receiveVerifiedDrainage(
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologyTransferLedgerV2.Key key,double flow) throws IOException {
+        Objects.requireNonNull(key);
+        verifyBoundDrainage(atlas);
+        var source=atlas.routeAt(key.from());
+        if(source.terminal() || !key.to().equals(source.downstream()))
+            throw new IllegalArgumentException("Receipt is not a verified current drainage edge");
+        return receive(key,flow);
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
