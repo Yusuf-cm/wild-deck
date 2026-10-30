@@ -326,6 +326,27 @@ public final class HydrologyWorldRunnerV2 {
         return committed;
     }
 
+    /**
+     * Explicit quiescent seasonal transition: preserve existing snow and soil
+     * depths at unchanged canonical cells while moving stored lake water and
+     * pending receipts through the verified rebuilt drainage network.
+     * No seasonal forcing is applied in this transition epoch.
+     */
+    public synchronized HydrologyWetLakeDrainageActivationV2.Committed
+            activateSeasonalDisplacedWetLakeDrainage(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit,
+                HydrologySphericalLakeBasinsV2.Plan oldLakes,
+                HydrologySphericalLakeBasinsV2.Plan newLakes)
+            throws IOException {
+        var committed=HydrologyWetLakeDrainageActivationV2.commitSeasonalDisplaced(
+            checkpointPath,Math.addExact(last.epoch(),1),last,inbox,
+            previous,audit,oldLakes,newLakes);
+        last=committed.checkpoint();
+        inbox=committed.inbox();
+        return committed;
+    }
+
     /** Fail closed if the caller loaded a drainage atlas unlike the checkpoint. */
     public synchronized void verifyBoundDrainage(
             HydrologySphericalRouteAtlasV2 atlas) {
