@@ -78,4 +78,34 @@ class HydrologyLakeGeometryTransitionV2Test {
         assertTrue(empty.state().volumes().isEmpty());
         assertEquals(0,empty.released(),0);
     }
+    @Test void wetLakeSplitWithSurvivingAnchorCannotSilentlyMoveWater() {
+        var a=at(3,2);
+        var b=PIT;
+        var outlet=OUTLET;
+        var oldBasin=new LakeReservoirV2.Basin(
+            new double[]{0,0},new double[]{1,1},10);
+        var oneCell=new LakeReservoirV2.Basin(
+            new double[]{0},new double[]{1},10);
+        var oldLake=new HydrologySphericalLakeBasinsV2.Lake(
+            a,List.of(a,b),outlet,outlet,oldBasin);
+        var newFirst=new HydrologySphericalLakeBasinsV2.Lake(
+            a,List.of(a),outlet,outlet,oneCell);
+        var newSecond=new HydrologySphericalLakeBasinsV2.Lake(
+            b,List.of(b),outlet,outlet,oneCell);
+        var oldPlan=new HydrologySphericalLakeBasinsV2.Plan(
+            List.of(),List.of(oldLake));
+        var splitPlan=new HydrologySphericalLakeBasinsV2.Plan(
+            List.of(),List.of(newFirst,newSecond));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeGeometryTransitionV2.reconcile(
+                new HydrologyLakeStateV2.State("world",Map.of(a,5.0)),
+                oldPlan,splitPlan));
+        var overlapping=new HydrologySphericalLakeBasinsV2.Plan(
+            List.of(),List.of(oldLake,newSecond));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeGeometryTransitionV2.reconcile(
+                new HydrologyLakeStateV2.State("world",Map.of(a,5.0)),
+                oldPlan,overlapping));
+    }
+
 }
