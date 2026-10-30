@@ -228,6 +228,71 @@ public final class HydrologyWorldRunnerV2 {
 
 
     /**
+     * Advance a topology-and-geometry-bound seasonal lake checkpoint while
+     * preserving both identities. The caller supplies the authoritative atlas
+     * and an enriched runoff plan with identical edges and lake geometry.
+     * The budget validator runs before any durable receipt consumption.
+     */
+    synchronized HydrologyLakeNetworkStepV2.Result advanceBoundClosedSphericalLakeNetworkValidated(
+            String nextWorld,
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
+            java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
+            throws IOException {
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(atlas);
+        Objects.requireNonNull(plan);
+        Objects.requireNonNull(forcing);
+        Objects.requireNonNull(beforeCommit);
+        verifyBoundDrainage(atlas);
+        var bound=HydrologyDrainageActivationV2.decode(last.worldState());
+        if(!HydrologyLakePlanSnapshotIdV2.of(plan).equals(bound.lakePlan()) ||
+           plan.routes().size()!=atlas.routes().size())
+            throw new IllegalArgumentException("Bound seasonal lake plan mismatch");
+        var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:plan.routes()) {
+            Objects.requireNonNull(node);
+            var verified=atlas.routeAt(node.address());
+            if(!addresses.add(node.address()) ||
+               node.terminal()!=verified.terminal() ||
+               !Objects.equals(node.downstream(),verified.downstream()))
+                throw new IllegalArgumentException("Changed seasonal drainage edge");
+        }
+        var previous=HydrologyLakeStateV2.decode(bound.lakeState());
+        var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
+        long next=Math.addExact(last.epoch(),1);
+        var incoming=staged.claimAvailable(next,addresses);
+        var enriched=new ArrayList<HydrologyFlowGraphV2.Node>();
+        for(var node:plan.routes()) {
+            double water=node.localWater()+incoming.getOrDefault(node.address(),0.0);
+            if(!Double.isFinite(water))
+                throw new IllegalArgumentException("Bound seasonal receipt overflow");
+            enriched.add(new HydrologyFlowGraphV2.Node(
+                node.address(),water,node.downstream(),node.terminal()));
+        }
+        var solved=HydrologyLakeNetworkStepV2.step(
+            new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
+            previous,forcing);
+        var updated=new HydrologyLakeStateV2.State(
+            nextWorld,solved.state().volumes());
+        var result=new HydrologyLakeNetworkStepV2.Result(updated,
+            solved.terminalOutflow(),solved.lakeInflow(),solved.lakeOverflow(),
+            solved.evaporation(),solved.budget());
+        beforeCommit.accept(result);
+        var nextBound=HydrologyDrainageActivationV2.encode(
+            new HydrologyDrainageActivationV2.BoundState(
+                bound.topology(),HydrologyLakeStateV2.encode(updated),
+                bound.lakePlan()));
+        var checkpoint=HydrologyCheckpointV2.capture(next,nextBound,staged);
+        HydrologyCheckpointStoreV2.saveNext(checkpointPath,last,checkpoint);
+        last=checkpoint;
+        inbox=staged;
+        return result;
+    }
+
+
+    /**
      * Read-only preflight of parked cross-region water against a rebuilt
      * drainage atlas. Safe across restart because the checkpointed inbox is
      * the source of truth. Does NOT activate topology, migrate lake storage,
