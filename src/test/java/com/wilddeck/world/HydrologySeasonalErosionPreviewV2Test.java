@@ -69,6 +69,16 @@ class HydrologySeasonalErosionPreviewV2Test {
             valid.initialVolume(),valid.precipitationVolume(),
             valid.evaporationVolume(),valid.runoffVolume(),valid.storedVolume());
         assertThrows(IllegalArgumentException.class,()->preview(forged));
+        var wrongTotal=new HydrologySnowSoilStateV2.Step(valid.state(),valid.runoff(),
+            valid.initialVolume(),valid.precipitationVolume(),
+            valid.evaporationVolume(),valid.runoffVolume()+1_000,
+            valid.storedVolume());
+        assertThrows(IllegalArgumentException.class,()->preview(wrongTotal));
+        var missingStore=new HydrologySnowSoilStateV2.Step(
+            new HydrologySnowSoilStateV2.State("world",Map.of()),
+            valid.runoff(),valid.initialVolume(),valid.precipitationVolume(),
+            valid.evaporationVolume(),valid.runoffVolume(),valid.storedVolume());
+        assertThrows(IllegalArgumentException.class,()->preview(missingStore));
         assertThrows(IllegalArgumentException.class,()->
             HydrologySeasonalErosionPreviewV2.calculate(
                 new HydrologyTerrainOverlayV2.State("world",Map.of()),
