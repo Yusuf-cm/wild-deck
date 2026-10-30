@@ -168,6 +168,24 @@ class HydrologyDrainageActivationV2Test {
         assertEquals(1,restored.epoch());
     }
 
+    @Test void staleRunnerCannotEraseNewlyPersistedWater(
+            @TempDir Path dir) throws Exception {
+        var old=original();
+        var file=dir.resolve("stale.chk");
+        var stale=HydrologyWorldRunnerV2.open(file,0,bound(old,Map.of()));
+        var writer=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        var from=at(4,2);
+        var key=new HydrologyTransferLedgerV2.Key(
+            1,from,old.routeAt(from).downstream());
+        writer.receive(key,9);
+        assertThrows(java.io.IOException.class,()->
+            stale.activateReceiptOnlyDrainage(old,changed(old)));
+        assertEquals(0,stale.epoch());
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(9,restored.receiptBudget().pendingVolume(),1e-12);
+        assertTrue(restored.inboxSnapshot().receipts().containsKey(key));
+    }
+
     @Test void codecRejectsUnboundAndNoncanonicalStates() {
         var old=original();
         var payload=bound(old,Map.of());
