@@ -203,7 +203,7 @@ class HydrologyWetLakeDrainageActivationV2Test {
         var oldPlan=plan(-5);
         var newPlan=plan(-4);
         var wrongPlan=new HydrologySphericalLakeBasinsV2.Plan(
-            oldPlan.routes(),newPlan.lakes());
+            oldPlan.routes().subList(1,oldPlan.routes().size()),newPlan.lakes());
         var file=dir.resolve("bad.chk");
         var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
         assertThrows(IllegalArgumentException.class,()->
