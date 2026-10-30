@@ -20,9 +20,11 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
         Set<GlobalHydrologyAddressV2.Sample> changedRoutes,
         Set<GlobalHydrologyAddressV2.Sample> changedCatchments,
         Set<HydrologyRiverIdentityV2.ReachId> changedReaches,
-        Set<GlobalHydrologyAddressV2.Sample> affectedSamples) {
+        Set<GlobalHydrologyAddressV2.Sample> affectedSamples,
+        String previousTopology) {
         public Result {
             Objects.requireNonNull(rebuilt);
+            Objects.requireNonNull(previousTopology);
             changedRoutes=Set.copyOf(changedRoutes);
             changedCatchments=Set.copyOf(changedCatchments);
             changedReaches=Set.copyOf(changedReaches);
@@ -80,7 +82,8 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
             for(var source:upstream.getOrDefault(queue.remove(),Set.of()))
                 if(affected.add(source))queue.add(source);
         }
-        return new Result(next,changedRoutes,changedCatchments,changedReaches,affected);
+        return new Result(next,changedRoutes,changedCatchments,changedReaches,affected,
+            HydrologyDrainageSnapshotIdV2.of(previous));
     }
 
     /**
@@ -95,6 +98,8 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(audit);
         Objects.requireNonNull(slice);
+        if(!audit.previousTopology().equals(HydrologyDrainageSnapshotIdV2.of(previous)))
+            throw new IllegalArgumentException("Drainage audit belongs to another previous atlas");
         if(slice.isEmpty())
             throw new IllegalArgumentException("Empty region route slice");
         var seen=new HashSet<GlobalHydrologyAddressV2.Sample>();

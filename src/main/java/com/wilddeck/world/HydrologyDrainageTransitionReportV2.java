@@ -39,6 +39,8 @@ public final class HydrologyDrainageTransitionReportV2 {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(audit);
         Objects.requireNonNull(inbox);
+        if(!audit.previousTopology().equals(HydrologyDrainageSnapshotIdV2.of(previous)))
+            throw new IllegalArgumentException("Drainage audit belongs to another previous atlas");
         if(!previous.catchments().keySet().equals(audit.rebuilt().catchments().keySet()))
             throw new IllegalArgumentException("Incompatible canonical sample ownership");
         var reusable=new ArrayList<HydrologyTransferLedgerV2.Key>();

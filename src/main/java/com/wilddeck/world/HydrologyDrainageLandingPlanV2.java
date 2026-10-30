@@ -61,6 +61,8 @@ public final class HydrologyDrainageLandingPlanV2 {
         Objects.requireNonNull(audit);
         Objects.requireNonNull(inbox);
         var rebuilt=audit.rebuilt();
+        if(!audit.previousTopology().equals(HydrologyDrainageSnapshotIdV2.of(previous)))
+            throw new IllegalArgumentException("Drainage audit belongs to another previous atlas");
         if(!previous.catchments().keySet().equals(rebuilt.catchments().keySet()))
             throw new IllegalArgumentException("Incompatible planetary ownership");
         var keys=new ArrayList<>(inbox.receipts().keySet());
