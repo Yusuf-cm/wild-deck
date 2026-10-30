@@ -51,6 +51,7 @@ public final class HydrologyWorldRunnerV2 {
         Objects.requireNonNull(key);
         if(key.epoch()<=last.epoch())
             throw new IllegalArgumentException("Transfer targets committed epoch");
+        ensureFresh();
         var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
         if(!staged.receive(key,flow))return false;
         var checkpoint=HydrologyCheckpointV2.capture(last.epoch(),last.worldState(),staged);
@@ -71,7 +72,7 @@ public final class HydrologyWorldRunnerV2 {
         Objects.requireNonNull(nextWorldState);
         long next=Math.addExact(last.epoch(),1);
         var committed=HydrologyDurableEpochV2.commit(
-            checkpointPath,next,nextWorldState,inbox,loaded);
+            checkpointPath,next,nextWorldState,inbox,loaded,last);
         last=committed.checkpoint();
         inbox=committed.inbox();
         return committed.flow();
@@ -88,7 +89,7 @@ public final class HydrologyWorldRunnerV2 {
         Objects.requireNonNull(nextWorldState);
         long next=Math.addExact(last.epoch(),1);
         var routed=HydrologyDurableEpochV2.commitAndQueueKnownFrontier(
-            checkpointPath,next,nextWorldState,inbox,loaded);
+            checkpointPath,next,nextWorldState,inbox,loaded,last);
         last=routed.committed().checkpoint();
         inbox=routed.committed().inbox();
         return routed;
@@ -219,7 +220,7 @@ public final class HydrologyWorldRunnerV2 {
         beforeCommit.accept(result);
         var checkpoint=HydrologyCheckpointV2.capture(next,
             HydrologyLakeStateV2.encode(updated),staged);
-        HydrologyCheckpointStoreV2.save(checkpointPath,checkpoint);
+        HydrologyCheckpointStoreV2.saveNext(checkpointPath,last,checkpoint);
         last=checkpoint;
         inbox=staged;
         return result;
@@ -321,5 +322,11 @@ public final class HydrologyWorldRunnerV2 {
 
     public synchronized HydrologyEpochInboxV2.Snapshot inboxSnapshot(){
         return inbox.snapshot();
+    }
+
+    /** Fail before mutating a stale runner's receipt state. */
+    private void ensureFresh() throws IOException {
+        if(!HydrologyCheckpointStoreV2.load(checkpointPath).equals(last))
+            throw new IOException("Hydrology runner checkpoint is stale");
     }
 }
