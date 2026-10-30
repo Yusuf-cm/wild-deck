@@ -218,6 +218,40 @@ class HydrologyDrainageActivationV2Test {
         }
     }
 
+
+    @Test void receiptOnlyActivationRejectsUnaccountedLocalWaterInEitherAtlas(
+            @TempDir Path dir) throws Exception {
+        var dry=original();
+        var wetSources=new ArrayList<>(planet());
+        wetSources.set(0,new HydrologyGlobalSlopeRouterV2.Source(at(0,0),2));
+        HydrologyGlobalSlopeRouterV2.Elevations heights=
+            a->a.equals(at(0,2))||a.equals(at(4,2))?0:10;
+        var wet=HydrologySphericalRouteAtlasV2.compile(
+            wetSources,heights,Set.of(at(0,2)));
+        var wetNew=HydrologySphericalAtlasRebuildAuditV2.rebuild(
+            dry,wetSources,heights,Set.of(at(0,2),at(4,2)));
+        var wetOld=HydrologySphericalAtlasRebuildAuditV2.rebuild(
+            wet,planet(),heights,Set.of(at(0,2),at(4,2)));
+        int index=0;
+        for(var pair:List.of(
+                new java.util.AbstractMap.SimpleImmutableEntry<>(dry,wetNew),
+                new java.util.AbstractMap.SimpleImmutableEntry<>(wet,wetOld))) {
+            var file=dir.resolve("local-water-"+(index++)+".chk");
+            var runner=HydrologyWorldRunnerV2.open(
+                file,0,bound(pair.getKey(),Map.of()));
+            var from=at(4,2);
+            var key=new HydrologyTransferLedgerV2.Key(
+                1,from,pair.getKey().routeAt(from).downstream());
+            runner.receive(key,5);
+            assertThrows(IllegalArgumentException.class,()->
+                runner.activateReceiptOnlyDrainage(pair.getKey(),pair.getValue()));
+            assertEquals(0,runner.epoch());
+            var reopened=HydrologyWorldRunnerV2.open(file,0,"ignored");
+            assertEquals(5,reopened.receiptBudget().pendingVolume(),1e-12);
+            assertEquals(0,reopened.epoch());
+        }
+    }
+
     @Test void codecRejectsUnboundAndNoncanonicalStates() {
         var old=original();
         var payload=bound(old,Map.of());
