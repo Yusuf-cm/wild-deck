@@ -101,8 +101,16 @@ public final class HydrologyDrainageActivationV2 {
         if(!bound.topology().equals(HydrologyDrainageSnapshotIdV2.of(previous)) ||
            !bound.topology().equals(audit.previousTopology()))
             throw new IllegalArgumentException("Stale drainage checkpoint topology");
-        if(!HydrologyLakeStateV2.decode(bound.lakeState()).volumes().isEmpty())
+        var lake=HydrologyLakeStateV2.decode(bound.lakeState());
+        if(!lake.volumes().isEmpty())
             throw new IllegalArgumentException("Live lake storage requires reconciliation");
+        // Seasonal checkpoints nest their snow/soil stores inside the lake
+        // payload. Even an empty seasonal store is not an authorized
+        // receipt-only epoch: accepting it would silently bypass the
+        // seasonal state machine and its water-budget validation.
+        if(lake.world().startsWith("WD-SNOW-SOIL-1\\n"))
+            throw new IllegalArgumentException(
+                "Seasonal snow/soil checkpoint requires coupled reconciliation");
 
         var landing=HydrologyDrainageLandingPlanV2.inspect(
             previous,audit,inbox.snapshot());
