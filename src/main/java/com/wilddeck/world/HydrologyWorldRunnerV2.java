@@ -221,6 +221,19 @@ public final class HydrologyWorldRunnerV2 {
             previous,audit,inbox.snapshot());
     }
 
+    /**
+     * Inspect which checkpointed, undelivered transfers are safe under a
+     * proposed rebuilt atlas. Reports blocked volume without consuming it.
+     * This is diagnostics only, not a topology activation transaction.
+     */
+    public synchronized HydrologyDrainageTransitionReportV2.Report
+            inspectDrainageTransition(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit) {
+        return HydrologyDrainageTransitionReportV2.inspect(
+            previous,audit,inbox.snapshot());
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
