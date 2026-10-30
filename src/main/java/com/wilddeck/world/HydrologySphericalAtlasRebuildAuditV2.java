@@ -56,10 +56,15 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
                 changedCatchments.add(address);
         }
 
-        var changedReaches=new HashSet<HydrologyRiverIdentityV2.ReachId>(
-            previous.reaches().keySet());
-        for(var reach:next.reaches().keySet())
-            if(!changedReaches.add(reach))changedReaches.remove(reach);
+        // A reach may retain the same geometric edge but drain into a new
+        // outlet. Its location-derived ID is stable, but its catchment
+        // association must be invalidated for downstream consumers.
+        var changedReaches=new HashSet<HydrologyRiverIdentityV2.ReachId>();
+        var allReaches=new HashSet<>(previous.reaches().keySet());
+        allReaches.addAll(next.reaches().keySet());
+        for(var reach:allReaches)
+            if(!Objects.equals(previous.reaches().get(reach),next.reaches().get(reach)))
+                changedReaches.add(reach);
 
         // Even an unchanged immediate edge can have a changed outlet upstream.
         // Walk both old and new reversed drainage graphs, including across
@@ -76,6 +81,33 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
                 if(affected.add(source))queue.add(source);
         }
         return new Result(next,changedRoutes,changedCatchments,changedReaches,affected);
+    }
+
+    /**
+     * Fail-closed permission to reuse an unloaded region's pre-edit route
+     * slice. Every supplied vertex must be uniquely owned, present in both
+     * atlases, unchanged, and outside the conservative upstream invalidation.
+     * Empty slices are rejected so missing regions cannot pass silently.
+     */
+    public static void verifyReusableSlice(
+            HydrologySphericalRouteAtlasV2 previous,Result audit,
+            Collection<HydrologyFlowGraphV2.Node> slice) {
+        Objects.requireNonNull(previous);
+        Objects.requireNonNull(audit);
+        Objects.requireNonNull(slice);
+        if(slice.isEmpty())
+            throw new IllegalArgumentException("Empty region route slice");
+        var seen=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:slice) {
+            Objects.requireNonNull(node);
+            var address=node.address();
+            if(!seen.add(address) || audit.affectedSamples().contains(address) ||
+               !node.equals(previous.routeAt(address)) ||
+               !node.equals(audit.rebuilt().routeAt(address)) ||
+               !Objects.equals(previous.catchments().get(address),
+                               audit.rebuilt().catchments().get(address)))
+                throw new IllegalArgumentException("Region route slice needs reconciliation");
+        }
     }
 
     private static void indexUpstream(
