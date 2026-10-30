@@ -1006,3 +1006,28 @@ The passing workflows include Java/Maven tests, the world experiment, finite-res
 - `ab55e79ceea65bb2c28a93c847a7902d812da728` (cross-region ownership and resolved-reach integration) **PASSED**: https://github.com/Yusuf-cm/wild-deck/actions/runs/41140462773 .
 
 **Remaining acceptance gaps (water subsystem NOT complete):** This is a bounded **in-memory planning session**, not a durable incremental frontier queue, checkpointed basin solver, or global distributed watershed authority. It assumes a fixed deterministic elevation oracle and one sampling resolution; `MAX_SAMPLES=100000` and the existing polar-ring cap restrict the solve. It does not couple spill routes to physical lake stage/storage or automatically integrate them with the live receipt scheduler. Partially settled snapshots do not account for runoff from undiscovered vertices, so their discharge must not be treated as a complete catchment budget. Still required: durable incremental state and topology versioning, mixed-LOD routes, general atomic erosion/sediment/terrain/lake/snow/soil checkpoint transitions, persistent planetary-radius provenance, multiple spillways, calibrated climate, groundwater, transient flood timing, large-world endurance, bounded receipt-history compaction and distributed CAS/locking. Continue hydrology before other world layers.
+
+
+## 2026-10-31 — Incremental flood replay checkpoints and unique owned water
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. The prior baseline `47cbeab052566582f6283ebac3f73bcd37d09aac` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41140616464 . No merge, PR, production or paid-infrastructure changes.
+
+**Durable replay-based priority flood:**
+- `HydrologyIncrementalPriorityFloodV2.Session.checkpoint(terrainRevision)` records canonical verified outlets, settled count, and a SHA-256 fingerprint of **both settled routes and the discovered best frontier**. `resume` replays deterministic settlement against the caller's same immutable elevation oracle and rejects revision, topology or frontier mismatch before publishing resumed state. The caller-supplied revision is a binding contract, not independently proven terrain provenance.
+- `HydrologyIncrementalFloodCheckpointStoreV2` encodes a versioned, bounded, checksummed file with atomic rename and file/directory sync. It rejects corruption, truncation, changed outlet identities, changed terrain revisions, conflicting same-count checkpoints and backwards settlement counts. `saveNext` adds an optimistic stale-runner guard; it is **not an interprocess CAS**. Restart requires replay of all settled vertices, not direct restoration of a serialized priority queue.
+- Regression tests exercise multi-batch restart equivalence across the 26-vertex spherical planet, pit spill and catchment identities, reversed pole outlet ordering, terrain drift and forged digest rejection, corruption, truncation, conflicting writes and stale runner recovery.
+
+**Conservative owned-water routing:**
+- `Snapshot.ownedRoutes(Collection<Source>)` attaches local water only at globally unique, canonical, **settled** vertices. It rejects duplicate shared-vertex rainfall, seam aliases and unresolved addresses. The settled graph remains deterministic under source insertion order and retains zero-water vertices for routing.
+- Integration tests inject one unit at each of 26 unique canonical vertices and verify 26 units at the terminal outlet and zero conservation residual. Partial snapshots do **not** represent full catchment rainfall or pending interregion receipts.
+
+**CI evidence:**
+- `f20c2474a362bc0c7e4e4eb9f4782c78a7b337bd` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146742744 (replay checkpoint API).
+- `f0dd25a627deb841bfe0ca7878d07ef5bac8ec8b` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146766516 (atomic replay store).
+- `b190f6f2819cb0408f171d9d32aff141743987cd` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146792627 (replay/corruption/revision regression tests).
+- `2286f21d1cf7da7b8f9bcfaddd5adba62b71a596` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146840875 (check final conclusion).
+- `26287fca01830c2d4b14e26a8fb0fad5db237956` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146852915 (check final conclusion).
+- `5fab2f3b3e450bfc918d91f3f40d50ffbde87459` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146879379 (check final conclusion).
+- `1876bc9d0bdd796081c6e40f802b56a6fdc5691f` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146889060 (check final conclusion).
+
+**Still unfinished (water NOT accepted as complete):** This is replay-based local durability, not an efficient persistent frontier queue, multi-writer CAS or terrain-oracle snapshot. It does not yet activate partial drainage in the live cross-region receipt scheduler. A complete planetary catchment budget still requires discovery of all owned source vertices. Mixed-LOD routing, atomic erosion/sediment/terrain/lake/snow/soil commits, persisted radius/area provenance, multi-spillway hydraulics, groundwater, calibrated climate, transient floods, large-world endurance, bounded receipt-history compaction and distributed persistence remain open. Continue hydrology before other world layers.
