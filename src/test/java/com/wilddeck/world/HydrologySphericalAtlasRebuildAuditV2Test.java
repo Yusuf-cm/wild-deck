@@ -52,6 +52,14 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
         assertTrue(audit.affectedSamples().containsAll(audit.changedRoutes()));
         assertTrue(audit.affectedSamples().containsAll(audit.changedCatchments()));
         assertTrue(audit.affectedSamples().size()>=audit.changedCatchments().size());
+        // Every upstream dependency in either epoch must be invalidated,
+        // including dependencies crossing region boundaries and the seam.
+        for(var graph:List.of(previous.routes(),audit.rebuilt().routes()))
+            for(var node:graph)
+                if(node.downstream()!=null &&
+                   audit.affectedSamples().contains(node.downstream()))
+                    assertTrue(audit.affectedSamples().contains(node.address()));
+
         var solved=HydrologyFlowGraphV2.solve(audit.rebuilt().routes());
         assertEquals(0,HydrologyConservationV2.verify(
             audit.rebuilt().routes(),solved).residual(),1e-10);
