@@ -110,6 +110,25 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
         }
     }
 
+    /**
+     * Verify an entire region's uniquely owned snapshot, not just a subset.
+     * A partial tile must never be accepted as a safe unloaded-region cache.
+     */
+    public static void verifyReusableRegion(
+            HydrologySphericalRouteAtlasV2 previous,Result audit,
+            HydrologyRegionSchedulerV2.Region region,
+            Collection<HydrologyFlowGraphV2.Node> loaded) {
+        Objects.requireNonNull(previous);
+        Objects.requireNonNull(audit);
+        Objects.requireNonNull(region);
+        Objects.requireNonNull(loaded);
+        var expected=previous.ownedRegion(region);
+        if(expected.size()!=loaded.size() ||
+           !new HashSet<>(expected).equals(new HashSet<>(loaded)))
+            throw new IllegalArgumentException("Incomplete or conflicting region ownership");
+        verifyReusableSlice(previous,audit,loaded);
+    }
+
     private static void indexUpstream(
         List<HydrologyFlowGraphV2.Node> routes,
         Map<GlobalHydrologyAddressV2.Sample,
