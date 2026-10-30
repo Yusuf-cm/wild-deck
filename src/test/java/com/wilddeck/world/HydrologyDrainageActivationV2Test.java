@@ -144,6 +144,30 @@ class HydrologyDrainageActivationV2Test {
             .receiptBudget().pendingVolume(),1e-12);
     }
 
+    @Test void verifiedReceiptRejectsStaleTopologyAndPersistsCurrentEdge(
+            @TempDir Path dir) throws Exception {
+        var old=original();
+        var audit=changed(old);
+        var file=dir.resolve("verified.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,Map.of()));
+        runner.activateReceiptOnlyDrainage(old,audit);
+        var oldEdge=new HydrologyTransferLedgerV2.Key(
+            2,at(4,2),old.routeAt(at(4,2)).downstream());
+        assertThrows(IllegalArgumentException.class,()->
+            runner.receiveVerifiedDrainage(audit.rebuilt(),oldEdge,6));
+        assertThrows(IllegalArgumentException.class,()->
+            runner.receiveVerifiedDrainage(old,oldEdge,6));
+        var source=audit.rebuilt().routes().stream()
+            .filter(n->n.downstream()!=null).findFirst().orElseThrow();
+        var valid=new HydrologyTransferLedgerV2.Key(
+            2,source.address(),source.downstream());
+        assertTrue(runner.receiveVerifiedDrainage(audit.rebuilt(),valid,3));
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertFalse(restored.receiveVerifiedDrainage(audit.rebuilt(),valid,3));
+        assertEquals(3,restored.receiptBudget().pendingVolume(),1e-12);
+        assertEquals(1,restored.epoch());
+    }
+
     @Test void codecRejectsUnboundAndNoncanonicalStates() {
         var old=original();
         var payload=bound(old,Map.of());
