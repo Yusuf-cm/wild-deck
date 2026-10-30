@@ -315,6 +315,22 @@ public final class HydrologyWorldRunnerV2 {
     }
 
     /**
+     * Verify both the durable route identity and the lake geometry epoch
+     * before resuming a wet-lake world after restart.
+     */
+    public synchronized void verifyBoundWetLakeDrainage(
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologySphericalLakeBasinsV2.Plan plan) {
+        verifyBoundDrainage(atlas);
+        Objects.requireNonNull(plan);
+        var bound=HydrologyDrainageActivationV2.decode(last.worldState());
+        if(!HydrologyLakePlanSnapshotIdV2.of(plan).equals(bound.lakePlan()) ||
+           plan.routes().size()!=atlas.routes().size() ||
+           !new HashSet<>(plan.routes()).equals(new HashSet<>(atlas.routes())))
+            throw new IllegalArgumentException("Lake geometry or routes do not match checkpoint");
+    }
+
+    /**
      * Opt-in verified receipt entrypoint for a bound drainage checkpoint.
      * Rejects old-topology edges after activation and forged destinations
      * before persisting water. Existing receive() remains an unverified
