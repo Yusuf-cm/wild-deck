@@ -15,11 +15,21 @@ class HydrologyLakeNetworkStepV2Test {
 
     private static HydrologySphericalLakeBasinsV2.Plan chain(
             double a,double b,double c,double d) {
-        var routes=List.of(
+        var routes=new ArrayList<>(List.of(
             new HydrologyFlowGraphV2.Node(A,a,B,false),
             new HydrologyFlowGraphV2.Node(B,b,C,false),
             new HydrologyFlowGraphV2.Node(C,c,D,false),
-            new HydrologyFlowGraphV2.Node(D,d,null,true));
+            new HydrologyFlowGraphV2.Node(D,d,null,true)));
+        // Include the complete 26-vertex sphere. The other zero-flow
+        // samples are explicitly verified terminals in this synthetic graph.
+        var all=new ArrayList<GlobalHydrologyAddressV2.Sample>();
+        all.add(at(0,0));
+        for(long y=1;y<4;y++)for(long x=0;x<8;x++)all.add(at(x,y));
+        all.add(at(0,4));
+        for(var address:all)
+            if(!Set.of(A,B,C,D).contains(address))
+                routes.add(new HydrologyFlowGraphV2.Node(
+                    address,0,null,true));
         var basin=new LakeReservoirV2.Basin(new double[]{0},
             new double[]{1},5);
         return new HydrologySphericalLakeBasinsV2.Plan(routes,List.of(
@@ -144,4 +154,17 @@ class HydrologyLakeNetworkStepV2Test {
         assertThrows(IllegalArgumentException.class,()->
             new HydrologyLakeNetworkStepV2.Forcing(0,0,0));
     }
+
+    @Test void partialSphereCannotMasqueradeAsAuthoritativeLakeNetwork() {
+        var plan=chain(1,1,1,1);
+        var partial=new ArrayList<>(plan.routes());
+        partial.removeIf(node->node.address().equals(at(7,2)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeNetworkStepV2.step(
+                new HydrologySphericalLakeBasinsV2.Plan(
+                    partial,plan.lakes()),
+                new HydrologyLakeStateV2.State("world",Map.of()),
+                dryForcing()));
+    }
+
 }
