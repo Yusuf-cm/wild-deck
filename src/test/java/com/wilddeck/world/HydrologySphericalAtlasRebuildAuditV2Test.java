@@ -29,6 +29,18 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
         assertTrue(audit.changedReaches().isEmpty());
         assertTrue(audit.affectedSamples().isEmpty());
         assertEquals(original.catchments(),audit.rebuilt().catchments());
+        var slice=original.ownedRegion(new HydrologyRegionSchedulerV2.Region(0,0));
+        assertFalse(slice.isEmpty());
+        assertDoesNotThrow(()->HydrologySphericalAtlasRebuildAuditV2
+            .verifyReusableSlice(original,audit,slice));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySphericalAtlasRebuildAuditV2
+                .verifyReusableSlice(original,audit,List.of()));
+        var duplicated=new ArrayList<>(slice);
+        duplicated.add(slice.get(0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySphericalAtlasRebuildAuditV2
+                .verifyReusableSlice(original,audit,duplicated));
     }
 
     @Test void newVerifiedOutletInvalidatesUpstreamAndMatchesFullRebuild() {
@@ -49,6 +61,19 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
         assertTrue(audit.changedRoutes().contains(second));
         assertTrue(audit.changedCatchments().contains(second));
         assertFalse(audit.changedReaches().isEmpty());
+        // A geometrically unchanged edge can acquire a different outlet.
+        // Its reach ID is unchanged, but its catchment assignment is not.
+        for(var entry:previous.reaches().entrySet()) {
+            var nextCatchment=audit.rebuilt().reaches().get(entry.getKey());
+            if(nextCatchment!=null&&!nextCatchment.equals(entry.getValue()))
+                assertTrue(audit.changedReaches().contains(entry.getKey()));
+        }
+        var invalidated=previous.routes().stream()
+            .filter(n->audit.affectedSamples().contains(n.address()))
+            .findFirst().orElseThrow();
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySphericalAtlasRebuildAuditV2
+                .verifyReusableSlice(previous,audit,List.of(invalidated)));
         assertTrue(audit.affectedSamples().containsAll(audit.changedRoutes()));
         assertTrue(audit.affectedSamples().containsAll(audit.changedCatchments()));
         assertTrue(audit.affectedSamples().size()>=audit.changedCatchments().size());
