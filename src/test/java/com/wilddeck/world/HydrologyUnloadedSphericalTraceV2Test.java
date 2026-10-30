@@ -54,6 +54,22 @@ class HydrologyUnloadedSphericalTraceV2Test {
         assertEquals(trace.visited().size(),new HashSet<>(trace.visited()).size());
     }
 
+    @Test void tracesThroughOneCanonicalPoleWithoutDuplicatingLongitudeOwners() {
+        var pole=at(0,0);
+        var ring=at(7,1);
+        var outlet=at(7,2);
+        HydrologyGlobalSlopeRouterV2.Elevations heights=a->
+            a.equals(pole)?30:a.equals(ring)?10:a.equals(outlet)?0:100;
+        var trace=HydrologyUnloadedSphericalTraceV2.follow(
+            pole,heights,Set.of(outlet),5);
+        assertEquals(HydrologyUnloadedSphericalTraceV2.Status.VERIFIED_OUTLET,
+            trace.status());
+        assertEquals(List.of(pole,ring,outlet),trace.visited());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyUnloadedSphericalTraceV2.follow(
+                at(3,0),heights,Set.of(outlet),5));
+    }
+
     @Test void refusesToInventOutletForPitsOrIncompleteTraces() {
         HydrologyGlobalSlopeRouterV2.Elevations flat=a->10;
         var pit=HydrologyUnloadedSphericalTraceV2.follow(
