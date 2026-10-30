@@ -106,4 +106,53 @@ class HydrologyWetLakeReconciliationV2Test {
         assertEquals(21,first.finalStorage(),1e-9);
         assertEquals(0,first.released(),0);
     }
+    @Test void optInDisplacementRoutesOnlyNewlyExposedWaterColumns() {
+        var old=plan(lake(A,List.of(A,B),new double[]{0,0},
+            new double[]{1,1},10));
+        var contracted=plan(lake(A,List.of(A),new double[]{0},
+            new double[]{1},10));
+        var state=new HydrologyLakeStateV2.State("world",Map.of(A,10.0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyWetLakeReconciliationV2.reconcile(state,old,contracted));
+        var moved=HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+            state,old,contracted);
+        assertEquals(5,moved.state().volumes().get(A),1e-9);
+        assertEquals(5,moved.overflow().get(B),1e-9);
+        assertEquals(5,moved.released(),1e-9);
+        assertEquals(10,moved.finalStorage()+moved.released(),1e-9);
+        assertFalse(moved.overflow().containsKey(OUT));
+    }
+
+    @Test void optInFullyVanishedLakePreservesWaterAtFormerWetCells() {
+        var old=plan(lake(A,List.of(A,B),new double[]{0,2},
+            new double[]{1,1},10));
+        var state=new HydrologyLakeStateV2.State("world",Map.of(A,10.0));
+        var result=HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+            state,old,plan());
+        assertTrue(result.state().volumes().isEmpty());
+        assertEquals(6,result.overflow().get(A),1e-9);
+        assertEquals(4,result.overflow().get(B),1e-9);
+        assertEquals(10,result.released(),1e-9);
+        assertEquals(10,result.initialStorage(),1e-9);
+        assertEquals(0,result.finalStorage(),0);
+        assertEquals(result,HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+            state,old,plan()));
+    }
+
+    @Test void optInDisplacementStillRejectsOverlappingBasinsAndUnknownStores() {
+        var old=plan(lake(A,List.of(A,B),new double[]{0,0},
+            new double[]{1,1},10));
+        var overlapping=plan(
+            lake(A,List.of(A,B),new double[]{0,0},new double[]{1,1},10),
+            lake(B,List.of(B),new double[]{0},new double[]{1},10));
+        var state=new HydrologyLakeStateV2.State("world",Map.of(A,5.0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+                state,old,overlapping));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+                new HydrologyLakeStateV2.State("world",Map.of(B,5.0)),
+                old,plan()));
+    }
+
 }
