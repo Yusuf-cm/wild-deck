@@ -59,6 +59,18 @@ public final class HydrologySnowSoilStateV2 {
             if(!Double.isFinite(cellArea)||cellArea<=0)
                 throw new IllegalArgumentException("Invalid cell area");
         }
+
+        /** Derive actual square-metre ownership from canonical spherical topology. */
+        public static Forcing forSphericalCell(
+                GlobalHydrologyAddressV2.Sample address,double radiusMeters,
+                double precipitationDepth,double temperatureC,
+                double potentialEvaporationDepth,double soilCapacityDepth,
+                double days,double degreeDayMeltFactor) {
+            return new Forcing(precipitationDepth,temperatureC,
+                potentialEvaporationDepth,soilCapacityDepth,days,
+                degreeDayMeltFactor,
+                HydrologySphericalCellAreaV2.areaAt(address,radiusMeters));
+        }
     }
 
     public record Step(State state,List<HydrologyGlobalSlopeRouterV2.Source> runoff,
