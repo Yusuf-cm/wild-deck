@@ -5,8 +5,12 @@ import java.util.*;
 /**
  * Fail-closed terrain-change audit for a bounded authoritative spherical atlas.
  * Rebuilds from the same complete canonical graph and verified outlets, then
- * identifies changed edges and identities. This is NOT incremental priority
- * flood and does not permit reusing old drainage after terrain edits.
+ * identifies changed edges, catchments and conservative upstream dependencies.
+ *
+ * This is NOT incremental priority flood. Affected samples are a conservative
+ * invalidation set, not permission to route through unknown/unloaded terrain.
+ * Any lake storage, queued frontier receipts or persistent water checkpoint
+ * must be reconciled separately before activating the rebuilt atlas.
  */
 public final class HydrologySphericalAtlasRebuildAuditV2 {
     private HydrologySphericalAtlasRebuildAuditV2() {}
@@ -14,11 +18,18 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
     public record Result(
         HydrologySphericalRouteAtlasV2 rebuilt,
         Set<GlobalHydrologyAddressV2.Sample> changedRoutes,
-        Set<GlobalHydrologyAddressV2.Sample> changedCatchments) {
+        Set<GlobalHydrologyAddressV2.Sample> changedCatchments,
+        Set<HydrologyRiverIdentityV2.ReachId> changedReaches,
+        Set<GlobalHydrologyAddressV2.Sample> affectedSamples) {
         public Result {
             Objects.requireNonNull(rebuilt);
             changedRoutes=Set.copyOf(changedRoutes);
             changedCatchments=Set.copyOf(changedCatchments);
+            changedReaches=Set.copyOf(changedReaches);
+            affectedSamples=Set.copyOf(affectedSamples);
+            if(!affectedSamples.containsAll(changedRoutes) ||
+               !affectedSamples.containsAll(changedCatchments))
+                throw new IllegalArgumentException("Incomplete drainage invalidation");
         }
     }
 
@@ -31,6 +42,7 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
         var next=HydrologySphericalRouteAtlasV2.compile(sources,elevations,verifiedOutlets);
         if(!previous.catchments().keySet().equals(next.catchments().keySet()))
             throw new IllegalArgumentException("Terrain snapshot changed canonical sample ownership");
+
         var changedRoutes=new HashSet<GlobalHydrologyAddressV2.Sample>();
         var changedCatchments=new HashSet<GlobalHydrologyAddressV2.Sample>();
         for(var address:previous.catchments().keySet()) {
@@ -43,6 +55,36 @@ public final class HydrologySphericalAtlasRebuildAuditV2 {
                                 next.catchments().get(address)))
                 changedCatchments.add(address);
         }
-        return new Result(next,changedRoutes,changedCatchments);
+
+        var changedReaches=new HashSet<HydrologyRiverIdentityV2.ReachId>(
+            previous.reaches().keySet());
+        for(var reach:next.reaches().keySet())
+            if(!changedReaches.add(reach))changedReaches.remove(reach);
+
+        // Even an unchanged immediate edge can have a changed outlet upstream.
+        // Walk both old and new reversed drainage graphs, including across
+        // canonical region boundaries, so invalidation is conservative.
+        var affected=new HashSet<GlobalHydrologyAddressV2.Sample>(changedRoutes);
+        affected.addAll(changedCatchments);
+        var upstream=new HashMap<GlobalHydrologyAddressV2.Sample,
+                                 Set<GlobalHydrologyAddressV2.Sample>>();
+        indexUpstream(previous.routes(),upstream);
+        indexUpstream(next.routes(),upstream);
+        var queue=new ArrayDeque<GlobalHydrologyAddressV2.Sample>(affected);
+        while(!queue.isEmpty()) {
+            for(var source:upstream.getOrDefault(queue.remove(),Set.of()))
+                if(affected.add(source))queue.add(source);
+        }
+        return new Result(next,changedRoutes,changedCatchments,changedReaches,affected);
+    }
+
+    private static void indexUpstream(
+        List<HydrologyFlowGraphV2.Node> routes,
+        Map<GlobalHydrologyAddressV2.Sample,
+            Set<GlobalHydrologyAddressV2.Sample>> upstream) {
+        for(var node:routes)
+            if(node.downstream()!=null)
+                upstream.computeIfAbsent(node.downstream(),ignored->new HashSet<>())
+                    .add(node.address());
     }
 }
