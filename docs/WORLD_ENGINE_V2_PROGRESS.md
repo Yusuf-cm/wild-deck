@@ -778,3 +778,10 @@ The gate implementation `5c3362e386029f87387dcf3f5e8dae5694ba4d29` passed full J
 
 - Confluence and replay-order regression (`223d872dc899a2d73be7a8203773578c1b154e60`) verifies two independent receipts to the same downstream sample are counted once each, identical duplicate delivery is idempotent, and report order/budget is independent of receipt arrival order. CI pending at this write.
 - `HydrologyDrainageTransitionGateV2` (`a0da65bd3da9b4ae61d9ab7caf9979d6b454ee2c`) now delegates its strict fail-closed verification to the same classification used by the read-only report, preventing diagnostic and activation preflight logic from drifting. This does NOT activate topology or migrate blocked water. CI pending at this write.
+
+
+#### 2026-10-30 — Drainage transition inventory CI acceptance
+
+The preceding CI-pending entries have now been verified in the complete branch workflow. `a9eef225` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41058063708 ; `f3632a65` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41058084631 ; `e5cc53a3` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41058097812 ; `d6b4f04f` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41058143348 ; `223d872d` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41058206692 . The documentation commit `132d4990a92672bc881c92528f01156bc74bc190`, which includes the unified transition gate and all preceding tests, **PASSED full Java CI**: https://github.com/Yusuf-cm/wild-deck/actions/runs/41058248742 .
+
+**Verified boundary:** deterministic SHA-256 drainage snapshot identity, 11-unit blocked receipt inventory, 13-unit checkpoint-restart persistence, 3+5=8 unit confluence accounting with duplicate suppression, delivered receipt exclusion, and shared classification between strict gate and diagnostic report. These are bounded controlled-network tests, not large-world acceptance. A green run does not imply safe atomic topology activation, lake-water migration, arbitrary unloaded-terrain priority flood or completed planetary hydrology.
