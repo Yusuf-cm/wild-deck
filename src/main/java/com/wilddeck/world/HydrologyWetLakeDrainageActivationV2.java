@@ -120,7 +120,7 @@ public final class HydrologyWetLakeDrainageActivationV2 {
            !bound.topology().equals(audit.previousTopology()))
             throw new IllegalArgumentException("Stale drainage topology");
         var oldState=HydrologyLakeStateV2.decode(bound.lakeState());
-        boolean seasonal=oldState.world().startsWith("WD-SNOW-SOIL-1\\n");
+        boolean seasonal=oldState.world().startsWith("WD-SNOW-SOIL-1\n");
         if(seasonal!=allowSeasonal)
             throw new IllegalArgumentException(
                 "Seasonal reservoir transition requires matching explicit opt-in");
