@@ -166,4 +166,54 @@ class HydrologySeasonalLakeNetworkV2Test {
         assertEquals("initial",HydrologySnowSoilStateV2.decode(
             HydrologyLakeStateV2.decode(runner.worldState()).world()).world());
     }
+    @Test void datelineAndPolarRunoffHaveStableCanonicalOwnership()
+            throws IOException {
+        var base=planet(false);
+        var pole=at(0,0);
+        var north=at(0,1);
+        var seam=at(7,2);
+        var meridian=at(0,2);
+        assertTrue(HydrologySphericalTopologyV2.adjacent(pole,north));
+        assertTrue(HydrologySphericalTopologyV2.adjacent(seam,meridian));
+        var routes=new ArrayList<HydrologyFlowGraphV2.Node>();
+        for(var node:base.routes()) {
+            var address=node.address();
+            GlobalHydrologyAddressV2.Sample next=null;
+            if(address.equals(pole))next=north;
+            if(address.equals(north)||address.equals(seam))next=meridian;
+            if(address.equals(meridian))next=A;
+            if(address.equals(A))next=B;
+            routes.add(new HydrologyFlowGraphV2.Node(
+                address,0,next,next==null));
+        }
+        var plan=new HydrologySphericalLakeBasinsV2.Plan(routes,base.lakes());
+        var reversed=new ArrayList<>(routes);
+        Collections.reverse(reversed);
+        var reorder=new HydrologySphericalLakeBasinsV2.Plan(
+            reversed,base.lakes());
+        var weather=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+                                      HydrologySnowSoilStateV2.Forcing>();
+        weather.put(seam,weather(4,2));
+        weather.put(pole,weather(3,2));
+        var first=HydrologyWorldRunnerV2.open(
+            directory.resolve("seam-a.chk"),0,
+            HydrologySeasonalLakeNetworkV2.initialState("start"));
+        var second=HydrologyWorldRunnerV2.open(
+            directory.resolve("seam-b.chk"),0,
+            HydrologySeasonalLakeNetworkV2.initialState("start"));
+        var a=HydrologySeasonalLakeNetworkV2.advance(
+            first,"season",plan,weather,lakes(false,0));
+        var b=HydrologySeasonalLakeNetworkV2.advance(
+            second,"season",reorder,weather,lakes(false,0));
+        assertEquals(7,a.snowSoil().runoffVolume(),1e-10);
+        assertEquals(7,a.lakes().lakeInflow().get(A),1e-10);
+        assertEquals(5,a.budget().finalLakes(),1e-10);
+        assertEquals(2,a.budget().terminalDischarge(),1e-10);
+        assertEquals(0,a.budget().residual(),1e-10);
+        assertEquals(a.budget(),b.budget());
+        assertEquals(first.worldState(),second.worldState());
+        assertEquals(first.inboxSnapshot(),second.inboxSnapshot());
+        assertEquals(26,plan.routes().size());
+    }
+
 }
