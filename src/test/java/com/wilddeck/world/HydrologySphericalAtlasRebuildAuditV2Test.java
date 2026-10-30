@@ -68,11 +68,11 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
     @Test void sedimentRidgeReroutesWithoutInventingCatchmentOrWater() {
         var sources=planet();
         var outlet=at(0,2);
-        var ridge=at(3,2);
+        // A three-cell sediment ridge blocks the former shortest spill corridor.
         HydrologyGlobalSlopeRouterV2.Elevations before=a->
             a.equals(outlet)?0:10;
         HydrologyGlobalSlopeRouterV2.Elevations after=a->
-            a.equals(outlet)?0:a.equals(ridge)?100:10;
+            a.equals(outlet)?0:(a.x()==1&&a.y()>=1&&a.y()<=3)?100:10;
         var previous=HydrologySphericalRouteAtlasV2.compile(
             sources,before,Set.of(outlet));
         var audit=HydrologySphericalAtlasRebuildAuditV2.rebuild(
