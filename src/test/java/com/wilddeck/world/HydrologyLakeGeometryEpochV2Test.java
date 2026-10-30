@@ -48,7 +48,7 @@ class HydrologyLakeGeometryEpochV2Test {
             lakes.add(new HydrologySphericalLakeBasinsV2.Lake(
                 A,List.of(A,B),EAST,EAST,
                 new LakeReservoirV2.Basin(new double[]{0,0},
-                    new double[]{1,1},10)));
+                    new double[]{narrow?0.1:1,narrow?0.1:1},10)));
         }
         return new HydrologySphericalLakeBasinsV2.Plan(routes,lakes);
     }
@@ -137,5 +137,29 @@ class HydrologyLakeGeometryEpochV2Test {
                 planet(true,false)));
         assertEquals(0,runner.epoch());
         assertEquals(0,runner.receiptBudget().pendingVolume(),0);
+    }
+
+    @Test void wetMergeWithSedimentDisplacementQueuesOneConservedReceipt()
+            throws IOException {
+        var path=directory.resolve("merge.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,
+            HydrologyLakeStateV2.encode(new HydrologyLakeStateV2.State(
+                "before",Map.of(A,5.0,B,5.0))));
+        var transition=HydrologyLakeGeometryEpochV2.advance(
+            runner,"merged",planet(true,false),planet(false,true));
+        assertEquals(10,transition.geometry().initialStorage(),1e-9);
+        assertEquals(2,transition.geometry().finalStorage(),1e-9);
+        assertEquals(8,transition.geometry().released(),1e-9);
+        assertEquals(1,transition.routed().queuedTransfers());
+        assertEquals(8,runner.receiptBudget().pendingVolume(),1e-9);
+        var recovered=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(Map.of(A,2.0),
+            HydrologyLakeStateV2.decode(recovered.worldState()).volumes());
+        assertTrue(recovered.inboxSnapshot().receipts().containsKey(
+            new HydrologyTransferLedgerV2.Key(2,B,EAST)));
+        var delivered=recovered.advance(recovered.worldState(),List.of(List.of(
+            new HydrologyFlowGraphV2.Node(EAST,0,null,true))));
+        assertEquals(8,delivered.terminalOutflow().get(EAST),1e-9);
+        assertEquals(0,recovered.receiptBudget().pendingVolume(),1e-9);
     }
 }
