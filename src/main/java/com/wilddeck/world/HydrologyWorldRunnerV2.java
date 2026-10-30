@@ -153,6 +153,59 @@ public final class HydrologyWorldRunnerV2 {
         return advanceAndQueueKnownFrontier(nextWorldState,loaded);
     }
 
+
+    /**
+     * Atomically advance a complete, caller-verified spherical lake network
+     * together with durable incoming river receipts and lake storage.
+     *
+     * Receipts for loaded vertices are injected BEFORE lake interception so
+     * transferred water cannot bypass a lake or be replayed on restart.
+     * Rainfall already represented by a receipt must not also be supplied as
+     * localWater or additional forcing. Other-resolution receipts remain
+     * parked; this operation is NOT a partial-world or multi-writer solver.
+     * A failed solve or checkpoint write leaves the runner unchanged.
+     */
+    public synchronized HydrologyLakeNetworkStepV2.Result advanceClosedSphericalLakeNetwork(
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing)
+            throws IOException {
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(plan);
+        Objects.requireNonNull(forcing);
+        long next=Math.addExact(last.epoch(),1);
+        var previous=HydrologyLakeStateV2.decode(last.worldState());
+        var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
+        var addresses=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:plan.routes()) {
+            Objects.requireNonNull(node);
+            if(!addresses.add(node.address()))
+                throw new IllegalArgumentException("Duplicate spherical sample");
+        }
+        var incoming=staged.claimAvailable(next,addresses);
+        var enriched=new ArrayList<HydrologyFlowGraphV2.Node>();
+        for(var node:plan.routes()) {
+            double water=node.localWater()+incoming.getOrDefault(node.address(),0.0);
+            if(!Double.isFinite(water))
+                throw new IllegalArgumentException("Lake receipt discharge overflow");
+            enriched.add(new HydrologyFlowGraphV2.Node(
+                node.address(),water,node.downstream(),node.terminal()));
+        }
+        var solved=HydrologyLakeNetworkStepV2.step(
+            new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
+            previous,forcing);
+        var updated=new HydrologyLakeStateV2.State(
+            nextWorld,solved.state().volumes());
+        var checkpoint=HydrologyCheckpointV2.capture(next,
+            HydrologyLakeStateV2.encode(updated),staged);
+        HydrologyCheckpointStoreV2.save(checkpointPath,checkpoint);
+        last=checkpoint;
+        inbox=staged;
+        return new HydrologyLakeNetworkStepV2.Result(updated,
+            solved.terminalOutflow(),solved.lakeInflow(),
+            solved.lakeOverflow(),solved.evaporation(),solved.budget());
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
