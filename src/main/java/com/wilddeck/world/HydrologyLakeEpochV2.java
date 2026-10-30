@@ -117,6 +117,13 @@ public final class HydrologyLakeEpochV2 {
             translated.add(new LakePeriod(period.anchor(),period.spillFrom(),
                 period.basin(),period.contributingArea(),period.period()));
         }
+        // A spill arriving at another lake's loaded source would be routed
+        // straight through it instead of entering that lake's reservoir.
+        // Such coupled lakes require the lake-aware network solver.
+        for(var period:periods)
+            if(sources.contains(period.spillTo()))
+                throw new IllegalArgumentException(
+                    "Coupled lake spill would bypass downstream storage");
         return advance(runner,nextWorld,loaded,translated,substeps);
     }
 
