@@ -127,6 +127,55 @@ class HydrologyWetLakeDrainageActivationV2Test {
             dir.resolve("stale.chk"),0,"ignored").receiptBudget().pendingVolume(),0);
     }
 
+    @Test void wetLakeConfluenceReceiptsAreCountedOnce(@TempDir Path dir)
+            throws Exception {
+        var old=atlas(-5);
+        var groups=new HashMap<GlobalHydrologyAddressV2.Sample,
+                               List<HydrologyFlowGraphV2.Node>>();
+        for(var node:old.routes())
+            if(node.downstream()!=null)
+                groups.computeIfAbsent(node.downstream(),ignored->new ArrayList<>())
+                    .add(node);
+        var pair=groups.values().stream().filter(g->g.size()>1)
+            .findFirst().orElseThrow();
+        var a=new HydrologyTransferLedgerV2.Key(
+            1,pair.get(0).address(),pair.get(0).downstream());
+        var b=new HydrologyTransferLedgerV2.Key(
+            1,pair.get(1).address(),pair.get(1).downstream());
+        var file=dir.resolve("confluence.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        assertTrue(runner.receive(b,5));
+        assertTrue(runner.receive(a,3));
+        assertFalse(runner.receive(a,3));
+        var committed=runner.activateWetLakeDrainage(
+            old,audit(old,-4),plan(-5),plan(-4));
+        assertEquals(8,committed.landings().pendingVolume(),0);
+        assertEquals(2,committed.landings().landings().size());
+        assertEquals(13,committed.lakeFlow().budget().finalStorage()+
+            committed.lakeFlow().budget().terminalOutflow(),1e-7);
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(0,restored.receiptBudget().pendingVolume(),0);
+        assertTrue(restored.inboxSnapshot().delivered().containsAll(Set.of(a,b)));
+    }
+
+    @Test void forgedOldEdgeRejectsWetLakeTransitionWithoutMutation(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var valid=receipt(old,1);
+        var wrong=HydrologySphericalTopologyV2.neighbors(valid.from()).stream()
+            .filter(n->!n.equals(valid.to())).findFirst().orElseThrow();
+        var file=dir.resolve("forged.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,valid.from(),wrong),4);
+        var before=runner.worldState();
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateWetLakeDrainage(old,audit(old,-4),plan(-5),plan(-4)));
+        var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(before,restored.worldState());
+        assertEquals(0,restored.epoch());
+        assertEquals(4,restored.receiptBudget().pendingVolume(),0);
+    }
+
     @Test void rejectsForgedLakeRoutesAndSeasonalPayload(@TempDir Path dir)
             throws Exception {
         var old=atlas(-5);
