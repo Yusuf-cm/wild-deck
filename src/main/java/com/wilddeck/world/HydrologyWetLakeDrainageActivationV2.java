@@ -141,6 +141,7 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             throw new IllegalArgumentException("Stale lake geometry checkpoint");
         verifyRoutes(oldLakes,previous);
         verifyRoutes(newLakes,audit.rebuilt());
+        verifySharedWetCellAreas(oldLakes,newLakes);
 
         // Verify the OLD basin geometry, including exits and connectivity,
         // before treating any lake's stored volume as transferable.
@@ -201,6 +202,39 @@ public final class HydrologyWetLakeDrainageActivationV2 {
         // Local optimistic freshness only; NOT an interprocess CAS.
         HydrologyCheckpointStoreV2.saveNext(checkpointPath,current,checkpoint);
         return new Committed(routed,remap,landings,staged,checkpoint);
+    }
+
+    /**
+     * The same canonical wet cell cannot silently change horizontal area
+     * during a same-resolution terrain transition. A changed radius or area
+     * convention would change the depth-to-volume conversion even if routing
+     * and lake-bed heights were otherwise valid. Completely disappearing
+     * lakes require the explicit radius-checked entrypoint for this guarantee.
+     */
+    private static void verifySharedWetCellAreas(
+            HydrologySphericalLakeBasinsV2.Plan previous,
+            HydrologySphericalLakeBasinsV2.Plan rebuilt) {
+        var oldAreas=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for(var lake:previous.lakes()) {
+            var areas=lake.reservoir().cellArea();
+            for(int i=0;i<lake.cells().size();i++)
+                if(oldAreas.putIfAbsent(lake.cells().get(i),areas[i])!=null)
+                    throw new IllegalArgumentException("Duplicate old wet cell");
+        }
+        var seen=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var lake:rebuilt.lakes()) {
+            var areas=lake.reservoir().cellArea();
+            for(int i=0;i<lake.cells().size();i++) {
+                var address=lake.cells().get(i);
+                if(!seen.add(address))
+                    throw new IllegalArgumentException("Duplicate rebuilt wet cell");
+                var old=oldAreas.get(address);
+                if(old!=null &&
+                   Double.doubleToLongBits(old)!=Double.doubleToLongBits(areas[i]))
+                    throw new IllegalArgumentException(
+                        "Changed horizontal area at retained wet cell");
+            }
+        }
     }
 
     private static void verifyRoutes(HydrologySphericalLakeBasinsV2.Plan plan,
