@@ -88,12 +88,14 @@ class HydrologyVerifiedLakeFrontierV2Test {
             reversed,original.lakes());
         var lake=original.lakes().get(0);
         var forcing=Map.of(lake.anchor(),
-            new HydrologyVerifiedLakeFrontierV2.Forcing(10,
-                new SeasonalLakeCycleV2.Period(1,0,0,1)));
+            new HydrologyVerifiedLakeFrontierV2.Forcing(
+                lake.reservoir().capacity()/3,
+                new SeasonalLakeCycleV2.Period(4,0,0,1)));
         var a=HydrologyWorldRunnerV2.open(directory.resolve("a.chk"),0,initial());
         var b=HydrologyWorldRunnerV2.open(directory.resolve("b.chk"),0,initial());
         HydrologyVerifiedLakeFrontierV2.advance(a,"wet",original,forcing,3);
         HydrologyVerifiedLakeFrontierV2.advance(b,"wet",reordered,forcing,3);
+        assertEquals(1,a.inboxSnapshot().receipts().size());
         assertEquals(a.inboxSnapshot().receipts(),b.inboxSnapshot().receipts());
         assertEquals(a.worldState(),b.worldState());
     }
