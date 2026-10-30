@@ -46,6 +46,8 @@ public final class HydrologySphericalLakeBasinsV2 {
             Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets,
             double radiusMeters) {
         Objects.requireNonNull(elevations);
+        // Validate geometry even for a sphere containing no depressions.
+        HydrologySphericalCellAreaV2.planetArea(radiusMeters);
         var routes=HydrologySphericalBasinRouterV2.route(
             sources,elevations,verifiedOutlets);
         // The route solver independently checks cycles, conservation and
