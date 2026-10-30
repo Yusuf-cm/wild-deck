@@ -127,6 +127,11 @@ public final class HydrologyDrainageActivationV2 {
             throw new IllegalArgumentException("Drainage activation water budget mismatch");
         var newState=encode(new BoundState(landing.rebuiltTopology(),bound.lakeState()));
         var checkpoint=HydrologyCheckpointV2.capture(nextEpoch,newState,staged);
+        // Catch a stale local runner whose checkpoint was updated by another
+        // instance (for example a receipt persisted after this runner opened).
+        // This is a defensive freshness check, NOT a cross-process CAS/lock.
+        if(!HydrologyCheckpointStoreV2.load(checkpointPath).equals(current))
+            throw new IOException("Drainage checkpoint changed during activation");
         HydrologyCheckpointStoreV2.save(checkpointPath,checkpoint);
         return new Committed(solved,budget,staged,checkpoint,landing);
     }
