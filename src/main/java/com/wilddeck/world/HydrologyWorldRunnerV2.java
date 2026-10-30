@@ -170,6 +170,23 @@ public final class HydrologyWorldRunnerV2 {
             HydrologySphericalLakeBasinsV2.Plan plan,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing)
             throws IOException {
+        return advanceClosedSphericalLakeNetworkValidated(
+            nextWorld,plan,forcing,ignored->{});
+    }
+
+    /**
+     * Stage receipt delivery and the lake solve, then validate the complete
+     * water budget BEFORE replacing the checkpoint. The package-local hook
+     * is for the coupled seasonal adapter and must be side-effect free.
+     * Any validator failure leaves the epoch, world and inbox unchanged.
+     */
+    synchronized HydrologyLakeNetworkStepV2.Result advanceClosedSphericalLakeNetworkValidated(
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
+            java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
+            throws IOException {
+        Objects.requireNonNull(beforeCommit);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(plan);
         Objects.requireNonNull(forcing);
@@ -196,14 +213,16 @@ public final class HydrologyWorldRunnerV2 {
             previous,forcing);
         var updated=new HydrologyLakeStateV2.State(
             nextWorld,solved.state().volumes());
+        var result=new HydrologyLakeNetworkStepV2.Result(updated,
+            solved.terminalOutflow(),solved.lakeInflow(),
+            solved.lakeOverflow(),solved.evaporation(),solved.budget());
+        beforeCommit.accept(result);
         var checkpoint=HydrologyCheckpointV2.capture(next,
             HydrologyLakeStateV2.encode(updated),staged);
         HydrologyCheckpointStoreV2.save(checkpointPath,checkpoint);
         last=checkpoint;
         inbox=staged;
-        return new HydrologyLakeNetworkStepV2.Result(updated,
-            solved.terminalOutflow(),solved.lakeInflow(),
-            solved.lakeOverflow(),solved.evaporation(),solved.budget());
+        return result;
     }
 
 

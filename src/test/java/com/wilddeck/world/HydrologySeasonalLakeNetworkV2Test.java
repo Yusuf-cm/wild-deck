@@ -61,6 +61,35 @@ class HydrologySeasonalLakeNetworkV2Test {
         return result;
     }
 
+    @Test void rejectedCombinedBudgetPrecommitLeavesReceiptAndWorldUntouched()
+            throws IOException {
+        var path=directory.resolve("precommit.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,
+            HydrologySeasonalLakeNetworkV2.initialState("initial"));
+        var key=new HydrologyTransferLedgerV2.Key(1,at(0,2),A);
+        assertTrue(runner.receive(key,3));
+        var before=runner.inboxSnapshot();
+        var world=runner.worldState();
+        assertThrows(IllegalStateException.class,()->
+            runner.advanceClosedSphericalLakeNetworkValidated(
+                "uncommitted",planet(false),lakes(false,0),
+                ignored->{throw new IllegalStateException("Budget rejected");}));
+        assertEquals(0,runner.epoch());
+        assertEquals(world,runner.worldState());
+        assertEquals(before,runner.inboxSnapshot());
+        var restarted=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(before,restarted.inboxSnapshot());
+        assertEquals(world,restarted.worldState());
+        var accepted=HydrologySeasonalLakeNetworkV2.advance(
+            restarted,"spring",planet(false),
+            Map.of(A,weather(0,2)),lakes(false,0));
+        assertEquals(3,accepted.budget().receivedRiverWater(),1e-10);
+        assertEquals(3,accepted.budget().finalLakes(),1e-10);
+        assertEquals(0,accepted.budget().residual(),1e-10);
+        assertEquals(0,restarted.receiptBudget().pendingVolume(),1e-10);
+        assertEquals(3,restarted.receiptBudget().deliveredVolume(),1e-10);
+    }
+
     @Test void snowmeltAndIncomingReceiptsFillLakeExactlyOnceAfterRestart()
             throws IOException {
         var path=directory.resolve("seasonal.chk");

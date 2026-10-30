@@ -91,11 +91,20 @@ public final class HydrologySeasonalLakeNetworkV2 {
 
         var nextSnow=new HydrologySnowSoilStateV2.State(
             nextWorld,snow.state().cells());
-        var lakes=runner.advanceClosedSphericalLakeNetwork(
+        // Validate the combined snow/soil + river + lake budget while
+        // receipts and world state are still staged, not after disk commit.
+        final Budget[] checked=new Budget[1];
+        var lakes=runner.advanceClosedSphericalLakeNetworkValidated(
             HydrologySnowSoilStateV2.encode(nextSnow),
             new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
-            lakeForcing);
+            lakeForcing,
+            result->checked[0]=verifyCombinedBudget(snow,result));
+        return new Advanced(snow,lakes,checked[0]);
+    }
 
+    private static Budget verifyCombinedBudget(
+            HydrologySnowSoilStateV2.Step snow,
+            HydrologyLakeNetworkStepV2.Result lakes) {
         double receipts=lakes.budget().sourceWater()-snow.runoffVolume();
         double initialLakes=lakes.budget().previousStorage();
         double finalLakes=lakes.budget().finalStorage();
@@ -108,11 +117,12 @@ public final class HydrologySeasonalLakeNetworkV2 {
         double residual=left-right;
         double tolerance=Math.max(1e-8,Math.max(left,right)*1e-10);
         if(!Double.isFinite(receipts) || receipts < -tolerance ||
+           !Double.isFinite(left) || !Double.isFinite(right) ||
            !Double.isFinite(residual) || Math.abs(residual)>tolerance)
             throw new IllegalStateException("Combined seasonal water budget violated");
-        return new Advanced(snow,lakes,new Budget(snow.initialVolume(),
+        return new Budget(snow.initialVolume(),
             initialLakes,snow.precipitationVolume(),Math.max(0,receipts),
             snow.evaporationVolume(),lakeEvap,terminal,
-            snow.storedVolume(),finalLakes,residual));
+            snow.storedVolume(),finalLakes,residual);
     }
 }
