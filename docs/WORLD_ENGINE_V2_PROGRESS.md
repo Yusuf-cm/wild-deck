@@ -710,3 +710,16 @@ The preceding pending-CI note is superseded for the following commits:
 - Added old/new upstream dependency closure regression `1b69bf80ea511ec60efd91c7d86a538996b745c1`: full Java CI **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41036027727 . It asserts every node upstream of an invalidated downstream sample in either snapshot is also invalidated, including possible cross-region and seam dependencies.
 
 **Accepted scope:** A bounded closed-sphere, whole-snapshot rebuild *audit* with deterministic changed route/catchment/reach detection, conservative transitive upstream invalidation, and conservation regression coverage. It does **not** implement an incremental priority flood or live drainage migration. In particular, changing river routing while lake volumes, cross-region receipts or erosion checkpoints are live still requires an explicit reconciliation protocol. Global unknown/unloaded terrain, multi-LOD, scalable polar routing, automatic ocean truth, stage-dependent lake spillways, groundwater/climate calibration, large-world endurance and distributed persistence remain unfinished. Continue water development before other world layers.
+
+
+#### 2026-10-30 — Rebuilt drainage reach-catchment audit and region cache reuse gate
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Baseline commit `38ea578ded60ce6cf16f8667003ee94625a24c67` full Java CI **PASSED**: https://github.com/Yusuf-cm/wild-deck/actions/runs/41036192636 .
+
+**Changes committed (new CI verification pending at this documentation write):**
+- `55fce8ff6b6a53ee06a74c5530bca615e4cceb33`: changed reach detection now compares the entire old/new `ReachId -> CatchmentId` mapping, not merely the presence of a reach ID. A geometrically unchanged edge whose downstream outlet changed must be invalidated. Added `verifyReusableSlice` to fail closed on affected samples, duplicate samples, foreign/modified nodes and mismatched old/new catchments.
+- `371dee9a6f90276ecb0054f2343ca19b3d6e0639`: regression assertions for unchanged-region slice reuse, duplicate/empty rejection, changed catchment reach invalidation and affected slice rejection.
+- `dc86bc478c1df577f06473e843371f26f56e9a90`: `verifyReusableRegion` requires a complete, uniquely owned region partition before permitting cache reuse. Partial slices cannot impersonate a complete unloaded region.
+- `a08c03bbee81d0bd6a5e0e1662d1f39de55e3b54`: full-region reuse and missing owned vertex regression.
+
+**Verification boundary:** Previous baseline CI passed; the new commits must not be described as accepted until their own GitHub Actions workflows pass. The cache gate validates *read-only* reuse of unchanged route snapshots; it does not migrate in-flight water, queued frontier receipts, wet lake storage, sediment, or erosion epochs. The underlying drainage solve still requires the complete canonical single-resolution sphere and caller-verified outlets. Incremental priority-flood across arbitrary unloaded terrain, stage-dependent spillways, mixed LOD, groundwater, climate calibration, distributed persistence, endurance and receipt compaction remain unfinished.
