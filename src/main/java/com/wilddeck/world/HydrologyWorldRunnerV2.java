@@ -285,6 +285,27 @@ public final class HydrologyWorldRunnerV2 {
         return committed;
     }
 
+    /**
+     * Opt-in wet-lake drainage transition with zero rainfall and quiesced
+     * producers. Remaps old stored lake water, routes displaced spill and
+     * durable old-edge receipts once, then checkpoints lake storage and the
+     * rebuilt topology identity together. Seasonal stores remain unsupported.
+     */
+    public synchronized HydrologyWetLakeDrainageActivationV2.Committed
+            activateWetLakeDrainage(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit,
+                HydrologySphericalLakeBasinsV2.Plan oldLakes,
+                HydrologySphericalLakeBasinsV2.Plan newLakes)
+            throws IOException {
+        var committed=HydrologyWetLakeDrainageActivationV2.commit(
+            checkpointPath,Math.addExact(last.epoch(),1),last,inbox,
+            previous,audit,oldLakes,newLakes);
+        last=committed.checkpoint();
+        inbox=committed.inbox();
+        return committed;
+    }
+
     /** Fail closed if the caller loaded a drainage atlas unlike the checkpoint. */
     public synchronized void verifyBoundDrainage(
             HydrologySphericalRouteAtlasV2 atlas) {
