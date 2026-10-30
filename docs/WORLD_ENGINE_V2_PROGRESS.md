@@ -975,3 +975,16 @@ The CI-pending caveat in the preceding section is now **superseded** for all imp
 - Implementation commit `f9cd0f6aa71ae35239e44e94fa94f98fb748443a` CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/41134449957 ; regression commit `4316c05cfb7ac4c8cb0d0db270cb6aaca2bdef4b` CI: https://github.com/Yusuf-cm/wild-deck/actions/runs/41134468658 . These runs require conclusion inspection before acceptance.
 
 **Still unfinished:** This downhill trace does not fill depressions or establish globally stable catchment/river identities for arbitrary unloaded terrain, and it is not wired to durable receipts or the scheduler. No general atomic erosion/sediment/terrain/lake/snow/soil checkpoint, no persisted planetary radius provenance, mixed-resolution routing, multi-spillway hydraulics, groundwater, calibrated climate, transient flood timing, large-world endurance or distributed CAS/locking. Seasonal preview is not an erosion activation transaction. Continue hydrology before other layers.
+
+
+### 2026-10-31 — CI acceptance for checked erosion and unloaded trace
+
+The pending statuses in the preceding section are now **superseded**. All implementation and regression commits passed the repository's complete GitHub Actions workflow:
+- `d9a568fe97d5099e1d6dbcd9942e332050fb9663` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134350772 (world/budget guards and checked forcing preview).
+- `c3c674015b15dbd0793afe3eb09d9348f6d77cfd` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134376539 (forged-budget, radius, world, missing-forcing and replay regressions).
+- `f9cd0f6aa71ae35239e44e94fa94f98fb748443a` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134449957 (bounded spherical trace implementation).
+- `4316c05cfb7ac4c8cb0d0db270cb6aaca2bdef4b` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134468658 (unloaded boundary/seam, resume and pit tests).
+- `a2d68ab9939e59b62e607db358a7a48724c9fef8` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134522749 (initial progress documentation).
+- `e531d61107f693c8cdac39f454c9219980da1734` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41134553239 (additional north-pole canonical ownership and outlet tracing regression).
+
+The passing workflows include Java/Maven tests, the world experiment, finite-resource replay, browser save checks, Java atlas export and real-browser verification. **Acceptance remains narrow:** these are bounded read-only routing and noncommitting erosion previews, not a globally complete incremental priority flood or an atomic geomorphic hydrology transaction. Full planetary water acceptance remains open.
