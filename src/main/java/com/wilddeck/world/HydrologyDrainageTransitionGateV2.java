@@ -35,36 +35,13 @@ public final class HydrologyDrainageTransitionGateV2 {
         if(!previous.catchments().keySet().equals(audit.rebuilt().catchments().keySet()))
             throw new IllegalArgumentException("Incompatible drainage ownership");
 
-        int count=0;
-        double total=0;
-        for(var entry:inbox.receipts().entrySet()) {
-            var key=entry.getKey();
-            if(inbox.delivered().contains(key))continue;
-            var from=key.from();
-            var to=key.to();
-            // A receipt is an old edge's water, not free rainfall at its
-            // destination. Re-routing it without explicit accounting risks
-            // duplication or bypassing a changed lake/catchment.
-            if(audit.affectedSamples().contains(from) ||
-               audit.affectedSamples().contains(to) ||
-               !previous.catchments().containsKey(from) ||
-               !previous.catchments().containsKey(to) ||
-               !Objects.equals(previous.routeAt(from).downstream(),to) ||
-               !Objects.equals(audit.rebuilt().routeAt(from).downstream(),to) ||
-               !Objects.equals(previous.catchments().get(from),
-                               audit.rebuilt().catchments().get(from)) ||
-               !Objects.equals(previous.catchments().get(to),
-                               audit.rebuilt().catchments().get(to)))
-                throw new IllegalArgumentException(
-                    "Pending water crosses changed or unverified drainage");
-            double volume=entry.getValue();
-            if(!Double.isFinite(volume)||volume<0)
-                throw new IllegalArgumentException("Invalid pending water volume");
-            total+=volume;
-            if(!Double.isFinite(total))
-                throw new IllegalArgumentException("Pending water budget overflow");
-            count=Math.addExact(count,1);
-        }
-        return new Verified(count,total);
+        // One authoritative classification prevents preflight and diagnostic
+        // inventory from disagreeing about changed edges or catchments.
+        var report=HydrologyDrainageTransitionReportV2.inspect(
+            previous,audit,inbox);
+        if(!report.safeForPendingWater())
+            throw new IllegalArgumentException(
+                "Pending water crosses changed or unverified drainage");
+        return new Verified(report.reusable().size(),report.reusableVolume());
     }
 }
