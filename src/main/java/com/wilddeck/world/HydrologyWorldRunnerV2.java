@@ -253,6 +253,18 @@ public final class HydrologyWorldRunnerV2 {
             previous,audit,inbox.snapshot());
     }
 
+    /**
+     * Inventory old-edge water at its recorded receiving vertex, including
+     * destinations whose NEW onward route changed. Read-only: this does not
+     * activate topology or consume any checkpointed water.
+     */
+    public synchronized HydrologyDrainageLandingPlanV2.Plan planDrainageLandings(
+            HydrologySphericalRouteAtlasV2 previous,
+            HydrologySphericalAtlasRebuildAuditV2.Result audit) {
+        return HydrologyDrainageLandingPlanV2.inspect(
+            previous,audit,inbox.snapshot());
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
