@@ -869,3 +869,10 @@ The new `HydrologyStaleRunnerConservationV2Test` commit `0bc9f9a5b4871f80356f115
 #### 2026-10-30 — Seasonal stale-writer conservation extension
 
 Added a separate coupled snow/soil + river + lake regression at `e6334853c3273333dc8574e4d355379e6926e225`. A four-unit durable river receipt is persisted after a stale runner opens; a stale seasonal advance must fail without changing the epoch or receipt, while a fresh runner must advance through the combined seasonal budget with exactly four units of received river water, four units of terminal discharge, zero residual and no pending replay. The plan is a complete, canonical 26-vertex single-resolution sphere with no active lakes, and zero-precipitation weather forcing. **CI PENDING** at this write; do not claim this new seasonal regression passed until inspected. It does not test seasonal erosion or active lake migration.
+
+
+#### 2026-10-30 — Seasonal stale-writer regression accepted
+
+The seasonal four-unit receipt regression `e6334853c3273333dc8574e4d355379e6926e225` **PASSED full Java CI** https://github.com/Yusuf-cm/wild-deck/actions/runs/41094005282 . Its Maven test suite, world experiment, finite-resource replay, browser controls, atlas export and browser verification passed. The earlier test suite `0bc9f9a5b4871f80356f115137e100dcf4dd9d93` also **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41093756241 ; initial progress-document commit `d60192caa87a54bd18431b2ff946583f6e6a763f` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41093825993 . The earlier seasonal CI-pending note is superseded.
+
+**Precisely verified:** A stale seasonal runner cannot overwrite an independently persisted four-unit river receipt, and a reopened runner can consume it once through the complete canonical dry-lake spherical network with zero seasonal budget residual. This is an additional checkpoint-safety regression, not seasonal erosion, a physical wet-lake transition or a distributed transaction. The remaining hydrology blockers listed above are unchanged.
