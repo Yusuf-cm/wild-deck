@@ -112,6 +112,18 @@ public final class HydrologyDrainageActivationV2 {
             throw new IllegalArgumentException(
                 "Seasonal snow/soil checkpoint requires coupled reconciliation");
 
+        // A receipt-only transition must not silently discard rainfall or
+        // other locally sourced water already present in either atlas. The
+        // activation solve deliberately injects ONLY recorded receipt volumes.
+        for(var node:previous.routes())
+            if(node.localWater()!=0.0)
+                throw new IllegalArgumentException(
+                    "Old drainage atlas contains unaccounted local source water");
+        for(var node:audit.rebuilt().routes())
+            if(node.localWater()!=0.0)
+                throw new IllegalArgumentException(
+                    "New drainage atlas contains unaccounted local source water");
+
         var landing=HydrologyDrainageLandingPlanV2.inspect(
             previous,audit,inbox.snapshot());
         for(var item:landing.landings())
