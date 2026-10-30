@@ -156,4 +156,37 @@ class HydrologyLakeFrontierEpochV2Test {
             runner.worldState()).world());
         assertTrue(runner.inboxSnapshot().receipts().isEmpty());
     }
+    @Test void frontierRejectsLocalRainAtSpillSourceInsteadOfCountingItTwice()
+            throws IOException {
+        var source=at(4,3);
+        var destination=at(5,3);
+        var runner=HydrologyWorldRunnerV2.open(
+            directory.resolve("duplicate-rain.chk"),0,initial());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeEpochV2.advanceWithFrontier(runner,"bad",
+                List.of(new HydrologyFlowGraphV2.Node(source,5,destination,false)),
+                List.of(lake(source,destination)),2));
+        assertEquals(0,runner.epoch());
+        assertTrue(runner.inboxSnapshot().receipts().isEmpty());
+    }
+
+    @Test void frontierRejectsPendingUpstreamReceiptThatWouldBypassLake()
+            throws IOException {
+        var source=at(4,3);
+        var destination=at(5,3);
+        var runner=HydrologyWorldRunnerV2.open(
+            directory.resolve("receipt-bypass.chk"),0,initial());
+        var key=new HydrologyTransferLedgerV2.Key(1,at(3,3),source);
+        assertTrue(runner.receive(key,7));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeEpochV2.advanceWithFrontier(runner,"bad",
+                List.of(new HydrologyFlowGraphV2.Node(source,0,destination,false)),
+                List.of(lake(source,destination)),2));
+        assertEquals(0,runner.epoch());
+        assertEquals(7,runner.receiptBudget().pendingVolume(),1e-9);
+        var restored=HydrologyWorldRunnerV2.open(
+            directory.resolve("receipt-bypass.chk"),0,"ignored");
+        assertEquals(7,restored.receiptBudget().pendingVolume(),1e-9);
+    }
+
 }
