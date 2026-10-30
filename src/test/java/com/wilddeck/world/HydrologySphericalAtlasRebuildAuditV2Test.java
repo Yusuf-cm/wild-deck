@@ -65,6 +65,32 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
         assertEquals(audit.affectedSamples(),replay.affectedSamples());
     }
 
+    @Test void sedimentRidgeReroutesWithoutInventingCatchmentOrWater() {
+        var sources=planet();
+        var outlet=at(0,2);
+        var ridge=at(3,2);
+        HydrologyGlobalSlopeRouterV2.Elevations before=a->
+            a.equals(outlet)?0:10;
+        HydrologyGlobalSlopeRouterV2.Elevations after=a->
+            a.equals(outlet)?0:a.equals(ridge)?100:10;
+        var previous=HydrologySphericalRouteAtlasV2.compile(
+            sources,before,Set.of(outlet));
+        var audit=HydrologySphericalAtlasRebuildAuditV2.rebuild(
+            previous,sources,after,Set.of(outlet));
+        var direct=HydrologySphericalRouteAtlasV2.compile(
+            sources,after,Set.of(outlet));
+        assertEquals(direct.routes(),audit.rebuilt().routes());
+        assertEquals(direct.catchments(),audit.rebuilt().catchments());
+        assertEquals(previous.catchments(),audit.rebuilt().catchments());
+        assertFalse(audit.changedRoutes().isEmpty());
+        assertFalse(audit.changedReaches().isEmpty());
+        assertTrue(audit.affectedSamples().containsAll(audit.changedRoutes()));
+        var solved=HydrologyFlowGraphV2.solve(audit.rebuilt().routes());
+        assertEquals(26,solved.terminalOutflow().get(outlet),1e-10);
+        assertEquals(0,HydrologyConservationV2.verify(
+            audit.rebuilt().routes(),solved).residual(),1e-10);
+    }
+
     @Test void refusesIncompletePlanetAndDoesNotConfuseRainfallWithTopology() {
         var sources=planet();
         var outlet=at(0,2);
