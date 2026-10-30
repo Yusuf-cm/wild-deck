@@ -209,4 +209,83 @@ class HydrologyLakeNetworkStepV2Test {
         assertEquals(0,result.budget().residual(),1e-10);
     }
 
+
+    @Test void connectedMultiCellLakeConservesWaterAcrossEpochs() {
+        var base=chain(8,2,3,4);
+        var lake=new HydrologySphericalLakeBasinsV2.Lake(
+            A,List.of(A,B),C,D,
+            new LakeReservoirV2.Basin(new double[]{0,0},new double[]{1,1},5));
+        var plan=new HydrologySphericalLakeBasinsV2.Plan(
+            base.routes(),List.of(lake));
+        var forcing=Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0,0,4));
+        var first=HydrologyLakeNetworkStepV2.step(plan,
+            new HydrologyLakeStateV2.State("world",Map.of()),forcing);
+        assertEquals(10,first.lakeInflow().get(A),1e-10);
+        assertEquals(0,first.lakeOverflow().get(A),1e-10);
+        assertEquals(10,first.state().volumes().get(A),1e-10);
+        assertEquals(7,first.terminalOutflow().get(D),1e-10);
+        assertEquals(0,first.budget().residual(),1e-10);
+
+        var next=HydrologyLakeNetworkStepV2.step(
+            new HydrologySphericalLakeBasinsV2.Plan(
+                chain(7,5,3,4).routes(),List.of(lake)),
+            HydrologyLakeStateV2.decode(
+                HydrologyLakeStateV2.encode(first.state())),forcing);
+        assertEquals(12,next.lakeOverflow().get(A),1e-10);
+        assertEquals(19,next.terminalOutflow().get(D),1e-10);
+        assertEquals(10,next.state().volumes().get(A),1e-10);
+        assertEquals(0,next.budget().residual(),1e-10);
+    }
+
+    @Test void fabricatedLakeGeometryCannotCombineDisconnectedCells() {
+        var base=chain(0,0,0,0);
+        var nodes=new ArrayList<>(base.routes());
+        var bridge=at(3,3);
+        nodes.removeIf(node->Set.of(A,B,C,D,bridge).contains(node.address()));
+        nodes.add(new HydrologyFlowGraphV2.Node(A,1,B,false));
+        nodes.add(new HydrologyFlowGraphV2.Node(C,1,B,false));
+        nodes.add(new HydrologyFlowGraphV2.Node(B,0,bridge,false));
+        nodes.add(new HydrologyFlowGraphV2.Node(bridge,0,D,false));
+        nodes.add(new HydrologyFlowGraphV2.Node(D,0,null,true));
+        var fake=new HydrologySphericalLakeBasinsV2.Lake(
+            A,List.of(A,C),B,D,
+            new LakeReservoirV2.Basin(new double[]{0,0},new double[]{1,1},5));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeNetworkStepV2.step(
+                new HydrologySphericalLakeBasinsV2.Plan(nodes,List.of(fake)),
+                new HydrologyLakeStateV2.State("world",Map.of()),
+                Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0,0,1))));
+    }
+
+    @Test void lakeGeometryMustMatchCellCountAndCanonicalAnchor() {
+        var base=chain(1,2,3,4);
+        var mismatch=new HydrologySphericalLakeBasinsV2.Lake(
+            A,List.of(A,B),C,D,
+            new LakeReservoirV2.Basin(new double[]{0},new double[]{1},5));
+        var wrongAnchor=new HydrologySphericalLakeBasinsV2.Lake(
+            B,List.of(B,A),C,D,
+            new LakeReservoirV2.Basin(new double[]{0,0},new double[]{1,1},5));
+        var state=new HydrologyLakeStateV2.State("world",Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeNetworkStepV2.step(
+                new HydrologySphericalLakeBasinsV2.Plan(
+                    base.routes(),List.of(mismatch)),state,
+                Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0,0,1))));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeNetworkStepV2.step(
+                new HydrologySphericalLakeBasinsV2.Plan(
+                    base.routes(),List.of(wrongAnchor)),state,
+                Map.of(B,new HydrologyLakeNetworkStepV2.Forcing(0,0,1))));
+    }
+
+    @Test void manySubstepsPreserveFractionalInflowWithoutNegativeRemainder() {
+        var result=HydrologyLakeNetworkStepV2.step(
+            chain(0,0,0,0),
+            new HydrologyLakeStateV2.State("world",Map.of()),
+            Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0.3,0,10_000),
+                   C,new HydrologyLakeNetworkStepV2.Forcing(0,0,1)));
+        assertEquals(0.3,result.state().volumes().get(A),1e-12);
+        assertEquals(0,result.budget().residual(),1e-12);
+    }
+
 }
