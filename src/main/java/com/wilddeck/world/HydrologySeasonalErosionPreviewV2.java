@@ -48,6 +48,8 @@ public final class HydrologySeasonalErosionPreviewV2 {
                 throw new IllegalArgumentException("Duplicate seasonal runoff owner");
         if(runoff.size()!=addresses.size())
             throw new IllegalArgumentException("Seasonal runoff does not cover window");
+        if(!season.state().cells().keySet().equals(runoff.keySet()))
+            throw new IllegalArgumentException("Seasonal stores and runoff ownership differ");
         double[] rain=new double[addresses.size()];
         double[] areas=new double[addresses.size()];
         double sourceTotal=0;
