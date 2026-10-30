@@ -116,4 +116,39 @@ class HydrologyIncrementalPriorityFloodV2Test {
                 Set.of(OUTLET), heights()).advance(
                     HydrologyIncrementalPriorityFloodV2.MAX_SAMPLES + 1));
     }
+    @Test void regionPartitionPreservesUniqueRainfallAndResolvedReachIdentity() {
+        var session = HydrologyIncrementalPriorityFloodV2.start(
+            Set.of(OUTLET), heights());
+        var complete = session.advance(100);
+        assertTrue(complete.complete());
+        var regions = new LinkedHashMap<HydrologyRegionSchedulerV2.Region,
+            List<HydrologyFlowGraphV2.Node>>();
+        for (var route : complete.knownRoutes()) {
+            var a = route.address();
+            long column = a.y() == 0 || a.y() == 4 ? 0 :
+                a.x() == 0 ? 0 : (a.x() - 1) / 2;
+            long row = a.y() == 0 ? 0 : (a.y() - 1) / 2;
+            var owner = new HydrologyRegionSchedulerV2.Region(column, row);
+            regions.computeIfAbsent(owner, ignored -> new ArrayList<>())
+                .add(new HydrologyFlowGraphV2.Node(
+                    a, 1, route.downstream(), route.terminal()));
+        }
+        assertEquals(8, regions.size());
+        var joined = HydrologyMosaicJoinV2.merge(regions.values());
+        assertEquals(26, joined.size());
+        assertEquals(26, joined.stream().map(HydrologyFlowGraphV2.Node::address)
+            .distinct().count());
+        var solved = HydrologyFlowGraphV2.solve(joined);
+        assertEquals(26, solved.terminalOutflow().get(OUTLET), 1e-10);
+        assertTrue(solved.pendingOutflow().isEmpty());
+        assertEquals(25, HydrologyRiverIdentityV2.resolvedReaches(
+            joined, solved).size());
+        assertEquals(0, HydrologyConservationV2.verify(
+            joined, solved).residual(), 1e-10);
+        var reverse = new ArrayList<Collection<HydrologyFlowGraphV2.Node>>(
+            regions.values());
+        Collections.reverse(reverse);
+        assertEquals(joined, HydrologyMosaicJoinV2.merge(reverse));
+    }
+
 }
