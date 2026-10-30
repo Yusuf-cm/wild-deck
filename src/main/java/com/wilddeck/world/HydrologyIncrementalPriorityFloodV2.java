@@ -47,6 +47,38 @@ public final class HydrologyIncrementalPriorityFloodV2 {
             settled = Collections.unmodifiableMap(copy);
         }
 
+        /**
+         * Attach ONLY globally owned local water to settled routes. Duplicate
+         * shared vertices, seam aliases and unknown/unsettled sources are
+         * rejected instead of double-counted or silently discarded.
+         *
+         * A partial snapshot is not a complete catchment budget: water from
+         * undiscovered terrain and future cross-region receipts is absent.
+         */
+        public List<HydrologyFlowGraphV2.Node> ownedRoutes(
+                Collection<HydrologyGlobalSlopeRouterV2.Source> ownedSources) {
+            Objects.requireNonNull(ownedSources);
+            var water = new TreeMap<GlobalHydrologyAddressV2.Sample, Double>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            for (var source : ownedSources) {
+                Objects.requireNonNull(source);
+                var address = source.address();
+                if (!HydrologySphericalTopologyV2.isCanonical(address) ||
+                    !settled.containsKey(address))
+                    throw new IllegalArgumentException("Unsettled or noncanonical water source");
+                if (water.putIfAbsent(address, source.localWater()) != null)
+                    throw new IllegalArgumentException("Duplicate owned water vertex");
+            }
+            var nodes = new ArrayList<HydrologyFlowGraphV2.Node>();
+            for (var entry : settled.entrySet()) {
+                var route = entry.getValue();
+                nodes.add(new HydrologyFlowGraphV2.Node(
+                    entry.getKey(), water.getOrDefault(entry.getKey(), 0.0),
+                    route.downstream(), route.downstream() == null));
+            }
+            return List.copyOf(nodes);
+        }
+
         /** Zero-water topology only. Caller owns rainfall and receipt budgets. */
         public List<HydrologyFlowGraphV2.Node> knownRoutes() {
             var nodes = new ArrayList<HydrologyFlowGraphV2.Node>();
