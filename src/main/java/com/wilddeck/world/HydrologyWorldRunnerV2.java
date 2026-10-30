@@ -265,6 +265,33 @@ public final class HydrologyWorldRunnerV2 {
             previous,audit,inbox.snapshot());
     }
 
+    /**
+     * Opt-in receipt-only transition for a quiesced, single-writer, lake-free
+     * world. The existing world payload must already be explicitly bound to
+     * the old drainage topology using HydrologyDrainageActivationV2.bind().
+     * No new rainfall or other reservoirs may be advanced in this epoch.
+     * Reopeners must supply and verify the matching atlas independently.
+     */
+    public synchronized HydrologyDrainageActivationV2.Committed
+            activateReceiptOnlyDrainage(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit)
+            throws IOException {
+        var committed=HydrologyDrainageActivationV2.commit(
+            checkpointPath,Math.addExact(last.epoch(),1),last,inbox,previous,audit);
+        last=committed.checkpoint();
+        inbox=committed.inbox();
+        return committed;
+    }
+
+    /** Fail closed if the caller loaded a drainage atlas unlike the checkpoint. */
+    public synchronized void verifyBoundDrainage(
+            HydrologySphericalRouteAtlasV2 atlas) {
+        var bound=HydrologyDrainageActivationV2.decode(last.worldState());
+        if(!bound.topology().equals(HydrologyDrainageSnapshotIdV2.of(atlas)))
+            throw new IllegalArgumentException("Atlas does not match durable drainage topology");
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
