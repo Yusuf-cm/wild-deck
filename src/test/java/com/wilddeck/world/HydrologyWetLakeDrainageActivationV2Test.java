@@ -37,7 +37,7 @@ class HydrologyWetLakeDrainageActivationV2Test {
             old,planet(),terrain(pit),Set.of(OUT));
     }
     private static String bound(HydrologySphericalRouteAtlasV2 old,double volume) {
-        return HydrologyDrainageActivationV2.bind(old,
+        return HydrologyWetLakeDrainageActivationV2.bind(old,plan(-5),
             HydrologyLakeStateV2.encode(new HydrologyLakeStateV2.State(
                 "world",Map.of(PIT,volume))));
     }
@@ -74,9 +74,12 @@ class HydrologyWetLakeDrainageActivationV2Test {
         assertEquals(0,committed.lakeFlow().budget().residual(),1e-6);
         assertEquals(7,committed.landings().pendingVolume(),1e-12);
         assertEquals(0,runner.receiptBudget().pendingVolume(),0);
-        runner.verifyBoundDrainage(audit(old,-4).rebuilt());
+        runner.verifyBoundWetLakeDrainage(audit(old,-4).rebuilt(),newPlan);
+        assertThrows(IllegalArgumentException.class,()->
+            runner.verifyBoundWetLakeDrainage(audit(old,-4).rebuilt(),oldPlan));
         var restored=HydrologyWorldRunnerV2.open(file,0,"ignored");
         assertEquals(1,restored.epoch());
+        restored.verifyBoundWetLakeDrainage(audit(old,-4).rebuilt(),newPlan);
         assertEquals(0,restored.receiptBudget().pendingVolume(),0);
         var state=HydrologyDrainageActivationV2.decode(restored.worldState());
         assertEquals(newCapacity,HydrologyLakeStateV2.decode(
@@ -174,6 +177,24 @@ class HydrologyWetLakeDrainageActivationV2Test {
         assertEquals(before,restored.worldState());
         assertEquals(0,restored.epoch());
         assertEquals(4,restored.receiptBudget().pendingVolume(),0);
+    }
+
+    @Test void unboundWetCheckpointAndMismatchedOldGeometryReject(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var file=dir.resolve("legacy.chk");
+        var legacy=HydrologyDrainageActivationV2.bind(old,
+            HydrologyLakeStateV2.encode(
+                new HydrologyLakeStateV2.State("world",Map.of(PIT,5.0))));
+        var runner=HydrologyWorldRunnerV2.open(file,0,legacy);
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateWetLakeDrainage(old,audit(old,-4),plan(-5),plan(-4)));
+        assertEquals(legacy,HydrologyWorldRunnerV2.open(file,0,"ignored").worldState());
+        var boundFile=dir.resolve("geometry.chk");
+        var boundRunner=HydrologyWorldRunnerV2.open(boundFile,0,bound(old,5));
+        assertThrows(IllegalArgumentException.class,()->
+            boundRunner.activateWetLakeDrainage(old,audit(old,-4),plan(-4),plan(-4)));
+        assertEquals(0,boundRunner.epoch());
     }
 
     @Test void rejectsForgedLakeRoutesAndSeasonalPayload(@TempDir Path dir)
