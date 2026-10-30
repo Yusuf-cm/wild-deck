@@ -91,6 +91,48 @@ class HydrologyLakeFrontierEpochV2Test {
             .volumes().values().stream().mapToDouble(Double::doubleValue).sum(),1e-9);
     }
 
+
+    @Test void twelveUnloadedSeasonsAccumulateDistinctReceiptsWithoutWaterLoss()
+            throws IOException {
+        var source=at(4,3);
+        var destination=at(5,3);
+        var path=directory.resolve("twelve-seasons.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,initial());
+        for(int season=0;season<12;season++) {
+            if(season%3==0)
+                runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+            var result=HydrologyLakeEpochV2.advanceWithFrontier(
+                runner,"season-"+season,List.of(
+                    new HydrologyFlowGraphV2.Node(source,0,destination,false)),
+                List.of(lake(source,destination)),4);
+            assertEquals(1,result.routed().queuedTransfers());
+            assertEquals(season+1,runner.epoch());
+        }
+        // 12 seasons * 30 units precipitation: 20 in lake storage,
+        // 10 from the first spill and 30 from each subsequent spill.
+        assertEquals(12,runner.inboxSnapshot().receipts().size());
+        assertEquals(340,runner.receiptBudget().pendingVolume(),1e-7);
+        assertEquals(20,HydrologyLakeStateV2.decode(runner.worldState())
+            .volumes().get(source),1e-7);
+        var recovered=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var outlet=List.of(List.of(
+            new HydrologyFlowGraphV2.Node(destination,2,null,true)));
+        var delivered=recovered.advanceAndQueueKnownFrontier(
+            recovered.worldState(),outlet);
+        assertEquals(342,delivered.committed().flow()
+            .terminalOutflow().get(destination),1e-7);
+        assertEquals(340,recovered.receiptBudget().deliveredVolume(),1e-7);
+        assertEquals(0,recovered.receiptBudget().pendingVolume(),1e-7);
+        // Conservation over the 12 parked seasons plus this outlet epoch:
+        // 360 + 2 = 20 stored + 342 discharged.
+        assertEquals(362,20+delivered.committed().flow()
+            .terminalOutflow().get(destination),1e-7);
+        var again=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(2,again.advanceAndQueueKnownFrontier(
+            again.worldState(),outlet).committed().flow()
+            .terminalOutflow().get(destination),1e-7);
+    }
+
     @Test void unverifiedOrSharedSpillEdgeFailsWithoutCheckpointMutation()
             throws IOException {
         var source=at(4,3);
