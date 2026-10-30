@@ -73,6 +73,34 @@ public final class HydrologySphericalRouteAtlasV2 {
         return node;
     }
 
+    /**
+     * Reuse verified global topology for a new seasonal water epoch. Exactly
+     * one volume per canonical sample is required, so rainfall is never
+     * duplicated or silently omitted at shared tile vertices. This does not
+     * refresh routing after erosion or a changed ocean/shoreline mask.
+     */
+    public List<HydrologyFlowGraphV2.Node> withLocalWater(
+            Collection<HydrologyGlobalSlopeRouterV2.Source> seasonalSources) {
+        Objects.requireNonNull(seasonalSources);
+        var water=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for(var source:seasonalSources) {
+            Objects.requireNonNull(source);
+            if(!byAddress.containsKey(source.address()) ||
+               water.putIfAbsent(source.address(),source.localWater())!=null)
+                throw new IllegalArgumentException("Unknown or duplicate seasonal source");
+        }
+        if(!water.keySet().equals(byAddress.keySet()))
+            throw new IllegalArgumentException("Missing seasonal source owner");
+        var updated=new ArrayList<HydrologyFlowGraphV2.Node>();
+        for(var node:routes)
+            updated.add(new HydrologyFlowGraphV2.Node(node.address(),
+                water.get(node.address()),node.downstream(),node.terminal()));
+        var result=List.copyOf(updated);
+        HydrologyConservationV2.verify(result,HydrologyFlowGraphV2.solve(result));
+        return result;
+    }
+
     /** Deterministic, disjoint ownership matching spherical region providers. */
     public List<HydrologyFlowGraphV2.Node> ownedRegion(
             HydrologyRegionSchedulerV2.Region region) {
