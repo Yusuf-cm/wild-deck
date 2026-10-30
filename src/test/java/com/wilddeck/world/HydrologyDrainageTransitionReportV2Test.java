@@ -90,4 +90,36 @@ class HydrologyDrainageTransitionReportV2Test {
         assertEquals(13,HydrologyWorldRunnerV2.open(checkpoint,0,"ignored")
             .receiptBudget().pendingVolume(),1e-12);
     }
+
+    @Test void confluenceReceiptsAreCountedOnceRegardlessOfArrivalOrder() {
+        var previous=atlas();
+        var confluence=previous.routes().stream()
+            .filter(n->n.downstream()!=null)
+            .collect(java.util.stream.Collectors.groupingBy(
+                HydrologyFlowGraphV2.Node::downstream))
+            .values().stream().filter(group->group.size()>=2)
+            .findFirst().orElseThrow();
+        var first=new HydrologyTransferLedgerV2.Key(
+            1,confluence.get(0).address(),confluence.get(0).downstream());
+        var second=new HydrologyTransferLedgerV2.Key(
+            1,confluence.get(1).address(),confluence.get(1).downstream());
+        var forward=new HydrologyEpochInboxV2();
+        assertTrue(forward.receive(first,3));
+        assertFalse(forward.receive(first,3));
+        assertTrue(forward.receive(second,5));
+        var reversed=new HydrologyEpochInboxV2();
+        reversed.receive(second,5);
+        reversed.receive(first,3);
+        var audit=audit(previous,false);
+        var a=HydrologyDrainageTransitionReportV2.inspect(
+            previous,audit,forward.snapshot());
+        var b=HydrologyDrainageTransitionReportV2.inspect(
+            previous,audit,reversed.snapshot());
+        assertEquals(a.reusable(),b.reusable());
+        assertEquals(2,a.reusable().size());
+        assertEquals(8,a.reusableVolume(),1e-12);
+        assertEquals(a.reusableVolume(),b.reusableVolume(),1e-12);
+        assertEquals(8,HydrologyReceiptBudgetV2.summarize(
+            forward.snapshot()).pendingVolume(),1e-12);
+    }
 }
