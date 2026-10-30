@@ -2,6 +2,8 @@ package com.wilddeck.world;
 
 import org.junit.jupiter.api.Test;
 import java.util.*;
+import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HydrologyDrainageTransitionGateV2Test {
@@ -118,5 +120,23 @@ class HydrologyDrainageTransitionGateV2Test {
         assertEquals(4,result.pendingVolume(),1e-12);
         assertEquals(4,HydrologyReceiptBudgetV2.summarize(inbox.snapshot())
             .totalVolume(),1e-12);
+    }
+
+    @Test void checkpointRestartPreservesTransitionRejectionAndPendingWater(
+            @TempDir Path directory) throws Exception {
+        var previous=original();
+        var file=directory.resolve("hydrology.checkpoint");
+        var runner=HydrologyWorldRunnerV2.open(file,0,"original-world");
+        var key=receipt(previous);
+        assertTrue(runner.receive(key,11));
+        var reopened=HydrologyWorldRunnerV2.open(file,0,"ignored-on-restart");
+        assertEquals(0,reopened.epoch());
+        assertEquals(11,reopened.receiptBudget().pendingVolume(),1e-12);
+        assertEquals(1,reopened.verifyDrainageTransition(
+            previous,audit(previous,false)).pendingReceipts());
+        assertThrows(IllegalArgumentException.class,()->
+            reopened.verifyDrainageTransition(previous,audit(previous,true)));
+        assertEquals(11,reopened.receiptBudget().pendingVolume(),1e-12);
+        assertEquals("original-world",reopened.worldState());
     }
 }
