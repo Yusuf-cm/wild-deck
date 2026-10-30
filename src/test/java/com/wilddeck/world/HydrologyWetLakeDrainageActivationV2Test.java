@@ -310,4 +310,69 @@ class HydrologyWetLakeDrainageActivationV2Test {
                 .lakeState()).volumes().get(PIT),0);
     }
 
+    @Test void seasonalSnowSoilStorageSurvivesDisappearingLakeAndReceipt(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var snow=new HydrologySnowSoilStateV2.State("world",
+            Map.of(PIT,new HydrologySnowSoilStateV2.Cell(2,3)));
+        var seasonal=HydrologyLakeStateV2.encode(
+            new HydrologyLakeStateV2.State(
+                HydrologySnowSoilStateV2.encode(snow),Map.of(PIT,5.0)));
+        var file=dir.resolve("seasonal-displacement.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,
+            HydrologyWetLakeDrainageActivationV2.bind(old,plan(-5),seasonal));
+        var key=receipt(old,1);
+        assertTrue(runner.receive(key,9));
+        var result=runner.activateSeasonalDisplacedWetLakeDrainage(
+            old,audit(old,10),plan(-5),plan(10));
+        assertEquals(1,runner.epoch());
+        assertEquals(5,result.remap().released(),1e-8);
+        assertEquals(14,result.lakeFlow().budget().terminalOutflow(),1e-7);
+        assertEquals(0,result.lakeFlow().budget().finalStorage(),0);
+        assertEquals(0,runner.receiptBudget().pendingVolume(),0);
+        var recovered=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        recovered.verifyBoundWetLakeDrainage(audit(old,10).rebuilt(),plan(10));
+        var bound=HydrologyDrainageActivationV2.decode(recovered.worldState());
+        var lake=HydrologyLakeStateV2.decode(bound.lakeState());
+        assertEquals(HydrologySnowSoilStateV2.encode(snow),lake.world());
+        assertEquals(snow.cells(),HydrologySnowSoilStateV2.decode(
+            lake.world()).cells());
+        assertTrue(recovered.inboxSnapshot().delivered().contains(key));
+        assertEquals(0,recovered.receiptBudget().pendingVolume(),0);
+    }
+
+    @Test void seasonalTransitionRejectsForeignStoredCellWithoutConsumingWater(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var foreign=new GlobalHydrologyAddressV2.Sample(2,2,1,1);
+        var snow=new HydrologySnowSoilStateV2.State("world",
+            Map.of(foreign,new HydrologySnowSoilStateV2.Cell(2,3)));
+        var nested=HydrologyLakeStateV2.encode(
+            new HydrologyLakeStateV2.State(
+                HydrologySnowSoilStateV2.encode(snow),Map.of(PIT,5.0)));
+        var file=dir.resolve("seasonal-foreign.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,
+            HydrologyWetLakeDrainageActivationV2.bind(old,plan(-5),nested));
+        runner.receive(receipt(old,1),7);
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateSeasonalDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        var recovered=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(0,recovered.epoch());
+        assertEquals(7,recovered.receiptBudget().pendingVolume(),0);
+        assertEquals(nested,HydrologyDrainageActivationV2.decode(
+            recovered.worldState()).lakeState());
+    }
+
+    @Test void seasonalTransitionRejectsNonseasonalPayload(@TempDir Path dir)
+            throws Exception {
+        var old=atlas(-5);
+        var file=dir.resolve("seasonal-optin.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        assertThrows(IllegalArgumentException.class,()->
+            runner.activateSeasonalDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        assertEquals(0,HydrologyWorldRunnerV2.open(file,0,"ignored").epoch());
+    }
+
 }
