@@ -57,7 +57,7 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             HydrologySphericalLakeBasinsV2.Plan oldLakes,
             HydrologySphericalLakeBasinsV2.Plan newLakes) throws IOException {
         return commitInternal(checkpointPath,nextEpoch,current,inbox,
-            previous,audit,oldLakes,newLakes,false);
+            previous,audit,oldLakes,newLakes,false,false);
     }
 
     /**
@@ -75,7 +75,25 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             HydrologySphericalLakeBasinsV2.Plan oldLakes,
             HydrologySphericalLakeBasinsV2.Plan newLakes) throws IOException {
         return commitInternal(checkpointPath,nextEpoch,current,inbox,
-            previous,audit,oldLakes,newLakes,true);
+            previous,audit,oldLakes,newLakes,true,false);
+    }
+
+    /**
+     * Opt-in quiescent seasonal reservoir transition. Snow and soil depths
+     * remain at their canonical geographic cells while lake volumes and
+     * pending river receipts are conservatively remapped. No rainfall, melt,
+     * infiltration or evaporation occurs during this transition. The caller
+     * must preserve planetary radius, sampling resolution and cell ownership.
+     */
+    public static Committed commitSeasonalDisplaced(Path checkpointPath,long nextEpoch,
+            HydrologyCheckpointV2.Checkpoint current,
+            HydrologyEpochInboxV2 inbox,
+            HydrologySphericalRouteAtlasV2 previous,
+            HydrologySphericalAtlasRebuildAuditV2.Result audit,
+            HydrologySphericalLakeBasinsV2.Plan oldLakes,
+            HydrologySphericalLakeBasinsV2.Plan newLakes) throws IOException {
+        return commitInternal(checkpointPath,nextEpoch,current,inbox,
+            previous,audit,oldLakes,newLakes,true,true);
     }
 
     private static Committed commitInternal(Path checkpointPath,long nextEpoch,
@@ -85,7 +103,7 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             HydrologySphericalAtlasRebuildAuditV2.Result audit,
             HydrologySphericalLakeBasinsV2.Plan oldLakes,
             HydrologySphericalLakeBasinsV2.Plan newLakes,
-            boolean allowDisplacement) throws IOException {
+            boolean allowDisplacement,boolean allowSeasonal) throws IOException {
         Objects.requireNonNull(checkpointPath);
         Objects.requireNonNull(current);
         Objects.requireNonNull(inbox);
@@ -102,8 +120,23 @@ public final class HydrologyWetLakeDrainageActivationV2 {
            !bound.topology().equals(audit.previousTopology()))
             throw new IllegalArgumentException("Stale drainage topology");
         var oldState=HydrologyLakeStateV2.decode(bound.lakeState());
-        if(oldState.world().startsWith("WD-SNOW-SOIL-1\n"))
-            throw new IllegalArgumentException("Seasonal reservoirs require separate reconciliation");
+        boolean seasonal=oldState.world().startsWith("WD-SNOW-SOIL-1\\n");
+        if(seasonal!=allowSeasonal)
+            throw new IllegalArgumentException(
+                "Seasonal reservoir transition requires matching explicit opt-in");
+        if(seasonal) {
+            // Snow/soil are stored as depths, not volumes. Carry them forward
+            // only when canonical ownership is identical and every stored
+            // cell remains present in the rebuilt closed drainage graph.
+            var snow=HydrologySnowSoilStateV2.decode(oldState.world());
+            var before=new HashSet<GlobalHydrologyAddressV2.Sample>();
+            var after=new HashSet<GlobalHydrologyAddressV2.Sample>();
+            for(var node:previous.routes())before.add(node.address());
+            for(var node:audit.rebuilt().routes())after.add(node.address());
+            if(!before.equals(after)||!before.containsAll(snow.cells().keySet()))
+                throw new IllegalArgumentException(
+                    "Seasonal storage requires unchanged canonical cell ownership");
+        }
         if(!HydrologyLakePlanSnapshotIdV2.of(oldLakes).equals(bound.lakePlan()))
             throw new IllegalArgumentException("Stale lake geometry checkpoint");
         verifyRoutes(oldLakes,previous);
