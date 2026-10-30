@@ -279,4 +279,35 @@ class HydrologyWetLakeDrainageActivationV2Test {
             dir.resolve("seasonal-exposed.chk"),0,"ignored").worldState());
     }
 
+    @Test void displacedActivationRejectsForgedReceiptAndStaleWriter(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var good=receipt(old,1);
+        var forgedDestination=HydrologySphericalTopologyV2.neighbors(good.from())
+            .stream().filter(n->!n.equals(good.to())).findFirst().orElseThrow();
+        var forgedFile=dir.resolve("exposed-forged.chk");
+        var forged=HydrologyWorldRunnerV2.open(forgedFile,0,bound(old,5));
+        forged.receive(new HydrologyTransferLedgerV2.Key(
+            1,good.from(),forgedDestination),4);
+        assertThrows(IllegalArgumentException.class,()->
+            forged.activateDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        assertEquals(4,HydrologyWorldRunnerV2.open(forgedFile,0,"ignored")
+            .receiptBudget().pendingVolume(),0);
+
+        var file=dir.resolve("exposed-stale.chk");
+        var stale=HydrologyWorldRunnerV2.open(file,0,bound(old,5));
+        var writer=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        writer.receive(good,6);
+        assertThrows(java.io.IOException.class,()->
+            stale.activateDisplacedWetLakeDrainage(
+                old,audit(old,10),plan(-5),plan(10)));
+        var recovered=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(0,recovered.epoch());
+        assertEquals(6,recovered.receiptBudget().pendingVolume(),0);
+        assertEquals(5,HydrologyLakeStateV2.decode(
+            HydrologyDrainageActivationV2.decode(recovered.worldState())
+                .lakeState()).volumes().get(PIT),0);
+    }
+
 }
