@@ -64,6 +64,39 @@ class HydrologySphericalRouteAtlasV2Test {
         assertTrue(atlas.catchments().containsKey(pit));
     }
 
+    @Test void seasonalRunoffChangesVolumesWithoutChangingGlobalRiverIdentity() {
+        var outlet=at(0,2);
+        var atlas=HydrologySphericalRouteAtlasV2.compile(
+            planet(),a->a.equals(outlet)?0:10,Set.of(outlet));
+        var seasonal=new ArrayList<HydrologyGlobalSlopeRouterV2.Source>();
+        for(var source:planet()) {
+            var address=source.address();
+            double water=address.equals(at(7,2))?7:
+                address.equals(at(0,0))?2:0;
+            seasonal.add(new HydrologyGlobalSlopeRouterV2.Source(address,water));
+        }
+        var updated=atlas.withLocalWater(seasonal);
+        var solved=HydrologyFlowGraphV2.solve(updated);
+        assertEquals(9,solved.terminalOutflow().get(outlet),1e-10);
+        assertEquals(0,HydrologyConservationV2.verify(updated,solved).residual(),1e-10);
+        assertEquals(atlas.catchments(),HydrologyRiverIdentityV2.catchments(solved));
+        for(int i=0;i<updated.size();i++) {
+            assertEquals(atlas.routes().get(i).address(),updated.get(i).address());
+            assertEquals(atlas.routes().get(i).downstream(),updated.get(i).downstream());
+        }
+        Collections.reverse(seasonal);
+        assertEquals(updated,atlas.withLocalWater(seasonal));
+        var missing=new ArrayList<>(seasonal);
+        missing.remove(0);
+        assertThrows(IllegalArgumentException.class,()->atlas.withLocalWater(missing));
+        var duplicate=new ArrayList<>(seasonal);
+        duplicate.add(seasonal.get(0));
+        assertThrows(IllegalArgumentException.class,()->atlas.withLocalWater(duplicate));
+        var foreign=new ArrayList<>(seasonal);
+        foreign.set(0,new HydrologyGlobalSlopeRouterV2.Source(at(8,2),1));
+        assertThrows(IllegalArgumentException.class,()->atlas.withLocalWater(foreign));
+    }
+
     @Test void partitionRejectsDuplicatesMissingAndModifiedRoutes() {
         var outlet=at(0,2);
         var atlas=HydrologySphericalRouteAtlasV2.compile(
