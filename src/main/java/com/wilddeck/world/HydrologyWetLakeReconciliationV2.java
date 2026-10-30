@@ -23,6 +23,29 @@ public final class HydrologyWetLakeReconciliationV2 {
             HydrologyLakeStateV2.State previous,
             HydrologySphericalLakeBasinsV2.Plan oldPlan,
             HydrologySphericalLakeBasinsV2.Plan newPlan) {
+        return reconcileInternal(previous,oldPlan,newPlan,false);
+    }
+
+    /**
+     * Opt-in instantaneous surface displacement for old wet columns whose
+     * cells no longer belong to a new lake. Their volumes are returned in
+     * overflow keyed by their ORIGINAL canonical surface vertices, not by an
+     * invented spill target. The caller MUST inject those volumes exactly once
+     * into a complete, verified NEW drainage network and checkpoint atomically.
+     * This is not time-resolved overland flow or a partial-window solver.
+     */
+    public static HydrologyLakeGeometryTransitionV2.Result reconcileDisplaced(
+            HydrologyLakeStateV2.State previous,
+            HydrologySphericalLakeBasinsV2.Plan oldPlan,
+            HydrologySphericalLakeBasinsV2.Plan newPlan) {
+        return reconcileInternal(previous,oldPlan,newPlan,true);
+    }
+
+    private static HydrologyLakeGeometryTransitionV2.Result reconcileInternal(
+            HydrologyLakeStateV2.State previous,
+            HydrologySphericalLakeBasinsV2.Plan oldPlan,
+            HydrologySphericalLakeBasinsV2.Plan newPlan,
+            boolean allowDisplacement) {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(oldPlan);
         Objects.requireNonNull(newPlan);
@@ -37,6 +60,8 @@ public final class HydrologyWetLakeReconciliationV2 {
                 throw new IllegalArgumentException("Mixed lake sampling resolution");
         }
         var inflow=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        var displaced=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         double initial=0;
         for(var entry:previous.volumes().entrySet()) {
@@ -70,17 +95,24 @@ public final class HydrologyWetLakeReconciliationV2 {
                     throw new IllegalArgumentException("Unstable wet lake redistribution");
                 allocated=add(allocated,portion);
                 var owner=newOwners.get(old.cells().get(i));
-                if(owner==null)
-                    throw new IllegalArgumentException(
-                        "Wet lake cell disappeared without a verified surface route");
-                inflow.merge(owner,portion,HydrologyWetLakeReconciliationV2::add);
+                if(owner==null) {
+                    if(!allowDisplacement)
+                        throw new IllegalArgumentException(
+                            "Wet lake cell disappeared without a verified surface route");
+                    displaced.merge(old.cells().get(i),portion,
+                        HydrologyWetLakeReconciliationV2::add);
+                } else {
+                    inflow.merge(owner,portion,HydrologyWetLakeReconciliationV2::add);
+                }
             }
         }
         var stored=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         var overflow=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
+        overflow.putAll(displaced);
         double finalStorage=0,released=0;
+        for(double volume:displaced.values())released=add(released,volume);
         for(var entry:newLakes.entrySet()) {
             var lake=entry.getValue();
             double water=inflow.getOrDefault(entry.getKey(),0.0);
