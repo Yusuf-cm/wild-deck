@@ -167,4 +167,46 @@ class HydrologyLakeNetworkStepV2Test {
                 dryForcing()));
     }
 
+
+    @Test void polarAndDatelineLakesConvergeWithoutDuplicatingSharedVertices() {
+        var pole=at(0,0);
+        var seam=at(7,1);
+        var join=at(0,1);
+        var outlet=at(0,2);
+        var routes=new ArrayList<HydrologyFlowGraphV2.Node>();
+        routes.add(new HydrologyFlowGraphV2.Node(pole,9,join,false));
+        routes.add(new HydrologyFlowGraphV2.Node(seam,8,join,false));
+        routes.add(new HydrologyFlowGraphV2.Node(join,2,outlet,false));
+        routes.add(new HydrologyFlowGraphV2.Node(outlet,1,null,true));
+        for(long y=0;y<=4;y++) {
+            long count=y==0||y==4?1:8;
+            for(long x=0;x<count;x++) {
+                var address=at(x,y);
+                if(!Set.of(pole,seam,join,outlet).contains(address))
+                    routes.add(new HydrologyFlowGraphV2.Node(
+                        address,0,null,true));
+            }
+        }
+        assertEquals(26,routes.size());
+        assertTrue(HydrologySphericalTopologyV2.adjacent(pole,join));
+        assertTrue(HydrologySphericalTopologyV2.adjacent(seam,join));
+        var basin=new LakeReservoirV2.Basin(
+            new double[]{0},new double[]{1},5);
+        var plan=new HydrologySphericalLakeBasinsV2.Plan(routes,List.of(
+            new HydrologySphericalLakeBasinsV2.Lake(
+                pole,List.of(pole),join,outlet,basin),
+            new HydrologySphericalLakeBasinsV2.Lake(
+                seam,List.of(seam),join,outlet,basin)));
+        var result=HydrologyLakeNetworkStepV2.step(plan,
+            new HydrologyLakeStateV2.State("planet",Map.of()),
+            Map.of(pole,new HydrologyLakeNetworkStepV2.Forcing(0,0,2),
+                   seam,new HydrologyLakeNetworkStepV2.Forcing(0,0,2)));
+        assertEquals(4,result.lakeOverflow().get(pole),1e-10);
+        assertEquals(3,result.lakeOverflow().get(seam),1e-10);
+        assertEquals(10,result.terminalOutflow().get(outlet),1e-10);
+        assertEquals(10,result.budget().finalStorage(),1e-10);
+        assertEquals(20,result.budget().sourceWater(),1e-10);
+        assertEquals(0,result.budget().residual(),1e-10);
+    }
+
 }
