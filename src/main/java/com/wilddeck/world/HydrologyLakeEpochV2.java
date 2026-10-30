@@ -44,6 +44,70 @@ public final class HydrologyLakeEpochV2 {
         }
     }
 
+
+    /**
+     * A caller-verified lake spill edge. The outlet source must be a loaded
+     * river vertex whose downstream edge points to spillTo. spillTo may be
+     * unloaded; its discharge is then queued durably for a later epoch.
+     * This record does not discover lake geometry or ocean outlets.
+     */
+    public record FrontierPeriod(GlobalHydrologyAddressV2.Sample anchor,
+                                 GlobalHydrologyAddressV2.Sample spillFrom,
+                                 GlobalHydrologyAddressV2.Sample spillTo,
+                                 LakeReservoirV2.Basin basin,
+                                 double contributingArea,
+                                 SeasonalLakeCycleV2.Period period) {
+        public FrontierPeriod {
+            Objects.requireNonNull(anchor);
+            Objects.requireNonNull(spillFrom);
+            Objects.requireNonNull(spillTo);
+            Objects.requireNonNull(basin);
+            Objects.requireNonNull(period);
+            if(anchor.level()!=spillFrom.level() ||
+               anchor.divisions()!=spillFrom.divisions() ||
+               !HydrologySphericalTopologyV2.adjacent(spillFrom,spillTo) ||
+               !Double.isFinite(contributingArea) || contributingArea<0)
+                throw new IllegalArgumentException("Invalid verified lake spill edge");
+        }
+    }
+
+    /**
+     * Persist lake storage and queue overflow across a verified, potentially
+     * unloaded river edge in the SAME checkpoint. A retry or restart must not
+     * inject the same spill twice. The graph's localWater must exclude the
+     * lake catchment runoff already supplied by each seasonal period.
+     *
+     * Different lakes must use distinct spill-source vertices; otherwise a
+     * single frontier receipt could silently conflate their identities.
+     */
+    public static Advanced advanceWithFrontier(HydrologyWorldRunnerV2 runner,
+            String nextWorld,Collection<HydrologyFlowGraphV2.Node> loaded,
+            Collection<FrontierPeriod> periods,int substeps) throws IOException {
+        Objects.requireNonNull(runner);
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(loaded);
+        Objects.requireNonNull(periods);
+        var nodes=new HashMap<GlobalHydrologyAddressV2.Sample,HydrologyFlowGraphV2.Node>();
+        for(var node:loaded) {
+            Objects.requireNonNull(node);
+            if(nodes.putIfAbsent(node.address(),node)!=null)
+                throw new IllegalArgumentException("Duplicate spill graph vertex");
+        }
+        var sources=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        var translated=new ArrayList<LakePeriod>();
+        for(var period:periods) {
+            Objects.requireNonNull(period);
+            var source=nodes.get(period.spillFrom());
+            if(source==null || source.terminal() ||
+               !period.spillTo().equals(source.downstream()) ||
+               !sources.add(period.spillFrom()))
+                throw new IllegalArgumentException("Unverified or shared lake spill edge");
+            translated.add(new LakePeriod(period.anchor(),period.spillFrom(),
+                period.basin(),period.contributingArea(),period.period()));
+        }
+        return advance(runner,nextWorld,loaded,translated,substeps);
+    }
+
     public static Advanced advance(HydrologyWorldRunnerV2 runner,String nextWorld,
             Collection<HydrologyFlowGraphV2.Node> loaded,
             Collection<LakePeriod> periods,int substeps) throws IOException {
