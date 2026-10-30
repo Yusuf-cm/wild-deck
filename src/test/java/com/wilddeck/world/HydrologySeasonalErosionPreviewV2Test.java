@@ -86,6 +86,78 @@ class HydrologySeasonalErosionPreviewV2Test {
                 capacity(),Set.of(24)));
     }
 
+    @Test void checkedForcingPreviewReplaysTheSameSeasonAndSediment() {
+        var addresses=window();
+        var weather=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+                                      HydrologySnowSoilStateV2.Forcing>();
+        for(var address:addresses)
+            weather.put(address,HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address,RADIUS,2,5,0,0,1,10));
+        var stores=new HydrologySnowSoilStateV2.State("world",Map.of());
+        var terrain=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var expected=HydrologySnowSoilStateV2.advance(stores,weather);
+        var first=HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+            terrain,addresses,5,5,seed(),stores,weather,
+            RADIUS,2000,.1,.4,capacity(),Set.of(24));
+        assertEquals(expected,first.season());
+        assertEquals(preview(expected).terrain().state(),first.erosion().terrain().state());
+        assertEquals(expected.runoffVolume(),first.erosion().terminalVolume(),1e-6);
+        var reversed=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+                                       HydrologySnowSoilStateV2.Forcing>();
+        for(int i=addresses.size()-1;i>=0;i--)
+            reversed.put(addresses.get(i),weather.get(addresses.get(i)));
+        var replay=HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+            terrain,addresses,5,5,seed(),stores,reversed,
+            RADIUS,2000,.1,.4,capacity(),Set.of(24));
+        assertEquals(first.season(),replay.season());
+        assertEquals(first.erosion().terrain().state(),replay.erosion().terrain().state());
+    }
+
+    @Test void rejectsCrossWorldAndForgedSeasonalWaterBudget() {
+        var valid=season(window(),2);
+        var foreign=new HydrologySnowSoilStateV2.Step(
+            new HydrologySnowSoilStateV2.State("other-world",valid.state().cells()),
+            valid.runoff(),valid.initialVolume(),valid.precipitationVolume(),
+            valid.evaporationVolume(),valid.runoffVolume(),valid.storedVolume());
+        assertThrows(IllegalArgumentException.class,()->preview(foreign));
+        var forged=new HydrologySnowSoilStateV2.Step(
+            valid.state(),valid.runoff(),valid.initialVolume(),
+            valid.precipitationVolume()+100,valid.evaporationVolume(),
+            valid.runoffVolume(),valid.storedVolume());
+        assertThrows(IllegalArgumentException.class,()->preview(forged));
+        var invalid=new HydrologySnowSoilStateV2.Step(
+            valid.state(),valid.runoff(),valid.initialVolume(),
+            Double.NaN,valid.evaporationVolume(),
+            valid.runoffVolume(),valid.storedVolume());
+        assertThrows(IllegalArgumentException.class,()->preview(invalid));
+    }
+
+    @Test void checkedForcingRejectsRadiusDriftMissingCellsAndWrongWorld() {
+        var addresses=window();
+        var weather=new HashMap<GlobalHydrologyAddressV2.Sample,
+                                HydrologySnowSoilStateV2.Forcing>();
+        for(var address:addresses)
+            weather.put(address,HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address,RADIUS,2,5,0,0,1,10));
+        var stores=new HydrologySnowSoilStateV2.State("world",Map.of());
+        var terrain=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+                terrain,addresses,5,5,seed(),stores,weather,
+                RADIUS+1,2000,.1,.4,capacity(),Set.of(24)));
+        var missing=new HashMap<>(weather);
+        missing.remove(addresses.get(0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+                terrain,addresses,5,5,seed(),stores,missing,
+                RADIUS,2000,.1,.4,capacity(),Set.of(24)));
+        var foreign=new HydrologySnowSoilStateV2.State("foreign",Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+                terrain,addresses,5,5,seed(),foreign,weather,
+                RADIUS,2000,.1,.4,capacity(),Set.of(24)));
+    }
+
     @Test void drySeasonDoesNotInventWaterOrSediment() {
         var dry=preview(season(window(),0));
         assertEquals(0,dry.runoffVolume(),0);
