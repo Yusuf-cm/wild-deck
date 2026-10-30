@@ -206,6 +206,21 @@ public final class HydrologyWorldRunnerV2 {
             solved.lakeOverflow(),solved.evaporation(),solved.budget());
     }
 
+
+    /**
+     * Read-only preflight of parked cross-region water against a rebuilt
+     * drainage atlas. Safe across restart because the checkpointed inbox is
+     * the source of truth. Does NOT activate topology, migrate lake storage,
+     * or persist a new atlas version.
+     */
+    public synchronized HydrologyDrainageTransitionGateV2.Verified
+            verifyDrainageTransition(
+                HydrologySphericalRouteAtlasV2 previous,
+                HydrologySphericalAtlasRebuildAuditV2.Result audit) {
+        return HydrologyDrainageTransitionGateV2.verifyPending(
+            previous,audit,inbox.snapshot());
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
