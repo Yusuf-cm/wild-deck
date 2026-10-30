@@ -1025,9 +1025,14 @@ The passing workflows include Java/Maven tests, the world experiment, finite-res
 - `f20c2474a362bc0c7e4e4eb9f4782c78a7b337bd` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146742744 (replay checkpoint API).
 - `f0dd25a627deb841bfe0ca7878d07ef5bac8ec8b` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146766516 (atomic replay store).
 - `b190f6f2819cb0408f171d9d32aff141743987cd` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146792627 (replay/corruption/revision regression tests).
-- `2286f21d1cf7da7b8f9bcfaddd5adba62b71a596` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146840875 (check final conclusion).
-- `26287fca01830c2d4b14e26a8fb0fad5db237956` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146852915 (check final conclusion).
-- `5fab2f3b3e450bfc918d91f3f40d50ffbde87459` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146879379 (check final conclusion).
-- `1876bc9d0bdd796081c6e40f802b56a6fdc5691f` CI https://github.com/Yusuf-cm/wild-deck/actions/runs/41146889060 (check final conclusion).
+- `2286f21d1cf7da7b8f9bcfaddd5adba62b71a596` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146840875 (unique owned-water routing).
+- `26287fca01830c2d4b14e26a8fb0fad5db237956` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146852915 (cross-region owned-water conservation tests).
+- `5fab2f3b3e450bfc918d91f3f40d50ffbde87459` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146879379 (stale-runner guard).
+- `1876bc9d0bdd796081c6e40f802b56a6fdc5691f` **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146889060 (stale-runner recovery test).
 
 **Still unfinished (water NOT accepted as complete):** This is replay-based local durability, not an efficient persistent frontier queue, multi-writer CAS or terrain-oracle snapshot. It does not yet activate partial drainage in the live cross-region receipt scheduler. A complete planetary catchment budget still requires discovery of all owned source vertices. Mixed-LOD routing, atomic erosion/sediment/terrain/lake/snow/soil commits, persisted radius/area provenance, multi-spillway hydraulics, groundwater, calibrated climate, transient floods, large-world endurance, bounded receipt-history compaction and distributed persistence remain open. Continue hydrology before other world layers.
+
+
+### 2026-10-31 — Final replay checkpoint and owned-water CI acceptance
+
+All seven implementation/test commits above **PASSED** the repository's full Java CI, including Maven tests, world experiment, finite-resource replay, browser save verification, atlas export and real-browser verification. The initial documentation commit `f0bfb5b5fa867e28c9de75b8b9084cce81dcd9af` also **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146932043 . The new file store is replay-based and single-writer only; no production, other branch, PR or main modifications were made. This acceptance does not establish complete planetary hydrology or atomic erosion/terrain/water transitions.
