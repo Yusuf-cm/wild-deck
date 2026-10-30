@@ -45,6 +45,17 @@ public final class HydrologyDurableEpochV2 {
             HydrologyEpochInboxV2 inbox,
             Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics)
             throws IOException {
+        return commitAndQueueKnownFrontier(destination,epoch,serializedWorld,
+            inbox,mosaics,null);
+    }
+
+    /** Expected checkpoint is required for runner-backed stale-writer protection. */
+    public static Routed commitAndQueueKnownFrontier(
+            Path destination,long epoch,String serializedWorld,
+            HydrologyEpochInboxV2 inbox,
+            Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics,
+            HydrologyCheckpointV2.Checkpoint expected)
+            throws IOException {
         Objects.requireNonNull(destination);
         Objects.requireNonNull(serializedWorld);
         Objects.requireNonNull(inbox);
@@ -65,13 +76,23 @@ public final class HydrologyDurableEpochV2 {
             throw new IllegalStateException("Unresolved routes require durable parking before advance");
         int queued=dispatch.deliver(staged);
         var checkpoint=HydrologyCheckpointV2.capture(epoch,serializedWorld,staged);
-        HydrologyCheckpointStoreV2.save(destination,checkpoint);
+        if(expected==null)HydrologyCheckpointStoreV2.save(destination,checkpoint);
+        else HydrologyCheckpointStoreV2.saveNext(destination,expected,checkpoint);
         return new Routed(new Committed(result,staged,checkpoint),queued);
     }
 
     public static Committed commit(Path destination,long epoch,String serializedWorld,
             HydrologyEpochInboxV2 inbox,
             Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics)
+            throws IOException {
+        return commit(destination,epoch,serializedWorld,inbox,mosaics,null);
+    }
+
+    /** Expected checkpoint is required for runner-backed stale-writer protection. */
+    public static Committed commit(Path destination,long epoch,String serializedWorld,
+            HydrologyEpochInboxV2 inbox,
+            Collection<? extends Collection<HydrologyFlowGraphV2.Node>> mosaics,
+            HydrologyCheckpointV2.Checkpoint expected)
             throws IOException {
         Objects.requireNonNull(destination);
         Objects.requireNonNull(serializedWorld);
@@ -87,7 +108,8 @@ public final class HydrologyDurableEpochV2 {
         var result=HydrologyFlowGraphV2.solve(prepared);
         HydrologyConservationV2.verify(prepared,result);
         var checkpoint=HydrologyCheckpointV2.capture(epoch,serializedWorld,staged);
-        HydrologyCheckpointStoreV2.save(destination,checkpoint);
+        if(expected==null)HydrologyCheckpointStoreV2.save(destination,checkpoint);
+        else HydrologyCheckpointStoreV2.saveNext(destination,expected,checkpoint);
         return new Committed(result,staged,checkpoint);
     }
 }
