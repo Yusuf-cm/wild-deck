@@ -58,7 +58,8 @@ class HydrologyVerifiedLakeFrontierV2Test {
         var key=runner.inboxSnapshot().receipts().keySet().iterator().next();
         assertEquals(lake.spillTarget(),key.to());
         assertTrue(lake.cells().contains(key.from()));
-        assertEquals(1,key.epoch());
+        // A frontier export at epoch 1 is durably delivered in epoch 2.
+        assertEquals(2,key.epoch());
 
         var restarted=HydrologyWorldRunnerV2.open(
             directory.resolve("verified.chk"),0,"ignored");
