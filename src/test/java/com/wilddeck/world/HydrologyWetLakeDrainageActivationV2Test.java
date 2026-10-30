@@ -339,6 +339,25 @@ class HydrologyWetLakeDrainageActivationV2Test {
             lake.world()).cells());
         assertTrue(recovered.inboxSnapshot().delivered().contains(key));
         assertEquals(0,recovered.receiptBudget().pendingVolume(),0);
+        // The migrated snow/soil state must also be usable by the NEXT
+        // weather epoch, not merely preserved as an unreadable payload.
+        var advanced=HydrologySeasonalLakeNetworkV2.advanceBound(
+            recovered,"after",audit(old,10).rebuilt(),plan(10),
+            Map.of(PIT,new HydrologySnowSoilStateV2.Forcing(
+                1,10,0,3,1,0,1)),Map.of());
+        assertEquals(5,advanced.budget().initialSnowSoil(),1e-10);
+        assertEquals(1,advanced.budget().precipitation(),1e-10);
+        assertEquals(5,advanced.budget().finalSnowSoil(),1e-10);
+        assertEquals(1,advanced.budget().terminalDischarge(),1e-10);
+        assertEquals(0,advanced.budget().residual(),1e-10);
+        var resumed=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(2,resumed.epoch());
+        resumed.verifyBoundWetLakeDrainage(audit(old,10).rebuilt(),plan(10));
+        assertEquals("after",HydrologySnowSoilStateV2.decode(
+            HydrologyLakeStateV2.decode(
+                HydrologyDrainageActivationV2.decode(
+                    resumed.worldState()).lakeState()).world()).world());
+        assertEquals(0,resumed.receiptBudget().pendingVolume(),0);
     }
 
     @Test void seasonalTransitionRejectsForeignStoredCellWithoutConsumingWater(
