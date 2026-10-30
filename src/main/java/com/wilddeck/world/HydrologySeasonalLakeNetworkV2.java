@@ -48,13 +48,43 @@ public final class HydrologySeasonalLakeNetworkV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing)
             throws IOException {
+        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,null);
+    }
+
+    /**
+     * Resume seasonal forcing after a quiescent, geometry-bound drainage
+     * transition. Both authoritative atlas and lake plan are reverified;
+     * the durable topology/geometry identities remain bound across epochs.
+     */
+    public static Advanced advanceBound(HydrologyWorldRunnerV2 runner,
+            String nextWorld,
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing)
+            throws IOException {
+        Objects.requireNonNull(atlas);
+        Objects.requireNonNull(runner);
+        runner.verifyBoundWetLakeDrainage(atlas,plan);
+        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,atlas);
+    }
+
+    private static Advanced advanceInternal(HydrologyWorldRunnerV2 runner,
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing,
+            HydrologySphericalRouteAtlasV2 boundAtlas)
+            throws IOException {
         Objects.requireNonNull(runner);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(plan);
         Objects.requireNonNull(weather);
         Objects.requireNonNull(lakeForcing);
 
-        var previousLakes=HydrologyLakeStateV2.decode(runner.worldState());
+        var previousLakes=HydrologyLakeStateV2.decode(
+            boundAtlas==null ? runner.worldState() :
+            HydrologyDrainageActivationV2.decode(runner.worldState()).lakeState());
         var previousSnow=HydrologySnowSoilStateV2.decode(previousLakes.world());
         var nodes=new TreeMap<GlobalHydrologyAddressV2.Sample,HydrologyFlowGraphV2.Node>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
@@ -94,11 +124,17 @@ public final class HydrologySeasonalLakeNetworkV2 {
         // Validate the combined snow/soil + river + lake budget while
         // receipts and world state are still staged, not after disk commit.
         final Budget[] checked=new Budget[1];
-        var lakes=runner.advanceClosedSphericalLakeNetworkValidated(
-            HydrologySnowSoilStateV2.encode(nextSnow),
-            new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
-            lakeForcing,
-            result->checked[0]=verifyCombinedBudget(snow,result));
+        var runoffPlan=new HydrologySphericalLakeBasinsV2.Plan(
+            enriched,plan.lakes());
+        var validator=(java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result>)
+            result->checked[0]=verifyCombinedBudget(snow,result);
+        var lakes=boundAtlas==null ?
+            runner.advanceClosedSphericalLakeNetworkValidated(
+                HydrologySnowSoilStateV2.encode(nextSnow),
+                runoffPlan,lakeForcing,validator) :
+            runner.advanceBoundClosedSphericalLakeNetworkValidated(
+                HydrologySnowSoilStateV2.encode(nextSnow),
+                boundAtlas,runoffPlan,lakeForcing,validator);
         return new Advanced(snow,lakes,checked[0]);
     }
 
