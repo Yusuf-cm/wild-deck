@@ -394,4 +394,42 @@ class HydrologyWetLakeDrainageActivationV2Test {
         assertEquals(0,HydrologyWorldRunnerV2.open(file,0,"ignored").epoch());
     }
 
+    @Test void boundSeasonalAdvanceRejectsStaleWriterAndPreservesNewReceipt(
+            @TempDir Path dir) throws Exception {
+        var old=atlas(-5);
+        var rebuilt=audit(old,10);
+        var snow=new HydrologySnowSoilStateV2.State("world",
+            Map.of(PIT,new HydrologySnowSoilStateV2.Cell(2,3)));
+        var seasonal=HydrologyLakeStateV2.encode(
+            new HydrologyLakeStateV2.State(
+                HydrologySnowSoilStateV2.encode(snow),Map.of(PIT,5.0)));
+        var file=dir.resolve("bound-seasonal-stale.chk");
+        var runner=HydrologyWorldRunnerV2.open(file,0,
+            HydrologyWetLakeDrainageActivationV2.bind(
+                old,plan(-5),seasonal));
+        runner.activateSeasonalDisplacedWetLakeDrainage(
+            old,rebuilt,plan(-5),plan(10));
+        var stale=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        var writer=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        var key=receipt(rebuilt.rebuilt(),2);
+        assertTrue(writer.receiveVerifiedDrainage(rebuilt.rebuilt(),key,4));
+        var weather=Map.of(PIT,new HydrologySnowSoilStateV2.Forcing(
+            0,10,0,3,1,0,1));
+        assertThrows(java.io.IOException.class,()->
+            HydrologySeasonalLakeNetworkV2.advanceBound(
+                stale,"stale",rebuilt.rebuilt(),plan(10),weather,Map.of()));
+        var fresh=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(4,fresh.receiptBudget().pendingVolume(),0);
+        var advanced=HydrologySeasonalLakeNetworkV2.advanceBound(
+            fresh,"new",rebuilt.rebuilt(),plan(10),weather,Map.of());
+        assertEquals(4,advanced.budget().receivedRiverWater(),1e-10);
+        assertEquals(4,advanced.budget().terminalDischarge(),1e-10);
+        assertEquals(5,advanced.budget().finalSnowSoil(),1e-10);
+        assertEquals(0,advanced.budget().residual(),1e-10);
+        var recovered=HydrologyWorldRunnerV2.open(file,0,"ignored");
+        assertEquals(2,recovered.epoch());
+        assertEquals(0,recovered.receiptBudget().pendingVolume(),0);
+        recovered.verifyBoundWetLakeDrainage(rebuilt.rebuilt(),plan(10));
+    }
+
 }
