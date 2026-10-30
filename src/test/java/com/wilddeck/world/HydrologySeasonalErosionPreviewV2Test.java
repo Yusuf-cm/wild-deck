@@ -72,7 +72,7 @@ class HydrologySeasonalErosionPreviewV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologySeasonalErosionPreviewV2.calculate(
                 new HydrologyTerrainOverlayV2.State("world",Map.of()),
-                addresses,5,5,seed(),valid,RADIUS*2,2000,.1,.4,
+                addresses,5,5,seed(),valid,-1,2000,.1,.4,
                 capacity(),Set.of(24)));
     }
 
