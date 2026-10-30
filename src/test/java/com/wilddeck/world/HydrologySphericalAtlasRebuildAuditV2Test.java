@@ -30,7 +30,13 @@ class HydrologySphericalAtlasRebuildAuditV2Test {
         assertTrue(audit.affectedSamples().isEmpty());
         assertEquals(original.catchments(),audit.rebuilt().catchments());
         var slice=original.ownedRegion(new HydrologyRegionSchedulerV2.Region(0,0));
-        assertFalse(slice.isEmpty());
+        assertTrue(slice.size()>1);
+        var region=new HydrologyRegionSchedulerV2.Region(0,0);
+        assertDoesNotThrow(()->HydrologySphericalAtlasRebuildAuditV2
+            .verifyReusableRegion(original,audit,region,slice));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySphericalAtlasRebuildAuditV2.verifyReusableRegion(
+                original,audit,region,slice.subList(1,slice.size())));
         assertDoesNotThrow(()->HydrologySphericalAtlasRebuildAuditV2
             .verifyReusableSlice(original,audit,slice));
         assertThrows(IllegalArgumentException.class,()->
