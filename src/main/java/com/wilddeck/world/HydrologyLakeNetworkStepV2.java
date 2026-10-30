@@ -91,7 +91,7 @@ public final class HydrologyLakeNetworkStepV2 {
             if(!HydrologySphericalTopologyV2.isCanonical(lake.anchor()) ||
                lakes.putIfAbsent(lake.anchor(),lake)!=null)
                 throw new IllegalArgumentException("Duplicate lake identity");
-            boolean hasExit=false;
+            int exitCount=0;
             var unique=new HashSet<>(lake.cells());
             if(unique.size()!=lake.cells().size() ||
                lake.reservoir().bedElevation().length!=unique.size() ||
@@ -124,11 +124,11 @@ public final class HydrologyLakeNetworkStepV2 {
                 if(!unique.contains(downstream)) {
                     if(!lake.spillTarget().equals(downstream))
                         throw new IllegalArgumentException("Lake has unverified exit");
-                    hasExit=true;
+                    exitCount++;
                 }
             }
-            if(!hasExit)
-                throw new IllegalArgumentException("Lake has no routed spill exit");
+            if(exitCount!=1)
+                throw new IllegalArgumentException("Lake requires exactly one verified spill exit");
         }
         if(!forcing.keySet().equals(lakes.keySet()) ||
            !lakes.keySet().containsAll(previous.volumes().keySet()))
