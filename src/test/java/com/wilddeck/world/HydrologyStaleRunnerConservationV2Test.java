@@ -86,6 +86,40 @@ class HydrologyStaleRunnerConservationV2Test {
             .receiptBudget().pendingVolume(),1e-12);
     }
 
+    @Test void staleSeasonalEpochCannotEraseReceiptOrBypassWaterBudget() throws Exception {
+        Path path=directory.resolve("seasonal.chk");
+        var sources=new ArrayList<HydrologyGlobalSlopeRouterV2.Source>();
+        sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,0),0));
+        for(long y=1;y<4;y++)for(long x=0;x<8;x++)
+            sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(x,y),0));
+        sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,4),0));
+        var outlet=at(0,2);
+        var atlas=HydrologySphericalRouteAtlasV2.compile(
+            sources,a->a.equals(outlet)?0:10,Set.of(outlet));
+        var plan=new HydrologySphericalLakeBasinsV2.Plan(atlas.routes(),List.of());
+        var stale=HydrologyWorldRunnerV2.open(path,0,
+            HydrologySeasonalLakeNetworkV2.initialState("world"));
+        var writer=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var from=at(4,2);
+        var key=new HydrologyTransferLedgerV2.Key(
+            1,from,atlas.routeAt(from).downstream());
+        writer.receive(key,4);
+        var weather=Map.of(outlet,new HydrologySnowSoilStateV2.Forcing(
+            0,10,0,1,1,0,1));
+        assertThrows(IOException.class,()->
+            HydrologySeasonalLakeNetworkV2.advance(
+                stale,"stale",plan,weather,Map.of()));
+        assertEquals(0,stale.epoch());
+        var fresh=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var advanced=HydrologySeasonalLakeNetworkV2.advance(
+            fresh,"committed",plan,weather,Map.of());
+        assertEquals(4,advanced.budget().receivedRiverWater(),1e-12);
+        assertEquals(4,advanced.budget().terminalDischarge(),1e-12);
+        assertEquals(0,advanced.budget().residual(),1e-12);
+        assertEquals(0,HydrologyWorldRunnerV2.open(path,0,"ignored")
+            .receiptBudget().pendingVolume(),1e-12);
+    }
+
     @Test void staleReceiptWriterMustReopenBeforeAppending() throws Exception {
         Path path=directory.resolve("receiving.chk");
         var stale=HydrologyWorldRunnerV2.open(path,0,"world");
