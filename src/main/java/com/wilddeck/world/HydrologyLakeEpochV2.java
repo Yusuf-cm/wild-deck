@@ -95,13 +95,25 @@ public final class HydrologyLakeEpochV2 {
         }
         var sources=new HashSet<GlobalHydrologyAddressV2.Sample>();
         var translated=new ArrayList<LakePeriod>();
+        // This lightweight frontier adapter does not intercept river receipts
+        // entering a lake. Reject them rather than routing their water past
+        // storage; use advanceClosedSphericalLakeNetwork for receipt-aware lakes.
+        var snapshot=runner.inboxSnapshot();
+        long nextEpoch=Math.addExact(runner.epoch(),1);
         for(var period:periods) {
             Objects.requireNonNull(period);
             var source=nodes.get(period.spillFrom());
             if(source==null || source.terminal() ||
                !period.spillTo().equals(source.downstream()) ||
+               source.localWater()!=0.0 ||
                !sources.add(period.spillFrom()))
                 throw new IllegalArgumentException("Unverified or shared lake spill edge");
+            for(var receipt:snapshot.receipts().keySet())
+                if(receipt.epoch()<=nextEpoch &&
+                   !snapshot.delivered().contains(receipt) &&
+                   receipt.to().equals(period.spillFrom()))
+                    throw new IllegalArgumentException(
+                        "Pending river receipt would bypass lake storage");
             translated.add(new LakePeriod(period.anchor(),period.spillFrom(),
                 period.basin(),period.contributingArea(),period.period()));
         }
