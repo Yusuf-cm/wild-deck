@@ -54,6 +54,36 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             HydrologySphericalAtlasRebuildAuditV2.Result audit,
             HydrologySphericalLakeBasinsV2.Plan oldLakes,
             HydrologySphericalLakeBasinsV2.Plan newLakes) throws IOException {
+        return commitInternal(checkpointPath,nextEpoch,current,inbox,
+            previous,audit,oldLakes,newLakes,false);
+    }
+
+    /**
+     * Explicit opt-in to route newly exposed old wet-cell water from its
+     * original geographic vertex through the verified rebuilt drainage graph.
+     * Unlike commit(), this supports disappearance or contraction of wet
+     * basins. The remap is instantaneous; no flood travel time is simulated.
+     * Producers must remain quiesced and seasonal reservoirs are unsupported.
+     */
+    public static Committed commitDisplaced(Path checkpointPath,long nextEpoch,
+            HydrologyCheckpointV2.Checkpoint current,
+            HydrologyEpochInboxV2 inbox,
+            HydrologySphericalRouteAtlasV2 previous,
+            HydrologySphericalAtlasRebuildAuditV2.Result audit,
+            HydrologySphericalLakeBasinsV2.Plan oldLakes,
+            HydrologySphericalLakeBasinsV2.Plan newLakes) throws IOException {
+        return commitInternal(checkpointPath,nextEpoch,current,inbox,
+            previous,audit,oldLakes,newLakes,true);
+    }
+
+    private static Committed commitInternal(Path checkpointPath,long nextEpoch,
+            HydrologyCheckpointV2.Checkpoint current,
+            HydrologyEpochInboxV2 inbox,
+            HydrologySphericalRouteAtlasV2 previous,
+            HydrologySphericalAtlasRebuildAuditV2.Result audit,
+            HydrologySphericalLakeBasinsV2.Plan oldLakes,
+            HydrologySphericalLakeBasinsV2.Plan newLakes,
+            boolean allowDisplacement) throws IOException {
         Objects.requireNonNull(checkpointPath);
         Objects.requireNonNull(current);
         Objects.requireNonNull(inbox);
@@ -88,12 +118,23 @@ public final class HydrologyWetLakeDrainageActivationV2 {
 
         // Remap old wet columns into new reservoirs; excess is released at
         // each NEW verified spill target, never counted as new rainfall.
-        var remap=HydrologyWetLakeReconciliationV2.reconcile(
-            oldState,oldLakes,newLakes);
+        var remap=allowDisplacement ?
+            HydrologyWetLakeReconciliationV2.reconcileDisplaced(
+                oldState,oldLakes,newLakes) :
+            HydrologyWetLakeReconciliationV2.reconcile(
+                oldState,oldLakes,newLakes);
         var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
         var incoming=staged.claimAvailable(nextEpoch,audit.rebuilt().catchments().keySet());
         if(!incoming.equals(landings.byDestination()))
             throw new IllegalArgumentException("Pending receipt inventory changed");
+        // Never drop a displaced source because it fell outside a new lake.
+        // The audit requires identical complete canonical ownership; this
+        // assertion also catches future changes to the plan contract.
+        var known=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for(var node:newLakes.routes())known.add(node.address());
+        if(!known.containsAll(remap.overflow().keySet()))
+            throw new IllegalArgumentException(
+                "Displaced water has no verified rebuilt surface route");
         var enriched=new ArrayList<HydrologyFlowGraphV2.Node>();
         for(var node:newLakes.routes()) {
             double water=incoming.getOrDefault(node.address(),0.0)+
