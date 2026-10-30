@@ -32,6 +32,21 @@ public final class HydrologyWetLakeDrainageActivationV2 {
         }
     }
 
+    /** Bind both verified routing and lake geometry before enabling wet transitions. */
+    public static String bind(HydrologySphericalRouteAtlasV2 atlas,
+                              HydrologySphericalLakeBasinsV2.Plan plan,
+                              String lakeState) {
+        Objects.requireNonNull(atlas);
+        Objects.requireNonNull(plan);
+        verifyRoutes(plan,atlas);
+        HydrologyLakeNetworkStepV2.step(plan,HydrologyLakeStateV2.decode(lakeState),
+            zeroForcing(plan));
+        return HydrologyDrainageActivationV2.encode(
+            new HydrologyDrainageActivationV2.BoundState(
+                HydrologyDrainageSnapshotIdV2.of(atlas),lakeState,
+                HydrologyLakePlanSnapshotIdV2.of(plan)));
+    }
+
     public static Committed commit(Path checkpointPath,long nextEpoch,
             HydrologyCheckpointV2.Checkpoint current,
             HydrologyEpochInboxV2 inbox,
@@ -57,6 +72,8 @@ public final class HydrologyWetLakeDrainageActivationV2 {
         var oldState=HydrologyLakeStateV2.decode(bound.lakeState());
         if(oldState.world().startsWith("WD-SNOW-SOIL-1\n"))
             throw new IllegalArgumentException("Seasonal reservoirs require separate reconciliation");
+        if(!HydrologyLakePlanSnapshotIdV2.of(oldLakes).equals(bound.lakePlan()))
+            throw new IllegalArgumentException("Stale lake geometry checkpoint");
         verifyRoutes(oldLakes,previous);
         verifyRoutes(newLakes,audit.rebuilt());
 
@@ -102,7 +119,8 @@ public final class HydrologyWetLakeDrainageActivationV2 {
             new HydrologyLakeStateV2.State(oldState.world(),routed.state().volumes()));
         var world=HydrologyDrainageActivationV2.encode(
             new HydrologyDrainageActivationV2.BoundState(
-                landings.rebuiltTopology(),newLakeState));
+                landings.rebuiltTopology(),newLakeState,
+                HydrologyLakePlanSnapshotIdV2.of(newLakes)));
         var checkpoint=HydrologyCheckpointV2.capture(nextEpoch,world,staged);
         // Local optimistic freshness only; NOT an interprocess CAS.
         HydrologyCheckpointStoreV2.saveNext(checkpointPath,current,checkpoint);
