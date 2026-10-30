@@ -60,14 +60,14 @@ public final class HydrologyDrainageActivationV2 {
         var lake=Base64.getEncoder().encodeToString(
             state.lakeState().getBytes(StandardCharsets.UTF_8));
         return state.lakePlan()==null ?
-            MAGIC+"\\n"+state.topology()+"\\n"+lake+"\\n" :
-            WET_MAGIC+"\\n"+state.topology()+"\\n"+
-                state.lakePlan()+"\\n"+lake+"\\n";
+            MAGIC+"\n"+state.topology()+"\n"+lake+"\n" :
+            WET_MAGIC+"\n"+state.topology()+"\n"+
+                state.lakePlan()+"\n"+lake+"\n";
     }
 
     public static BoundState decode(String payload) {
         Objects.requireNonNull(payload);
-        var parts=payload.split("\\n",-1);
+        var parts=payload.split("\n",-1);
         boolean wet=parts.length==5&&WET_MAGIC.equals(parts[0]);
         if(!(wet || (parts.length==4&&MAGIC.equals(parts[0]))) ||
            !parts[parts.length-1].isEmpty())
