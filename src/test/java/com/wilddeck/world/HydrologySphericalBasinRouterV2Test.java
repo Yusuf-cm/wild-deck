@@ -82,4 +82,34 @@ class HydrologySphericalBasinRouterV2Test {
             HydrologySphericalBasinRouterV2.route(
                 duplicated,heights(),Set.of(OUTLET)));
     }
+
+    @Test void partitionedRegionsRetainOneGlobalRouteAndNoSharedVertexRainfall() {
+        var routed=HydrologySphericalBasinRouterV2.route(
+            planet(),heights(),Set.of(OUTLET));
+        var regions=new LinkedHashMap<HydrologyRegionSchedulerV2.Region,
+                                      List<HydrologyFlowGraphV2.Node>>();
+        for(var node:routed) {
+            var address=node.address();
+            long col=address.y()==0||address.y()==4?0:
+                address.x()==0?0:(address.x()-1)/DIVISIONS;
+            long row=address.y()==0?0:(address.y()-1)/DIVISIONS;
+            var region=new HydrologyRegionSchedulerV2.Region(col,row);
+            regions.computeIfAbsent(region,k->new ArrayList<>()).add(node);
+        }
+        assertEquals(8,regions.size());
+        var joined=HydrologyMosaicJoinV2.merge(regions.values());
+        assertEquals(routed,joined);
+        assertEquals(26,joined.stream().map(HydrologyFlowGraphV2.Node::address)
+            .distinct().count());
+        var global=HydrologyFlowGraphV2.solve(joined);
+        assertEquals(26,global.terminalOutflow().get(OUTLET),1e-10);
+        assertTrue(global.pendingOutflow().isEmpty());
+        var reversed=new ArrayList<Collection<HydrologyFlowGraphV2.Node>>(
+            regions.values());
+        Collections.reverse(reversed);
+        assertEquals(joined,HydrologyMosaicJoinV2.merge(reversed));
+        assertEquals(global,HydrologyFlowGraphV2.solve(
+            HydrologyMosaicJoinV2.merge(reversed)));
+    }
+
 }
