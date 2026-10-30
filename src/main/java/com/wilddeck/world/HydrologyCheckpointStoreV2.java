@@ -54,6 +54,27 @@ public final class HydrologyCheckpointStoreV2 {
     }
 
     /**
+     * Reject an epoch transition prepared from an outdated world/inbox pair.
+     * In particular, an independently persisted incoming receipt must not be
+     * erased by a runner advancing from its old in-memory checkpoint.
+     *
+     * This is a defensive optimistic check for a single-writer local store.
+     * It is NOT an interprocess compare-and-swap: another process could
+     * write between this read and the atomic replacement.
+     */
+    public static void saveNext(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        Objects.requireNonNull(expected);
+        Objects.requireNonNull(next);
+        if(next.epoch()!=Math.addExact(expected.epoch(),1))
+            throw new IllegalArgumentException("Expected exactly one epoch advance");
+        if(!load(destination).equals(expected))
+            throw new IOException("Checkpoint changed since runner loaded it");
+        save(destination,next);
+    }
+
+    /**
      * Persist additional future-epoch receipts without changing the committed
      * world or consumption markers. Ordinary save() deliberately continues to
      * reject conflicting same-epoch replacements.
