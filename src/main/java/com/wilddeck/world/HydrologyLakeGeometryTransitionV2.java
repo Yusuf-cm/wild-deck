@@ -37,6 +37,26 @@ public final class HydrologyLakeGeometryTransitionV2 {
         Objects.requireNonNull(newPlan);
         var oldLakes=index(oldPlan);
         var newLakes=index(newPlan);
+        var oldMembership=memberships(oldLakes);
+        var newMembership=memberships(newLakes);
+        // A wet lake cannot silently split into two identities, or merge
+        // with another wet lake, even if one original anchor survives.
+        for(var old:oldLakes.entrySet()) {
+            if(previous.volumes().getOrDefault(old.getKey(),0.0)==0)continue;
+            for(var cell:old.getValue().cells()) {
+                var newOwner=newMembership.get(cell);
+                if(newOwner!=null&&!newOwner.equals(old.getKey()))
+                    throw new IllegalArgumentException("Wet lake identity split");
+            }
+        }
+        for(var next:newLakes.entrySet()) {
+            for(var cell:next.getValue().cells()) {
+                var oldOwner=oldMembership.get(cell);
+                if(oldOwner!=null&&!oldOwner.equals(next.getKey())&&
+                   previous.volumes().getOrDefault(oldOwner,0.0)>0)
+                    throw new IllegalArgumentException("Wet lake identity merge");
+            }
+        }
         var stored=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         var overflow=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
@@ -86,6 +106,19 @@ public final class HydrologyLakeGeometryTransitionV2 {
                 throw new IllegalArgumentException("Duplicate global lake anchor");
         }
         return lakes;
+    }
+
+    private static Map<GlobalHydrologyAddressV2.Sample,
+                       GlobalHydrologyAddressV2.Sample> memberships(
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySphericalLakeBasinsV2.Lake> lakes) {
+        var owners=new HashMap<GlobalHydrologyAddressV2.Sample,
+                               GlobalHydrologyAddressV2.Sample>();
+        for(var lake:lakes.values())
+            for(var cell:lake.cells())
+                if(owners.putIfAbsent(cell,lake.anchor())!=null)
+                    throw new IllegalArgumentException("Overlapping lake cells");
+        return owners;
     }
 
     private static double add(double a,double b) {
