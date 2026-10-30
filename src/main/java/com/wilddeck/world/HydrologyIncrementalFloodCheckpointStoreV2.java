@@ -69,6 +69,23 @@ public final class HydrologyIncrementalFloodCheckpointStoreV2 {
         }
     }
 
+    /**
+     * Optimistic local-file stale-runner guard. Like the world checkpoint
+     * guard, this is not a cross-process atomic compare-and-swap.
+     */
+    public static void saveNext(Path destination,
+            HydrologyIncrementalPriorityFloodV2.Checkpoint expected,
+            HydrologyIncrementalPriorityFloodV2.Checkpoint next)
+            throws IOException {
+        Objects.requireNonNull(expected);
+        Objects.requireNonNull(next);
+        if (next.settledCount() <= expected.settledCount())
+            throw new IllegalArgumentException("Expected forward flood progress");
+        if (!load(destination).equals(expected))
+            throw new IOException("Flood checkpoint changed since runner loaded it");
+        save(destination, next);
+    }
+
     public static HydrologyIncrementalPriorityFloodV2.Checkpoint load(
             Path destination) throws IOException {
         Objects.requireNonNull(destination);
