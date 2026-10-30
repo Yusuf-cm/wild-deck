@@ -94,11 +94,28 @@ public final class HydrologyLakeNetworkStepV2 {
             boolean hasExit=false;
             var unique=new HashSet<>(lake.cells());
             if(unique.size()!=lake.cells().size() ||
+               lake.reservoir().bedElevation().length!=unique.size() ||
+               !Collections.min(lake.cells(),
+                   HydrologyFlowGraphV2.ADDRESS_ORDER).equals(lake.anchor()) ||
                unique.contains(lake.spillTarget()) ||
                !nodes.containsKey(lake.spillTarget()) ||
                !lake.confirmedOutlet().equals(
                    verified.resolvedCatchments().get(lake.spillTarget())))
                 throw new IllegalArgumentException("Unverified lake spill");
+            // A reservoir is one connected body of water. Accepting two
+            // disjoint sets under one anchor would silently combine their
+            // volumes and invent hydraulic communication between them.
+            var connected=new HashSet<GlobalHydrologyAddressV2.Sample>();
+            var queue=new ArrayDeque<GlobalHydrologyAddressV2.Sample>();
+            queue.add(lake.anchor());
+            connected.add(lake.anchor());
+            while(!queue.isEmpty()) {
+                for(var neighbor:HydrologySphericalTopologyV2.neighbors(queue.remove()))
+                    if(unique.contains(neighbor) && connected.add(neighbor))
+                        queue.add(neighbor);
+            }
+            if(connected.size()!=unique.size())
+                throw new IllegalArgumentException("Disconnected lake basin");
             for(var cell:lake.cells()) {
                 if(!nodes.containsKey(cell) ||
                    membership.putIfAbsent(cell,lake.anchor())!=null)
@@ -188,8 +205,12 @@ public final class HydrologyLakeNetworkStepV2 {
             double evaporation=0,overflow=0;
             double delivered=0;
             for(int i=0;i<f.substeps();i++) {
-                double portion=i==f.substeps()-1?input-delivered:input/f.substeps();
-                delivered=add(delivered,portion);
+                // Cumulative targets avoid a negative final portion from
+                // summing thousands of individually rounded increments.
+                // Divide the step index first to avoid input*(i+1) overflow.
+                double target=input*((double)(i+1)/f.substeps());
+                double portion=target-delivered;
+                delivered=target;
                 var next=LakeReservoirV2.step(lake.reservoir(),volume,
                     portion,f.evaporationDepth()/f.substeps());
                 volume=next.volume();
