@@ -288,4 +288,27 @@ class HydrologyLakeNetworkStepV2Test {
         assertEquals(0,result.budget().residual(),1e-12);
     }
 
+    @Test void oneLakeCannotDischargeThroughTwoIndependentSpillEdges() {
+        var base=chain(0,0,0,0);
+        var target=at(1,3);
+        assertTrue(HydrologySphericalTopologyV2.adjacent(A,target));
+        assertTrue(HydrologySphericalTopologyV2.adjacent(B,target));
+        var routes=new ArrayList<HydrologyFlowGraphV2.Node>();
+        for(var node:base.routes()) {
+            if(node.address().equals(A)||node.address().equals(B))
+                routes.add(new HydrologyFlowGraphV2.Node(
+                    node.address(),0,target,false));
+            else routes.add(node);
+        }
+        var lake=new HydrologySphericalLakeBasinsV2.Lake(
+            A,List.of(A,B),target,target,
+            new LakeReservoirV2.Basin(new double[]{0,0},
+                new double[]{1,1},5));
+        var plan=new HydrologySphericalLakeBasinsV2.Plan(routes,List.of(lake));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeNetworkStepV2.step(plan,
+                new HydrologyLakeStateV2.State("world",Map.of()),
+                Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0,0,1))));
+    }
+
 }
