@@ -189,4 +189,21 @@ class HydrologyLakeFrontierEpochV2Test {
         assertEquals(7,restored.receiptBudget().pendingVolume(),1e-9);
     }
 
+    @Test void coupledLakeSpillCannotBypassDownstreamReservoir()
+            throws IOException {
+        var first=at(4,3);
+        var second=at(5,3);
+        var outlet=at(6,3);
+        var runner=HydrologyWorldRunnerV2.open(
+            directory.resolve("coupled.chk"),0,initial());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyLakeEpochV2.advanceWithFrontier(runner,"bad",
+                List.of(
+                    new HydrologyFlowGraphV2.Node(first,0,second,false),
+                    new HydrologyFlowGraphV2.Node(second,0,outlet,false)),
+                List.of(lake(first,second),lake(second,outlet)),2));
+        assertEquals(0,runner.epoch());
+        assertTrue(runner.inboxSnapshot().receipts().isEmpty());
+    }
+
 }
