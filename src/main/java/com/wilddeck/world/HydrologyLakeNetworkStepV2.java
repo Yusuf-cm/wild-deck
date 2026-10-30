@@ -66,6 +66,15 @@ public final class HydrologyLakeNetworkStepV2 {
                nodes.putIfAbsent(node.address(),node)!=null)
                 throw new IllegalArgumentException("Duplicate or noncanonical route sample");
         }
+        // A partial streamed window must never be mistaken for a globally
+        // authoritative lake plan merely because its local paths terminate.
+        // Check closure before processing any storage or discharge.
+        for(var address:nodes.keySet()) {
+            if(!nodes.keySet().containsAll(
+                    HydrologySphericalTopologyV2.neighbors(address)))
+                throw new IllegalArgumentException(
+                    "Lake routing requires a closed spherical sample graph");
+        }
         var verified=HydrologyFlowGraphV2.solve(plan.routes());
         HydrologyConservationV2.verify(plan.routes(),verified);
         if(!verified.pendingOutflow().isEmpty() ||
