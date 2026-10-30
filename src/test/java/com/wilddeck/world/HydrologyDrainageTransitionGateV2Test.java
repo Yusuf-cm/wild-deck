@@ -96,4 +96,27 @@ class HydrologyDrainageTransitionGateV2Test {
             HydrologyDrainageTransitionGateV2.verifyPending(
                 previous,audit(previous,false),inbox.snapshot()));
     }
+
+    @Test void crossRegionParkedTransferIsOwnedOnceAndNotReplayed() {
+        var previous=original();
+        // A canonical edge crosses the longitude-region ownership boundary.
+        var edge=previous.routes().stream()
+            .filter(n->n.downstream()!=null && n.address().y()>0 &&
+                n.address().y()<4 && n.downstream().y()>0 &&
+                n.downstream().y()<4 &&
+                ((n.address().x()==0?0:(n.address().x()-1)/2) !=
+                 (n.downstream().x()==0?0:(n.downstream().x()-1)/2)))
+            .findFirst().orElseThrow();
+        var key=new HydrologyTransferLedgerV2.Key(
+            1,edge.address(),edge.downstream());
+        var inbox=new HydrologyEpochInboxV2();
+        assertTrue(inbox.receive(key,4));
+        assertFalse(inbox.receive(key,4));
+        var result=HydrologyDrainageTransitionGateV2.verifyPending(
+            previous,audit(previous,false),inbox.snapshot());
+        assertEquals(1,result.pendingReceipts());
+        assertEquals(4,result.pendingVolume(),1e-12);
+        assertEquals(4,HydrologyReceiptBudgetV2.summarize(inbox.snapshot())
+            .totalVolume(),1e-12);
+    }
 }
