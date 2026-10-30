@@ -186,6 +186,38 @@ class HydrologyDrainageActivationV2Test {
         assertTrue(restored.inboxSnapshot().receipts().containsKey(key));
     }
 
+
+    @Test void seasonalCheckpointCannotBypassReservoirReconciliation(
+            @TempDir Path dir) throws Exception {
+        var old=original();
+        var seasonalWithWater=HydrologyLakeStateV2.encode(
+            new HydrologyLakeStateV2.State(
+                HydrologySnowSoilStateV2.encode(
+                    new HydrologySnowSoilStateV2.State("world",
+                        Map.of(at(0,2),new HydrologySnowSoilStateV2.Cell(2,3)))),
+                Map.of()));
+        var seasonalEmpty=HydrologySeasonalLakeNetworkV2.initialState("world");
+        int index=0;
+        for(var payload:List.of(seasonalEmpty,seasonalWithWater)) {
+            var file=dir.resolve("seasonal-"+(index++)+".chk");
+            var boundState=HydrologyDrainageActivationV2.bind(old,payload);
+            var runner=HydrologyWorldRunnerV2.open(file,0,boundState);
+            var from=at(4,2);
+            var key=new HydrologyTransferLedgerV2.Key(
+                1,from,old.routeAt(from).downstream());
+            assertTrue(runner.receive(key,7));
+            var snapshot=runner.inboxSnapshot();
+            assertThrows(IllegalArgumentException.class,()->
+                runner.activateReceiptOnlyDrainage(old,changed(old)));
+            assertEquals(0,runner.epoch());
+            assertEquals(snapshot,runner.inboxSnapshot());
+            var reopened=HydrologyWorldRunnerV2.open(file,0,"ignored");
+            assertEquals(boundState,reopened.worldState());
+            assertEquals(snapshot,reopened.inboxSnapshot());
+            assertEquals(7,reopened.receiptBudget().pendingVolume(),1e-12);
+        }
+    }
+
     @Test void codecRejectsUnboundAndNoncanonicalStates() {
         var old=original();
         var payload=bound(old,Map.of());
