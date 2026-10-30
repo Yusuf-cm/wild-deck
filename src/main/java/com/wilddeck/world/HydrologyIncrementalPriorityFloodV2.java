@@ -1,6 +1,8 @@
 package com.wilddeck.world;
 
 import java.util.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Incremental, outlet-seeded priority flood over canonical spherical samples.
@@ -61,11 +63,45 @@ public final class HydrologyIncrementalPriorityFloodV2 {
         }
     }
 
+    /**
+     * Replay checkpoint for a fixed, immutable terrain revision. Its digest
+     * covers settled routes AND the discovered best frontier. A checkpoint
+     * does not assert that the caller's terrain revision is truthful.
+     */
+    public record Checkpoint(String terrainRevision,
+                             Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets,
+                             int settledCount, String stateSha256) {
+        public Checkpoint {
+            if (terrainRevision == null || terrainRevision.isBlank() ||
+                terrainRevision.length() > 256 ||
+                settledCount < 0 || settledCount > MAX_SAMPLES ||
+                stateSha256 == null || !stateSha256.matches("[0-9a-f]{64}"))
+                throw new IllegalArgumentException("Invalid flood checkpoint");
+            Objects.requireNonNull(verifiedOutlets);
+            var sorted = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            for (var outlet : verifiedOutlets) {
+                Objects.requireNonNull(outlet);
+                if (!HydrologySphericalTopologyV2.isCanonical(outlet))
+                    throw new IllegalArgumentException("Noncanonical checkpoint outlet");
+                if (!sorted.isEmpty() &&
+                    (outlet.level() != sorted.first().level() ||
+                     outlet.divisions() != sorted.first().divisions()))
+                    throw new IllegalArgumentException("Mixed checkpoint resolutions");
+                sorted.add(outlet);
+            }
+            if (sorted.isEmpty() || sorted.size() > MAX_SAMPLES)
+                throw new IllegalArgumentException("Invalid checkpoint outlets");
+            verifiedOutlets = Collections.unmodifiableSet(sorted);
+        }
+    }
+
     private record Candidate(GlobalHydrologyAddressV2.Sample address,
                              double spill, int steps) {}
 
     public static final class Session {
         private final HydrologyGlobalSlopeRouterV2.Elevations elevations;
+        private final Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets;
         private final TreeMap<GlobalHydrologyAddressV2.Sample, Route> best =
             new TreeMap<>(HydrologyFlowGraphV2.ADDRESS_ORDER);
         private final TreeMap<GlobalHydrologyAddressV2.Sample, Route> settled =
@@ -96,6 +132,7 @@ public final class HydrologyIncrementalPriorityFloodV2 {
                 }
                 sorted.add(outlet);
             }
+            this.verifiedOutlets = Collections.unmodifiableSet(sorted);
             for (var outlet : sorted) {
                 var route = new Route(checked(elevations.at(outlet)), 0, null,
                     new HydrologyRiverIdentityV2.CatchmentId(outlet));
@@ -152,6 +189,51 @@ public final class HydrologyIncrementalPriorityFloodV2 {
             return snapshot();
         }
 
+        /** Save only at a successful batch boundary; never during expansion. */
+        public Checkpoint checkpoint(String terrainRevision) {
+            return new Checkpoint(terrainRevision, verifiedOutlets,
+                settled.size(), stateDigest());
+        }
+
+        private String stateDigest() {
+            try {
+                var digest = MessageDigest.getInstance("SHA-256");
+                // Stable ordering and numeric encodings, independent of map insertion.
+                for (int kind = 0; kind < 2; kind++) {
+                    var entries = kind == 0 ? best : settled;
+                    digest.update((byte) kind);
+                    for (var entry : entries.entrySet()) {
+                        append(digest, entry.getKey());
+                        var route = entry.getValue();
+                        append(digest, Double.doubleToLongBits(route.spillElevation()));
+                        append(digest, route.steps());
+                        if (route.downstream() == null) digest.update((byte) 0);
+                        else {
+                            digest.update((byte) 1);
+                            append(digest, route.downstream());
+                        }
+                        append(digest, route.catchment().outlet());
+                    }
+                }
+                return HexFormat.of().formatHex(digest.digest());
+            } catch (NoSuchAlgorithmException ex) {
+                throw new IllegalStateException("SHA-256 unavailable", ex);
+            }
+        }
+
+        private static void append(MessageDigest digest, long value) {
+            for (int shift = 56; shift >= 0; shift -= 8)
+                digest.update((byte) (value >>> shift));
+        }
+
+        private static void append(MessageDigest digest,
+                                   GlobalHydrologyAddressV2.Sample a) {
+            append(digest, a.level());
+            append(digest, a.divisions());
+            append(digest, a.x());
+            append(digest, a.y());
+        }
+
         public Snapshot snapshot() {
             return new Snapshot(settled, frontier.isEmpty());
         }
@@ -161,6 +243,26 @@ public final class HydrologyIncrementalPriorityFloodV2 {
             Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets,
             HydrologyGlobalSlopeRouterV2.Elevations elevations) {
         return new Session(verifiedOutlets, elevations);
+    }
+
+    /**
+     * Reconstruct a checkpoint by deterministic replay, checking both settled
+     * topology and discovered frontier. The elevation oracle must represent
+     * the SAME immutable terrain revision as the checkpoint. Replaying can
+     * cost O(settled vertices); it avoids trusting serialized queue objects.
+     */
+    public static Session resume(Checkpoint checkpoint, String terrainRevision,
+                                 HydrologyGlobalSlopeRouterV2.Elevations elevations) {
+        Objects.requireNonNull(checkpoint);
+        if (!checkpoint.terrainRevision().equals(terrainRevision))
+            throw new IllegalArgumentException("Flood terrain revision mismatch");
+        var session = start(checkpoint.verifiedOutlets(), elevations);
+        if (checkpoint.settledCount() > 0)
+            session.advance(checkpoint.settledCount());
+        if (session.settled.size() != checkpoint.settledCount() ||
+            !session.stateDigest().equals(checkpoint.stateSha256()))
+            throw new IllegalArgumentException("Flood checkpoint replay mismatch");
+        return session;
     }
 
     private static double checked(double value) {
