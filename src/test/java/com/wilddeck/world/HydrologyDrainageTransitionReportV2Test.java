@@ -2,6 +2,8 @@ package com.wilddeck.world;
 
 import org.junit.jupiter.api.Test;
 import java.util.*;
+import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HydrologyDrainageTransitionReportV2Test {
@@ -66,5 +68,26 @@ class HydrologyDrainageTransitionReportV2Test {
         assertEquals(0,report.blockedVolume(),1e-12);
         assertEquals(7,HydrologyReceiptBudgetV2.summarize(inbox.snapshot())
             .deliveredVolume(),1e-12);
+    }
+
+    @Test void runnerReportsParkedWaterAfterCheckpointRestart(
+            @TempDir Path directory) throws Exception {
+        var previous=atlas();
+        var from=at(4,2);
+        var key=new HydrologyTransferLedgerV2.Key(
+            1,from,previous.routeAt(from).downstream());
+        var checkpoint=directory.resolve("pending.chk");
+        var writer=HydrologyWorldRunnerV2.open(checkpoint,0,"unmodified-world");
+        assertTrue(writer.receive(key,13));
+        var restored=HydrologyWorldRunnerV2.open(checkpoint,0,"ignored");
+        var before=restored.inboxSnapshot();
+        var report=restored.inspectDrainageTransition(previous,audit(previous,true));
+        assertEquals(13,report.blockedVolume(),1e-12);
+        assertEquals(List.of(key),report.blocked());
+        assertEquals(before,restored.inboxSnapshot());
+        assertEquals("unmodified-world",restored.worldState());
+        assertEquals(0,restored.epoch());
+        assertEquals(13,HydrologyWorldRunnerV2.open(checkpoint,0,"ignored")
+            .receiptBudget().pendingVolume(),1e-12);
     }
 }
