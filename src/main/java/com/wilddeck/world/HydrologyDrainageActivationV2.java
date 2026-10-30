@@ -67,7 +67,7 @@ public final class HydrologyDrainageActivationV2 {
 
     public static BoundState decode(String payload) {
         Objects.requireNonNull(payload);
-        var parts=payload.split("\\\\n",-1);
+        var parts=payload.split("\\n",-1);
         boolean wet=parts.length==5&&WET_MAGIC.equals(parts[0]);
         if(!(wet || (parts.length==4&&MAGIC.equals(parts[0]))) ||
            !parts[parts.length-1].isEmpty())
