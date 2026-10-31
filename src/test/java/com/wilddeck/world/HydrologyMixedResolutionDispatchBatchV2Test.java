@@ -118,4 +118,23 @@ class HydrologyMixedResolutionDispatchBatchV2Test {
             HydrologyMixedResolutionDispatchBatchV2.dispatchAvailable(
                 file, file, List.of(mouth(coarse(5, 4), 0))));
     }
+    @Test void lostAcknowledgedReceiverStateFailsClosedBeforeNewDispatch() throws IOException {
+        Path sender = temp.resolve("sender.bin"), receiver = temp.resolve("receiver.bin");
+        queue(sender, List.of(source(coarse(4, 4), 7, coarse(5, 4))));
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(receiver, initial());
+        var graph = List.of(mouth(coarse(5, 4), 0));
+        var delivered = HydrologyMixedResolutionDispatchBatchV2.dispatchAvailable(
+            sender, receiver, graph);
+        assertTrue(delivered.stillPending().isEmpty());
+        Files.delete(receiver);
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(receiver, initial());
+        assertThrows(IOException.class, () ->
+            HydrologyMixedResolutionDispatchBatchV2.dispatchAvailable(
+                sender, receiver, graph));
+        assertEquals(1, HydrologyMixedResolutionCheckpointStoreV2.load(sender)
+            .acknowledged().size());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(receiver)
+            .inbox().receipts().isEmpty());
+    }
+
 }
