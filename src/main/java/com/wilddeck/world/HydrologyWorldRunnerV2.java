@@ -498,6 +498,11 @@ public final class HydrologyWorldRunnerV2 {
         return inbox.snapshot();
     }
 
+    /** Read-only freshness preflight for bound incremental discovery. */
+    synchronized void verifyCheckpointFresh() throws IOException {
+        ensureFresh();
+    }
+
     /** Fail before mutating a stale runner's receipt state. */
     private void ensureFresh() throws IOException {
         if(!HydrologyCheckpointStoreV2.load(checkpointPath).equals(last))
