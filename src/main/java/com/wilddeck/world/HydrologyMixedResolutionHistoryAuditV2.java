@@ -128,6 +128,13 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
         var ordered = new ArrayList<>(absent);
         ordered.sort(Comparator.comparing(HydrologyMixedResolutionHistoryAuditV2::identity));
         var blockers = new ArrayList<>(base.blockers());
+        var receiverKeys = new ArrayList<>(receiver.inbox().receipts().keySet());
+        receiverKeys.removeIf(key -> key.epoch() > throughEpoch);
+        receiverKeys.sort(Comparator.comparing(HydrologyMixedResolutionHistoryAuditV2::identity));
+        for (var key : receiverKeys) {
+            if (!owned.contains(HydrologyGlobalCatchmentsV2.coordinate(key.to())))
+                blockers.add("Receiver receipt outside supplied ownership " + identity(key));
+        }
         for (var key : ordered) {
             blockers.add("Sender transfer absent from receiver " + identity(key));
             if (duplicated.contains(key))
