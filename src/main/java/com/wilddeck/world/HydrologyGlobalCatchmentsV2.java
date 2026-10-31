@@ -5,8 +5,8 @@ import java.util.*;
 /**
  * Stable geographic identities for a fully supplied, verified drainage forest.
  *
- * The caller must include every downstream vertex, even when the corresponding
- * tile is unloaded, and independently verify each terminal as a true global
+ * The caller must include exactly one owner for every downstream physical vertex,
+ * even when the corresponding tile is unloaded, and independently verify each terminal as a true global
  * mouth. A regional boundary is NOT automatically a global catchment outlet.
  * This class does not discover terrain, authenticate mouths or route water.
  */
@@ -88,7 +88,8 @@ public final class HydrologyGlobalCatchmentsV2 {
     /**
      * Resolve complete paths to independently verified global mouths.
      * A null downstream is legal only at a verified mouth. Every referenced
-     * downstream must be present, including nodes in unloaded regions.
+     * physical downstream vertex must have exactly one owner, including nodes
+     * in unloaded regions. Cross-resolution references are resolved by location.
      * Duplicate physical ownership across levels, seam aliases, unknown
      * frontiers and cycles are rejected rather than assigned fake identities.
      */
@@ -137,10 +138,16 @@ public final class HydrologyGlobalCatchmentsV2 {
                     identity = new CatchmentId(coordinate(current));
                     break;
                 }
-                if (!downstream.containsKey(next))
+                // A downstream reference may use a different sample resolution
+                // from the unique vertex that owns this physical location.
+                // Aliases are references only; they never own a second volume.
+                var canonicalNext = geographicOwners.get(coordinate(next));
+                if (canonicalNext == null)
                     throw new IllegalStateException("Missing unloaded downstream vertex");
-                reaches.put(current, new ReachId(coordinate(current), coordinate(next)));
-                current = next;
+                if (canonicalNext.equals(current))
+                    throw new IllegalStateException("Cyclic drainage forest");
+                reaches.put(current, new ReachId(coordinate(current), coordinate(canonicalNext)));
+                current = canonicalNext;
             }
             for (var sample : trail) catchments.put(sample, identity);
         }
