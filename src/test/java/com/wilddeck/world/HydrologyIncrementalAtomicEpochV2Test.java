@@ -221,7 +221,7 @@ class HydrologyIncrementalAtomicEpochV2Test {
             HydrologyIncrementalAtomicEpochV2.encode(
                 new HydrologyIncrementalAtomicEpochV2.Bound(
                     "start", session.checkpoint("fixed"))));
-        var alias = new HydrologyTransferLedgerV2.Key(1, at(8, 2), OUTLET);
+        var alias = new HydrologyTransferLedgerV2.Key(1, at(8, 2), at(7, 2));
         runner.receive(alias, 7);
         var before = HydrologyCheckpointStoreV2.load(world);
         assertThrows(IllegalArgumentException.class, () ->
