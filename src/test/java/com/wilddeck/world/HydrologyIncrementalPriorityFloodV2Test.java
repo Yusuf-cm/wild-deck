@@ -151,4 +151,36 @@ class HydrologyIncrementalPriorityFloodV2Test {
         assertEquals(joined, HydrologyMosaicJoinV2.merge(reverse));
     }
 
+
+    @Test void ownedRoutesRequiresEverySettledWaterOwnerExactlyOnce() {
+        var session = HydrologyIncrementalPriorityFloodV2.start(
+            Set.of(OUTLET), heights());
+        var snapshot = session.advance(2);
+        var other = snapshot.settled().keySet().stream()
+            .filter(a -> !a.equals(OUTLET)).findFirst().orElseThrow();
+        var sources = List.of(
+            new HydrologyGlobalSlopeRouterV2.Source(OUTLET, 3),
+            new HydrologyGlobalSlopeRouterV2.Source(other, 0));
+        var nodes = snapshot.ownedRoutes(sources);
+        assertEquals(2, nodes.size());
+        assertEquals(3, HydrologyFlowGraphV2.solve(nodes)
+            .terminalOutflow().get(OUTLET), 1e-12);
+        var reversed = new ArrayList<>(sources);
+        Collections.reverse(reversed);
+        assertEquals(nodes, snapshot.ownedRoutes(reversed));
+
+        assertThrows(IllegalArgumentException.class, () ->
+            snapshot.ownedRoutes(List.of()));
+        assertThrows(IllegalArgumentException.class, () ->
+            snapshot.ownedRoutes(List.of(sources.get(0))));
+        assertThrows(IllegalArgumentException.class, () ->
+            snapshot.ownedRoutes(List.of(sources.get(0), sources.get(0))));
+        assertThrows(IllegalArgumentException.class, () ->
+            snapshot.ownedRoutes(List.of(
+                sources.get(0),
+                new HydrologyGlobalSlopeRouterV2.Source(at(8, 2), 1))));
+        assertEquals(0, HydrologyFlowGraphV2.solve(snapshot.knownRoutes())
+            .terminalOutflow().get(OUTLET), 1e-12);
+    }
+
 }

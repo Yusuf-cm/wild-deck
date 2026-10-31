@@ -49,8 +49,10 @@ public final class HydrologyIncrementalPriorityFloodV2 {
 
         /**
          * Attach ONLY globally owned local water to settled routes. Duplicate
-         * shared vertices, seam aliases and unknown/unsettled sources are
-         * rejected instead of double-counted or silently discarded.
+         * shared vertices, seam aliases, unknown/unsettled sources and
+         * missing settled owners are rejected instead of double-counted or
+         * silently replaced by zero rainfall. Use knownRoutes() for an
+         * intentionally dry topology-only graph.
          *
          * A partial snapshot is not a complete catchment budget: water from
          * undiscovered terrain and future cross-region receipts is absent.
@@ -69,11 +71,13 @@ public final class HydrologyIncrementalPriorityFloodV2 {
                 if (water.putIfAbsent(address, source.localWater()) != null)
                     throw new IllegalArgumentException("Duplicate owned water vertex");
             }
+            if (!water.keySet().equals(settled.keySet()))
+                throw new IllegalArgumentException("Missing settled water owner");
             var nodes = new ArrayList<HydrologyFlowGraphV2.Node>();
             for (var entry : settled.entrySet()) {
                 var route = entry.getValue();
                 nodes.add(new HydrologyFlowGraphV2.Node(
-                    entry.getKey(), water.getOrDefault(entry.getKey(), 0.0),
+                    entry.getKey(), water.get(entry.getKey()),
                     route.downstream(), route.downstream() == null));
             }
             return List.copyOf(nodes);
