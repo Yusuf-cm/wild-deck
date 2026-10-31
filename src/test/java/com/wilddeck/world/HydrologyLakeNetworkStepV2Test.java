@@ -311,4 +311,45 @@ class HydrologyLakeNetworkStepV2Test {
                 Map.of(A,new HydrologyLakeNetworkStepV2.Forcing(0,0,1))));
     }
 
+
+    @Test void filledSurfaceModeConservesRiverLakeWaterWithoutDuplicateSources() {
+        var plan=chain(0,0,0,0);
+        var initial=new HydrologyLakeStateV2.State("world",Map.of());
+        var forcing=Map.of(
+            A,new HydrologyLakeNetworkStepV2.Forcing(2,1,1),
+            C,new HydrologyLakeNetworkStepV2.Forcing(0,0,1));
+        var legacy=HydrologyLakeNetworkStepV2.step(plan,initial,forcing);
+        var filled=HydrologyLakeNetworkStepV2.step(plan,initial,forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.INFLOW_THEN_EVAPORATION);
+        assertEquals(2,legacy.state().volumes().get(A),1e-12);
+        assertEquals(0,legacy.budget().evaporation(),1e-12);
+        assertEquals(1,filled.state().volumes().get(A),1e-12);
+        assertEquals(1,filled.budget().evaporation(),1e-12);
+        assertEquals(2,filled.budget().additionalInflow(),1e-12);
+        assertEquals(0,filled.budget().sourceWater(),1e-12);
+        assertEquals(0,filled.budget().residual(),1e-12);
+        assertEquals(0,filled.budget().terminalOutflow(),1e-12);
+    }
+
+    @Test void filledSurfaceRoutingIsDeterministicAcrossInputOrdering() {
+        var plan=chain(2,0,3,0);
+        var reversedRoutes=new ArrayList<>(plan.routes());
+        var reversedLakes=new ArrayList<>(plan.lakes());
+        Collections.reverse(reversedRoutes);
+        Collections.reverse(reversedLakes);
+        var initial=new HydrologyLakeStateV2.State("world",Map.of());
+        var forcing=Map.of(
+            A,new HydrologyLakeNetworkStepV2.Forcing(1,0.5,4),
+            C,new HydrologyLakeNetworkStepV2.Forcing(0,0.2,4));
+        var a=HydrologyLakeNetworkStepV2.step(plan,initial,forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.INFLOW_THEN_EVAPORATION);
+        var b=HydrologyLakeNetworkStepV2.step(
+            new HydrologySphericalLakeBasinsV2.Plan(reversedRoutes,reversedLakes),
+            initial,forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.INFLOW_THEN_EVAPORATION);
+        assertEquals(a,b);
+        assertEquals(0,a.budget().residual(),1e-9);
+        assertThrows(NullPointerException.class,()->HydrologyLakeNetworkStepV2.step(
+            plan,initial,forcing,null));
+    }
 }
