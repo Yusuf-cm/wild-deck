@@ -184,4 +184,32 @@ class HydrologyIncrementalAtomicEpochV2Test {
         assertEquals(Set.of(key), runner.inboxSnapshot().delivered());
     }
 
+    @Test void partialFloodCanResumeAndAdvanceAcrossSeveralAtomicEpochs()
+            throws IOException {
+        var session = flood();
+        session.advance(1);
+        var world = directory.resolve("incremental-world.bin");
+        var runner = HydrologyWorldRunnerV2.open(world, 0,
+            HydrologyIncrementalAtomicEpochV2.encode(
+                new HydrologyIncrementalAtomicEpochV2.Bound(
+                    "start", session.checkpoint("fixed"))));
+        for (int batch = 0; batch < 3; batch++) {
+            session = HydrologyIncrementalAtomicEpochV2.resumeBound(
+                world, "fixed", a -> a.equals(OUTLET) ? 0 : 10);
+            var next = session.advance(3);
+            var zeros = next.settled().keySet().stream()
+                .map(a -> new HydrologyGlobalSlopeRouterV2.Source(a, 0)).toList();
+            HydrologyIncrementalAtomicEpochV2.advance(
+                runner, "batch-" + batch, "fixed", session,
+                a -> a.equals(OUTLET) ? 0 : 10, zeros);
+            runner = HydrologyWorldRunnerV2.open(world, 0, "ignored");
+            assertEquals(next, HydrologyIncrementalAtomicEpochV2.resumeBound(
+                world, "fixed", a -> a.equals(OUTLET) ? 0 : 10).snapshot());
+            assertEquals(batch + 1, runner.epoch());
+        }
+        assertEquals(10, HydrologyIncrementalAtomicEpochV2.decode(
+            runner.worldState()).flood().settledCount());
+        assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
+    }
+
 }
