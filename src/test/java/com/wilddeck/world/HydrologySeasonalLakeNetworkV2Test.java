@@ -245,4 +245,49 @@ class HydrologySeasonalLakeNetworkV2Test {
         assertEquals(26,plan.routes().size());
     }
 
+
+    @Test void optInEvaporationPersistsIncomingWaterOnceAcrossRestart()
+            throws IOException {
+        var path=directory.resolve("filled-evaporation.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,
+            HydrologySeasonalLakeNetworkV2.initialState("initial"));
+        var receipt=new HydrologyTransferLedgerV2.Key(1,at(0,2),A);
+        assertTrue(runner.receive(receipt,2));
+        var step=HydrologySeasonalLakeNetworkV2.advance(
+            runner,"filled",planet(false),Map.of(A,weather(0,2)),
+            lakes(false,1),
+            SeasonalLakeEvolutionV2.EvaporationMode.INFLOW_THEN_EVAPORATION);
+        assertEquals(2,step.budget().receivedRiverWater(),1e-10);
+        assertEquals(1,step.budget().lakeEvaporation(),1e-10);
+        assertEquals(1,step.budget().finalLakes(),1e-10);
+        assertEquals(0,step.budget().terminalDischarge(),1e-10);
+        assertEquals(0,step.budget().residual(),1e-10);
+        assertEquals(2,runner.receiptBudget().deliveredVolume(),1e-10);
+        assertEquals(0,runner.receiptBudget().pendingVolume(),1e-10);
+        var reopened=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(1,reopened.epoch());
+        assertEquals(1,HydrologyLakeStateV2.decode(
+            reopened.worldState()).volumes().get(A),1e-10);
+        assertEquals(2,reopened.receiptBudget().deliveredVolume(),1e-10);
+    }
+
+    @Test void invalidEvaporationModeCannotConsumeDurableReceipt()
+            throws IOException {
+        var path=directory.resolve("reject-evaporation-mode.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,
+            HydrologySeasonalLakeNetworkV2.initialState("initial"));
+        var receipt=new HydrologyTransferLedgerV2.Key(1,at(0,2),A);
+        assertTrue(runner.receive(receipt,2));
+        var before=runner.worldState();
+        assertThrows(NullPointerException.class,()->
+            HydrologySeasonalLakeNetworkV2.advance(
+                runner,"bad",planet(false),Map.of(A,weather(0,2)),
+                lakes(false,1),null));
+        assertEquals(0,runner.epoch());
+        assertEquals(before,runner.worldState());
+        assertEquals(2,runner.receiptBudget().pendingVolume(),1e-10);
+        var reopened=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(0,reopened.epoch());
+        assertEquals(2,reopened.receiptBudget().pendingVolume(),1e-10);
+    }
 }
