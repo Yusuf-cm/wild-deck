@@ -76,4 +76,35 @@ class LakeSedimentEvolutionV2Test {
         assertThrows(IllegalArgumentException.class, () ->
             LakeSedimentEvolutionV2.deposit(basin(), 1, 1, Double.POSITIVE_INFINITY));
     }
+
+    @Test void seededGeometrySweepPreservesBothConservationLaws() {
+        var random = new java.util.Random(271828);
+        for (int run = 0; run < 500; run++) {
+            int count = 1 + random.nextInt(20);
+            double[] beds = new double[count], areas = new double[count];
+            double spill = 1 + random.nextDouble() * 50;
+            for (int i = 0; i < count; i++) {
+                beds[i] = random.nextDouble() * (spill + 5) - 2;
+                areas[i] = 0.1 + random.nextDouble() * 20;
+            }
+            beds[0] = 0;
+            var basin = new LakeReservoirV2.Basin(beds, areas, spill);
+            double capacity = basin.capacity();
+            double previousWater = capacity * random.nextDouble();
+            double sedimentMass = capacity * 2000 * random.nextDouble() * 1.5;
+            var result = LakeSedimentEvolutionV2.deposit(
+                basin, previousWater, sedimentMass, 2000);
+            double nextCapacity = result.basin()
+                .map(LakeReservoirV2.Basin::capacity).orElse(0.0);
+            double waterTolerance = 1e-8 * Math.max(1, previousWater);
+            double sedimentTolerance = 1e-8 * Math.max(1, sedimentMass);
+            assertEquals(previousWater,
+                result.storedWater() + result.displacedWater(), waterTolerance);
+            assertEquals(sedimentMass,
+                result.depositedSediment() + result.exportedSediment(), sedimentTolerance);
+            assertTrue(nextCapacity <= capacity + waterTolerance);
+            for (int i = 0; i < count; i++)
+                assertTrue(result.bedElevation()[i] >= beds[i]);
+        }
+    }
 }
