@@ -141,6 +141,58 @@ public final class HydrologyMixedResolutionEpochV2 {
         return new Prepared(result, new Snapshot(epoch, state.receipts(), delivered));
     }
 
+    /**
+     * Convert known unloaded downstream edges into individually replayable
+     * geographic receipts. Never export a local sink as a fictitious neighbor.
+     * The caller must durably queue these transfers before acknowledging a
+     * source epoch; separate regional files are not one distributed transaction.
+     */
+    public static Map<Receipt, Double> exportFrontier(long arrivalEpoch,
+            Collection<HydrologyMixedResolutionDischargeV2.Node> nodes,
+            HydrologyMixedResolutionDischargeV2.Result result) {
+        if (arrivalEpoch < 0) throw new IllegalArgumentException("Invalid arrival epoch");
+        Objects.requireNonNull(nodes);
+        Objects.requireNonNull(result);
+        var owners = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        var addresses = new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for (var node : nodes) {
+            Objects.requireNonNull(node);
+            if (!owners.add(coordinate(node.address())))
+                throw new IllegalArgumentException("Duplicate geographic water owner");
+            addresses.add(node.address());
+        }
+        if (!addresses.equals(result.discharge().keySet()))
+            throw new IllegalArgumentException("Discharge does not match loaded graph");
+        var exported = new TreeMap<Receipt, Double>(ORDER);
+        var pending = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate, Double>();
+        for (var node : nodes) {
+            double amount = result.discharge().get(node.address());
+            if (!Double.isFinite(amount) || amount < 0)
+                throw new IllegalArgumentException("Invalid computed discharge");
+            if (node.terminal()) continue;
+            if (node.downstream() == null)
+                throw new IllegalArgumentException("Unresolved sink has no verified transfer edge");
+            var destination = coordinate(node.downstream());
+            if (owners.contains(destination)) continue;
+            var receipt = new Receipt(arrivalEpoch, node.address(), node.downstream());
+            if (exported.putIfAbsent(receipt, amount) != null)
+                throw new IllegalArgumentException("Duplicate geographic frontier source");
+            double sum = pending.getOrDefault(destination, 0.0) + amount;
+            if (!Double.isFinite(sum)) throw new IllegalArgumentException("Frontier overflow");
+            pending.put(destination, sum);
+        }
+        if (!pending.keySet().equals(result.pendingOutflow().keySet()))
+            throw new IllegalArgumentException("Unaccounted pending discharge");
+        for (var entry : pending.entrySet()) {
+            double actual = result.pendingOutflow().get(entry.getKey());
+            double tolerance = 1e-12 * Math.max(1.0,
+                Math.max(Math.abs(actual), Math.abs(entry.getValue())));
+            if (Math.abs(actual - entry.getValue()) > tolerance)
+                throw new IllegalArgumentException("Frontier discharge mismatch");
+        }
+        return Collections.unmodifiableMap(exported);
+    }
+
     /** Deterministic versioned receipt snapshot for inclusion in an atomic world checkpoint. */
     public static String encode(Snapshot state) {
         Objects.requireNonNull(state);
