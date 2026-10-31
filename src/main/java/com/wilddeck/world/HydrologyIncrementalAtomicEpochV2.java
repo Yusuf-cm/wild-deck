@@ -128,6 +128,7 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             if (maxSettlements < 1 ||
                 maxSettlements > HydrologyIncrementalPriorityFloodV2.MAX_SAMPLES)
                 throw new IllegalArgumentException("Invalid discovery batch budget");
+            runner.verifyCheckpointFresh();
             var boundState = runner.worldState();
             var inboxBefore = runner.inboxSnapshot();
             long epochBefore = runner.epoch();
@@ -172,6 +173,7 @@ public final class HydrologyIncrementalAtomicEpochV2 {
                 !runner.inboxSnapshot().equals(inboxBefore) ||
                 !runner.worldState().equals(expectedState))
                 throw new IOException("World inbox changed during pending-water discovery");
+            runner.verifyCheckpointFresh();
             targets.removeAll(snapshot.settled().keySet());
             return new HydrologyIncrementalRegionBridgeV2.PendingDiscovery(
                 snapshot, targets);
