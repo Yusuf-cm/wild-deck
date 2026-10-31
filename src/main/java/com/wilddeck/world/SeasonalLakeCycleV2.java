@@ -39,6 +39,16 @@ public final class SeasonalLakeCycleV2 {
                          double totalInput,double totalEvaporation,double totalOverflow) {
         public Result {
             seasons=List.copyOf(seasons);
+            if(!Double.isFinite(initialVolume)||!Double.isFinite(finalVolume)||
+               !Double.isFinite(totalInput)||!Double.isFinite(totalEvaporation)||
+               !Double.isFinite(totalOverflow)||initialVolume<0||finalVolume<0||
+               totalInput<0||totalEvaporation<0||totalOverflow<0)
+                throw new IllegalArgumentException("Invalid lake result budget");
+            double supplied=initialVolume+totalInput;
+            double accounted=finalVolume+totalEvaporation+totalOverflow;
+            if(!Double.isFinite(supplied)||!Double.isFinite(accounted)||
+               Math.abs(supplied-accounted)>Math.max(1e-8,supplied*1e-10))
+                throw new IllegalArgumentException("Unbalanced lake result");
         }
     }
 
@@ -58,7 +68,13 @@ public final class SeasonalLakeCycleV2 {
             double inflow=runoff+period.upstreamInflow();
             if(!Double.isFinite(runoff)||!Double.isFinite(inflow))
                 throw new IllegalArgumentException("Seasonal water overflow");
+            double startingVolume=volume;
             var lake=LakeReservoirV2.step(basin,volume,inflow,period.evaporationDepth());
+            double supplied=startingVolume+inflow;
+            double accounted=lake.volume()+lake.evaporated()+lake.overflow();
+            if(!Double.isFinite(supplied)||!Double.isFinite(accounted)||
+               Math.abs(supplied-accounted)>Math.max(1e-8,supplied*1e-10))
+                throw new IllegalArgumentException("Seasonal lake water conservation violated");
             input+=inflow;
             evaporation+=lake.evaporated();
             overflow+=lake.overflow();

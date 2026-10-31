@@ -44,6 +44,34 @@ class SeasonalLakeCycleV2Test {
             SeasonalLakeCycleV2.simulate(basin(),1,Double.MAX_VALUE,
                 List.of(new SeasonalLakeCycleV2.Period(2,0,0,1))));
     }
+    @Test void lakeResultRejectsForgedOrNonfiniteWaterBudget() {
+        assertThrows(IllegalArgumentException.class, () ->
+            new SeasonalLakeCycleV2.Result(List.of(), 0, 0, 1, 0, 0));
+        assertThrows(IllegalArgumentException.class, () ->
+            new SeasonalLakeCycleV2.Result(List.of(), 0, 0, Double.NaN, 0, 0));
+        assertThrows(IllegalArgumentException.class, () ->
+            new SeasonalLakeCycleV2.Result(List.of(), 0, 0, 0, -1, 0));
+    }
+
+    @Test void manyCoarseSeasonsRemainDeterministicAndConserveWater() {
+        var periods = new ArrayList<SeasonalLakeCycleV2.Period>();
+        for(int i=0;i<512;i++)
+            periods.add(new SeasonalLakeCycleV2.Period(
+                i%7==0?1.25:0.04, i%3==0?0.3:0.01,
+                i%11==0?2.0:0.0, 0.65));
+        var first = SeasonalLakeCycleV2.simulate(basin(), 5, 20, periods);
+        var replay = SeasonalLakeCycleV2.simulate(basin(), 5, 20, periods);
+        assertEquals(first, replay);
+        assertEquals(512, first.seasons().size());
+        assertEquals(first.initialVolume()+first.totalInput(),
+            first.finalVolume()+first.totalEvaporation()+first.totalOverflow(), 1e-7);
+        for(var season:first.seasons()) {
+            assertTrue(Double.isFinite(season.lake().volume()));
+            assertTrue(season.lake().volume()>=0);
+            assertTrue(season.lake().volume()<=basin().capacity());
+        }
+    }
+
     @Test void substepsAccountForEvaporationWhilePreviouslyDryLakeFills(){
         var shallow=new LakeReservoirV2.Basin(new double[]{0},new double[]{10},10);
         var periods=List.of(new SeasonalLakeCycleV2.Period(1,1,0,1));
