@@ -55,6 +55,21 @@ public final class HydrologyLakeNetworkStepV2 {
     public static Result step(HydrologySphericalLakeBasinsV2.Plan plan,
                               HydrologyLakeStateV2.State previous,
                               Map<GlobalHydrologyAddressV2.Sample,Forcing> forcing) {
+        return step(plan, previous, forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+    }
+
+    /**
+     * Opt-in lake evaporation timing for verified closed-sphere routing.
+     * The default remains the legacy start-of-substep approximation.
+     * Inflow-first mode spills before evaporating each substep, so it is
+     * not equivalent to continuous simultaneous rain and evaporation.
+     */
+    public static Result step(HydrologySphericalLakeBasinsV2.Plan plan,
+                              HydrologyLakeStateV2.State previous,
+                              Map<GlobalHydrologyAddressV2.Sample,Forcing> forcing,
+                              SeasonalLakeEvolutionV2.EvaporationMode mode) {
+        Objects.requireNonNull(mode);
         Objects.requireNonNull(plan);
         Objects.requireNonNull(previous);
         Objects.requireNonNull(forcing);
@@ -211,8 +226,12 @@ public final class HydrologyLakeNetworkStepV2 {
                 double target=input*((double)(i+1)/f.substeps());
                 double portion=target-delivered;
                 delivered=target;
-                var next=LakeReservoirV2.step(lake.reservoir(),volume,
-                    portion,f.evaporationDepth()/f.substeps());
+                var next=mode ==
+                    SeasonalLakeEvolutionV2.EvaporationMode.INFLOW_THEN_EVAPORATION ?
+                    LakeReservoirV2.stepInflowThenEvaporation(lake.reservoir(),
+                        volume,portion,f.evaporationDepth()/f.substeps()) :
+                    LakeReservoirV2.step(lake.reservoir(),volume,
+                        portion,f.evaporationDepth()/f.substeps());
                 volume=next.volume();
                 evaporation=add(evaporation,next.evaporated());
                 overflow=add(overflow,next.overflow());
