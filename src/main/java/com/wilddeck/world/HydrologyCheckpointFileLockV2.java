@@ -30,6 +30,17 @@ final class HydrologyCheckpointFileLockV2 {
         Path parent = target.getParent();
         if (parent == null || !Files.isDirectory(parent))
             throw new IOException("Checkpoint directory missing");
+        // Atomic replacement of a multiply-linked inode would silently split
+        // checkpoint aliases. Reject them where the filesystem exposes nlink.
+        if (Files.exists(target)) {
+            try {
+                Object links = Files.getAttribute(target, "unix:nlink");
+                if (links instanceof Number && ((Number) links).longValue() > 1)
+                    throw new IOException("Hard-linked checkpoint files are not supported");
+            } catch (UnsupportedOperationException ignored) {
+                // Non-Unix providers may not expose link counts.
+            }
+        }
         // Canonicalize existing symlinks and the parent of not-yet-created files.
         target = Files.exists(target) ? target.toRealPath()
             : parent.toRealPath().resolve(target.getFileName());
