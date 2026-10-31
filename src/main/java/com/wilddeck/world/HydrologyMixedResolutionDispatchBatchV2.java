@@ -68,8 +68,17 @@ public final class HydrologyMixedResolutionDispatchBatchV2 {
         }
 
         var initialSender = HydrologyMixedResolutionCheckpointStoreV2.load(senderFile);
-        // Verify the receiver exists before starting a potentially partial batch.
-        HydrologyMixedResolutionCheckpointStoreV2.load(receiverFile);
+        // Audit previously acknowledged receipts before any new deliveries.
+        // A missing/replaced receiver checkpoint must not masquerade as a
+        // completed batch simply because the sender has no pending receipts.
+        var initialReceiver = HydrologyMixedResolutionCheckpointStoreV2.load(receiverFile);
+        for (var key : initialSender.acknowledged()) {
+            if (!owned.contains(coordinate(key.to()))) continue;
+            var expected = initialSender.outbox().get(key);
+            var actual = initialReceiver.inbox().receipts().get(key);
+            if (actual == null || Double.compare(actual, expected) != 0)
+                throw new IOException("Acknowledged water missing or mismatched at receiver");
+        }
         var selected = new ArrayList<HydrologyMixedResolutionEpochV2.Receipt>();
         for (var key : HydrologyMixedResolutionCheckpointStoreV2.pending(initialSender).keySet())
             if (owned.contains(coordinate(key.to()))) selected.add(key);
