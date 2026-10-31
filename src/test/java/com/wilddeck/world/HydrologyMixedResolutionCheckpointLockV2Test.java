@@ -111,4 +111,15 @@ class HydrologyMixedResolutionCheckpointLockV2Test {
             () -> Files.readString(file)));
         assertTrue(Files.exists(temp.resolve(".replaced.chk.hydrology.lock")));
     }
+    @Test void hardLinkedCheckpointWritersAreRejectedOnUnix() throws Exception {
+        Path file = temp.resolve("original.chk");
+        Files.writeString(file, "before");
+        if (!Files.getFileStore(file).supportsFileAttributeView("unix")) return;
+        Path alias = temp.resolve("hardlink.chk");
+        Files.createLink(alias, file);
+        assertThrows(IOException.class, () ->
+            HydrologyCheckpointFileLockV2.withLock(alias, () -> null));
+        assertEquals("before", Files.readString(file));
+    }
+
 }
