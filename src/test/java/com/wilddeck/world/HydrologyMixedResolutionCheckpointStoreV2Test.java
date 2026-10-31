@@ -148,4 +148,43 @@ class HydrologyMixedResolutionCheckpointStoreV2Test {
             HydrologyMixedResolutionEpochV2.exportFrontier(-1,routed,result));
     }
 
+    @Test void threeRegionsRouteConservedWaterThroughTwoUnloadedFrontiers() throws IOException {
+        var source=coarse(4,4);var middle=coarse(5,4);
+        var destination=fine(12,8);var mouth=coarse(7,4);
+        var firstGraph=List.of(node(source,7,fine(10,8),false));
+        var first=HydrologyMixedResolutionDischargeV2.solve(firstGraph,Set.of());
+        var firstReceipts=HydrologyMixedResolutionEpochV2.exportFrontier(1,firstGraph,first);
+
+        Path middleFile=temp.resolve("middle.bin");
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(middleFile,initial());
+        var middleCheckpoint=HydrologyMixedResolutionCheckpointStoreV2.load(middleFile);
+        for (var entry:firstReceipts.entrySet())
+            middleCheckpoint=HydrologyMixedResolutionCheckpointStoreV2.receive(
+                middleFile,middleCheckpoint,entry.getKey(),entry.getValue());
+        var middleGraph=List.of(node(middle,3,fine(12,8),false));
+        var middleCommitted=HydrologyMixedResolutionCheckpointStoreV2.advance(
+            middleFile,middleCheckpoint,"middle:advanced",middleGraph,Set.of());
+        assertEquals(10.0,middleCommitted.flow().pendingOutflow().get(
+            HydrologyGlobalCatchmentsV2.coordinate(destination)));
+        var secondReceipts=HydrologyMixedResolutionEpochV2.exportFrontier(
+            2,middleGraph,middleCommitted.flow());
+
+        Path finalFile=temp.resolve("final.bin");
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(finalFile,initial());
+        var finalCheckpoint=HydrologyMixedResolutionCheckpointStoreV2.load(finalFile);
+        for (var entry:secondReceipts.entrySet())
+            finalCheckpoint=HydrologyMixedResolutionCheckpointStoreV2.receive(
+                finalFile,finalCheckpoint,entry.getKey(),entry.getValue());
+        var finalGraph=List.of(node(destination,5,mouth,false),node(mouth,2,null,true));
+        var notDue=HydrologyMixedResolutionCheckpointStoreV2.advance(
+            finalFile,finalCheckpoint,"final:before",finalGraph,Set.of(mouth));
+        assertEquals(7.0,notDue.flow().terminalOutflow().get(mouth));
+        var delivered=HydrologyMixedResolutionCheckpointStoreV2.advance(
+            finalFile,HydrologyMixedResolutionCheckpointStoreV2.load(finalFile),
+            "final:received",finalGraph,Set.of(mouth));
+        assertEquals(17.0,delivered.flow().terminalOutflow().get(mouth));
+        assertEquals(1,delivered.checkpoint().inbox().delivered().size());
+        assertEquals(1,middleCommitted.checkpoint().inbox().delivered().size());
+    }
+
 }
