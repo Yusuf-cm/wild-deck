@@ -218,9 +218,10 @@ class HydrologyIncrementalRegionBridgeV2Test {
         assertEquals(7, runner.receiptBudget().pendingVolume(), 1e-12);
 
         session.advance(1);
+        var staleSession = session;
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
-                floodPath, worldPath, "terrain-fixed", session, 100));
+                floodPath, worldPath, "terrain-fixed", staleSession, 100));
         assertEquals(original,
             HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath));
     }
