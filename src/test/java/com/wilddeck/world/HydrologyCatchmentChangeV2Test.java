@@ -37,4 +37,48 @@ class HydrologyCatchmentChangeV2Test {
         var second=HydrologyGlobalCatchmentsV2.resolve(next,Set.of(b,c));
         assertThrows(IllegalArgumentException.class,()->HydrologyCatchmentChangeV2.compare(first,second));
     }
+    @Test void equivalentGeographyAcrossSamplingLevelsIsNotAFalseMigration() {
+        var source = at(4,4);
+        var mouthA = at(6,6);
+        var mouthB = at(7,6);
+        var fineSource = new GlobalHydrologyAddressV2.Sample(3,4,8,8);
+        var fineMouthA = new GlobalHydrologyAddressV2.Sample(3,4,12,12);
+        var fineMouthB = new GlobalHydrologyAddressV2.Sample(3,4,14,12);
+        var beforeEdges = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        beforeEdges.put(source,mouthA);
+        beforeEdges.put(mouthA,null);
+        beforeEdges.put(mouthB,null);
+        var afterEdges = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        afterEdges.put(fineSource,fineMouthA);
+        afterEdges.put(fineMouthA,null);
+        afterEdges.put(fineMouthB,null);
+        var before = HydrologyGlobalCatchmentsV2.resolve(beforeEdges,Set.of(mouthA,mouthB));
+        var after = HydrologyGlobalCatchmentsV2.resolve(afterEdges,Set.of(fineMouthA,fineMouthB));
+        assertTrue(HydrologyCatchmentChangeV2.compare(before,after).unchanged());
+
+        afterEdges.put(fineSource,fineMouthB);
+        var migrated = HydrologyGlobalCatchmentsV2.resolve(afterEdges,Set.of(fineMouthA,fineMouthB));
+        var change = HydrologyCatchmentChangeV2.compare(before,migrated);
+        assertEquals(Set.of(source),change.reassignedVertices());
+        assertEquals(Set.of(before.reaches().get(source)),change.removedReaches());
+        assertEquals(Set.of(migrated.reaches().get(fineSource)),change.addedReaches());
+    }
+
+    @Test void differentGeographicCoverageStillFailsAcrossLevels() {
+        var source = at(4,4);
+        var mouth = at(6,6);
+        var beforeEdges = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        beforeEdges.put(source,mouth);
+        beforeEdges.put(mouth,null);
+        var fineSource = new GlobalHydrologyAddressV2.Sample(3,4,8,8);
+        var otherMouth = new GlobalHydrologyAddressV2.Sample(3,4,14,12);
+        var afterEdges = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        afterEdges.put(fineSource,otherMouth);
+        afterEdges.put(otherMouth,null);
+        var before = HydrologyGlobalCatchmentsV2.resolve(beforeEdges,Set.of(mouth));
+        var after = HydrologyGlobalCatchmentsV2.resolve(afterEdges,Set.of(otherMouth));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyCatchmentChangeV2.compare(before,after));
+    }
+
 }
