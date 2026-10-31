@@ -91,4 +91,52 @@ class HydrologyMixedResolutionHistoryAuditV2Test {
         assertTrue(none.locallyConsistent());
         assertTrue(none.locallyMatched().isEmpty());
     }
+
+    @Test void reverseAuditDetectsAcknowledgedWaterMissingAtReceiver() {
+        var empty = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            2, "receiver", new HydrologyMixedResolutionEpochV2.Snapshot(
+                2, Map.of(), Set.of()));
+        var report = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            empty, List.of(sender(7, true)), 1, List.of(at(5, 4)));
+        assertFalse(report.locallyConsistent());
+        assertTrue(report.blockers().stream().anyMatch(
+            b -> b.contains("absent from receiver")));
+        assertTrue(report.locallyMatched().isEmpty());
+    }
+
+    @Test void reverseAuditDetectsPendingWaterButRespectsEpochHorizon() {
+        var empty = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            2, "receiver", new HydrologyMixedResolutionEpochV2.Snapshot(
+                2, Map.of(), Set.of()));
+        var oldPending = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            empty, List.of(sender(7, false)), 1, List.of(at(5, 4)));
+        assertFalse(oldPending.locallyConsistent());
+        var beforeArrival = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            empty, List.of(sender(7, false)), 0, List.of(at(5, 4)));
+        assertTrue(beforeArrival.locallyConsistent(), beforeArrival.blockers().toString());
+    }
+
+    @Test void reverseAuditDoesNotRequireReceiptsForOtherRegions() {
+        var key = receipt();
+        var other = new HydrologyMixedResolutionEpochV2.Receipt(
+            1, at(6, 4), at(7, 4));
+        var checkpoint = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            1, "sender",
+            new HydrologyMixedResolutionEpochV2.Snapshot(1, Map.of(), Set.of()),
+            Map.of(key, 7.0, other, 9.0), Set.of(key, other));
+        var report = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            receiver(true), List.of(checkpoint), 1, List.of(at(5, 4)));
+        assertTrue(report.locallyConsistent(), report.blockers().toString());
+        assertEquals(Map.of(key, 7.0), report.locallyMatched());
+    }
+
+    @Test void reverseAuditRejectsAmbiguousReceiverOwnership() {
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+                receiver(true), List.of(sender(7, true)), 1,
+                List.of(at(5, 4), at(5, 4))));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+                receiver(true), List.of(sender(7, true)), 1, List.of()));
+    }
 }
