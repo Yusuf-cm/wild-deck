@@ -162,12 +162,12 @@ class HydrologyMixedResolutionCheckpointStoreV2Test {
             middleCheckpoint=HydrologyMixedResolutionCheckpointStoreV2.receive(
                 middleFile,middleCheckpoint,entry.getKey(),entry.getValue());
         var middleGraph=List.of(node(middle,3,fine(12,8),false));
-        var middleCommitted=HydrologyMixedResolutionCheckpointStoreV2.advance(
-            middleFile,middleCheckpoint,"middle:advanced",middleGraph,Set.of());
+        var middleCommitted=HydrologyMixedResolutionCheckpointStoreV2.advanceAndQueue(
+            middleFile,middleCheckpoint,"middle:advanced",middleGraph,Set.of(),2);
         assertEquals(10.0,middleCommitted.flow().pendingOutflow().get(
             HydrologyGlobalCatchmentsV2.coordinate(destination)));
-        var secondReceipts=HydrologyMixedResolutionEpochV2.exportFrontier(
-            2,middleGraph,middleCommitted.flow());
+        var secondReceipts=HydrologyMixedResolutionCheckpointStoreV2.pending(
+            middleCommitted.checkpoint());
 
         Path finalFile=temp.resolve("final.bin");
         HydrologyMixedResolutionCheckpointStoreV2.initialize(finalFile,initial());
@@ -185,6 +185,29 @@ class HydrologyMixedResolutionCheckpointStoreV2Test {
         assertEquals(17.0,delivered.flow().terminalOutflow().get(mouth));
         assertEquals(1,delivered.checkpoint().inbox().delivered().size());
         assertEquals(1,middleCommitted.checkpoint().inbox().delivered().size());
+    }
+
+    @Test void plainAdvanceRejectsUnqueuedWaterWithoutMutatingWorldOrInbox()
+            throws IOException {
+        Path file=temp.resolve("unqueued.bin");
+        var initial=initial();
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(file,initial);
+        var from=coarse(4,4);
+        var landing=coarse(5,4);
+        var key=new HydrologyMixedResolutionEpochV2.Receipt(0,coarse(3,4),from);
+        var accepted=HydrologyMixedResolutionCheckpointStoreV2.receive(file,initial,key,2);
+        var graph=List.of(node(from,7,landing,false));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyMixedResolutionCheckpointStoreV2.advance(
+                file,accepted,"lost-water",graph,Set.of()));
+        assertEquals(accepted,HydrologyMixedResolutionCheckpointStoreV2.load(file));
+        var queued=HydrologyMixedResolutionCheckpointStoreV2.advanceAndQueue(
+            file,accepted,"conserved-water",graph,Set.of(),1);
+        assertEquals(9.0,queued.flow().pendingOutflow().get(
+            HydrologyGlobalCatchmentsV2.coordinate(landing)));
+        assertEquals(9.0,HydrologyMixedResolutionCheckpointStoreV2.pending(
+            queued.checkpoint()).values().iterator().next());
+        assertEquals("conserved-water",HydrologyMixedResolutionCheckpointStoreV2.load(file).worldState());
     }
 
 }
