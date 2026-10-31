@@ -12,7 +12,7 @@ class HydrologySeasonalLandscapeStateV2Test {
     private static final double RADIUS = 1000;
 
     private static HydrologySeasonalLandscapeStateV2.State initial() {
-        return new HydrologySeasonalLandscapeStateV2.State("world",
+        return new HydrologySeasonalLandscapeStateV2.State("world", RADIUS,
             new HydrologyTerrainOverlayV2.State("world", Map.of()),
             new HydrologySnowSoilStateV2.State("world", Map.of()));
     }
@@ -72,11 +72,11 @@ class HydrologySeasonalLandscapeStateV2Test {
     @Test void rejectsMismatchedWorldsAndTamperedPayloads() {
         var before = initial();
         assertThrows(IllegalArgumentException.class, () ->
-            new HydrologySeasonalLandscapeStateV2.State("world",
+            new HydrologySeasonalLandscapeStateV2.State("world", RADIUS,
                 new HydrologyTerrainOverlayV2.State("other", Map.of()),
                 before.snowSoil()));
         assertThrows(IllegalArgumentException.class, () ->
-            new HydrologySeasonalLandscapeStateV2.State("world",
+            new HydrologySeasonalLandscapeStateV2.State("world", RADIUS,
                 before.terrain(),
                 new HydrologySnowSoilStateV2.State("other", Map.of())));
         var encoded = HydrologySeasonalLandscapeStateV2.encode(before);
@@ -84,11 +84,31 @@ class HydrologySeasonalLandscapeStateV2Test {
             HydrologySeasonalLandscapeStateV2.decode(encoded + "junk"));
         assertThrows(IllegalArgumentException.class, () ->
             HydrologySeasonalLandscapeStateV2.decode(
-                encoded.replace("WD-SEASONAL-LANDSCAPE-1",
-                                "WD-SEASONAL-LANDSCAPE-2")));
+                encoded.replace("WD-SEASONAL-LANDSCAPE-2",
+                                "WD-SEASONAL-LANDSCAPE-1")));
         assertThrows(IllegalArgumentException.class, () ->
             HydrologySeasonalLandscapeStateV2.decode(
                 encoded.replaceFirst("\\n", "\\n!")));
+    }
+
+    @Test void persistedPlanetRadiusCannotDriftBetweenSeasons() {
+        var before = initial();
+        assertEquals(RADIUS, HydrologySeasonalLandscapeStateV2.decode(
+            HydrologySeasonalLandscapeStateV2.encode(before)).radiusMeters(), 0);
+        assertThrows(IllegalArgumentException.class, () ->
+            new HydrologySeasonalLandscapeStateV2.State(
+                "world", Double.NaN, before.terrain(), before.snowSoil()));
+        var weather = new HashMap<GlobalHydrologyAddressV2.Sample,
+                                  HydrologySnowSoilStateV2.Forcing>();
+        for (var address : window())
+            weather.put(address, HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address, RADIUS + 1, 2, 5, 0, 0, 1, 10));
+        double[] capacity = new double[25];
+        Arrays.fill(capacity, 2_000_000);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalLandscapeStateV2.prepare(
+                before, window(), 5, 5, a -> 20, weather,
+                RADIUS + 1, 2000, 0.1, 0.4, capacity, Set.of(24)));
     }
 
     @Test void rejectsForgedPreparedStoresAndIncorrectAreaProvenance() {

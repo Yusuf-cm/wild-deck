@@ -18,13 +18,15 @@ import java.util.*;
  */
 public final class HydrologySeasonalLandscapeStateV2 {
     private HydrologySeasonalLandscapeStateV2() {}
-    private static final String MAGIC = "WD-SEASONAL-LANDSCAPE-1";
+    private static final String MAGIC = "WD-SEASONAL-LANDSCAPE-2";
     private static final int MAX_BYTES = 16 * 1024 * 1024;
 
-    public record State(String world, HydrologyTerrainOverlayV2.State terrain,
+    public record State(String world, double radiusMeters,
+                        HydrologyTerrainOverlayV2.State terrain,
                         HydrologySnowSoilStateV2.State snowSoil) {
         public State {
             Objects.requireNonNull(world);
+            HydrologySphericalCellAreaV2.planetArea(radiusMeters);
             Objects.requireNonNull(terrain);
             Objects.requireNonNull(snowSoil);
             if (!world.equals(terrain.world()) || !world.equals(snowSoil.world()))
@@ -55,11 +57,13 @@ public final class HydrologySeasonalLandscapeStateV2 {
             double erosionStrength, double maximumCut,
             double[] transportCapacity, Collection<Integer> verifiedOutlets) {
         Objects.requireNonNull(previous);
+        if (Double.compare(previous.radiusMeters(), radiusMeters) != 0)
+            throw new IllegalArgumentException("Seasonal landscape planetary radius changed");
         var preview = HydrologySeasonalErosionPreviewV2.calculateFromForcing(
             previous.terrain(), addresses, width, height, seed,
             previous.snowSoil(), weather, radiusMeters, sedimentDensity,
             erosionStrength, maximumCut, transportCapacity, verifiedOutlets);
-        return new Prepared(new State(previous.world(),
+        return new Prepared(new State(previous.world(), previous.radiusMeters(),
             preview.erosion().terrain().state(), preview.season().state()), preview);
     }
 
@@ -71,7 +75,7 @@ public final class HydrologySeasonalLandscapeStateV2 {
             .getBytes(StandardCharsets.UTF_8);
         if ((long)terrain.length + snowSoil.length > MAX_BYTES)
             throw new IllegalArgumentException("Seasonal landscape payload too large");
-        return MAGIC + "\n" +
+        return MAGIC + "\n" + Double.toHexString(state.radiusMeters()) + "\n" +
             Base64.getEncoder().encodeToString(terrain) + "\n" +
             Base64.getEncoder().encodeToString(snowSoil) + "\n";
     }
@@ -79,11 +83,13 @@ public final class HydrologySeasonalLandscapeStateV2 {
     public static State decode(String payload) {
         Objects.requireNonNull(payload);
         var lines = payload.split("\\n", -1);
-        if (lines.length != 4 || !MAGIC.equals(lines[0]) || !lines[3].isEmpty())
+        if (lines.length != 5 || !MAGIC.equals(lines[0]) || !lines[4].isEmpty())
             throw new IllegalArgumentException("Unsupported seasonal landscape payload");
         try {
-            byte[] terrain = Base64.getDecoder().decode(lines[1]);
-            byte[] snowSoil = Base64.getDecoder().decode(lines[2]);
+            double radiusMeters = Double.parseDouble(lines[1]);
+            HydrologySphericalCellAreaV2.planetArea(radiusMeters);
+            byte[] terrain = Base64.getDecoder().decode(lines[2]);
+            byte[] snowSoil = Base64.getDecoder().decode(lines[3]);
             if ((long)terrain.length + snowSoil.length > MAX_BYTES)
                 throw new IllegalArgumentException("Seasonal landscape payload too large");
             var decoder = StandardCharsets.UTF_8.newDecoder();
@@ -92,7 +98,8 @@ public final class HydrologySeasonalLandscapeStateV2 {
             decoder.reset();
             var snowSoilState = HydrologySnowSoilStateV2.decode(
                 decoder.decode(ByteBuffer.wrap(snowSoil)).toString());
-            var state = new State(terrainState.world(), terrainState, snowSoilState);
+            var state = new State(terrainState.world(), radiusMeters,
+                terrainState, snowSoilState);
             if (!encode(state).equals(payload))
                 throw new IllegalArgumentException("Noncanonical seasonal landscape payload");
             return state;
