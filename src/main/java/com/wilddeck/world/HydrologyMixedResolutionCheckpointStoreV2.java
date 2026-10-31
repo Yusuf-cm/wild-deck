@@ -166,8 +166,9 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
     }
 
     /**
-     * Local optimistic freshness guard. An independent process could still
-     * write between the load and rename; use one writer per checkpoint.
+     * Compare-and-replace under a stable sidecar OS lock, including the entire
+     * read/validate/atomic-rename sequence. Every local writer must cooperate.
+     * This is not a remote/distributed fencing token or network-filesystem CAS.
      */
     private static void saveExpected(Path file, Checkpoint expected, Checkpoint next)
             throws IOException {
@@ -177,20 +178,20 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
         HydrologyCheckpointFileLockV2.withLock(file, () -> {
             if (!load(file).equals(expected))
                 throw new IOException("Stale mixed-resolution checkpoint");
-        if (next.epoch() < expected.epoch() || next.epoch() > expected.epoch() + 1)
-            throw new IOException("Invalid checkpoint epoch transition");
-        if (!next.inbox().receipts().entrySet().containsAll(
-                expected.inbox().receipts().entrySet()) ||
-            !next.inbox().delivered().containsAll(expected.inbox().delivered()))
-            throw new IOException("Cannot erase accepted or delivered water");
-        if (!next.outbox().entrySet().containsAll(expected.outbox().entrySet()) ||
-            !next.acknowledged().containsAll(expected.acknowledged()))
-            throw new IOException("Cannot erase queued or acknowledged water");
-        if (next.epoch() == expected.epoch() &&
-            (!next.worldState().equals(expected.worldState()) ||
-             !next.inbox().delivered().equals(expected.inbox().delivered()) ||
-             !next.outbox().equals(expected.outbox())))
-            throw new IOException("Same-epoch receipt/ack update cannot change world or outbox");
+            if (next.epoch() < expected.epoch() || next.epoch() - expected.epoch() > 1)
+                throw new IOException("Invalid checkpoint epoch transition");
+            if (!next.inbox().receipts().entrySet().containsAll(
+                    expected.inbox().receipts().entrySet()) ||
+                !next.inbox().delivered().containsAll(expected.inbox().delivered()))
+                throw new IOException("Cannot erase accepted or delivered water");
+            if (!next.outbox().entrySet().containsAll(expected.outbox().entrySet()) ||
+                !next.acknowledged().containsAll(expected.acknowledged()))
+                throw new IOException("Cannot erase queued or acknowledged water");
+            if (next.epoch() == expected.epoch() &&
+                (!next.worldState().equals(expected.worldState()) ||
+                 !next.inbox().delivered().equals(expected.inbox().delivered()) ||
+                 !next.outbox().equals(expected.outbox())))
+                throw new IOException("Same-epoch receipt/ack update cannot change world or outbox");
             if (!next.equals(expected)) write(file, next);
             return null;
         });
