@@ -128,4 +128,87 @@ class HydrologySeasonalLandscapeEpochV2Test {
         assertEquals(7, recovered.receiptBudget().pendingVolume(), 1e-12);
         assertEquals(initial(), recovered.worldState());
     }
+
+    @Test void verifiedExternalExitQueuesOneDurableReceiptAndDeliversOnce()
+            throws IOException {
+        Path path = directory.resolve("frontier.chk");
+        var runner = HydrologyWorldRunnerV2.open(path, 0, initial());
+        var capacity = new double[25];
+        Arrays.fill(capacity, 1e12);
+        var exit = new GlobalHydrologyAddressV2.Sample(2, 4, 9, 9);
+        var step = HydrologySeasonalLandscapeEpochV2.advanceVerifiedFrontier(
+            runner, window(), 5, 5, slope(), weather(2),
+            RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24), Map.of(24, exit));
+        assertEquals(1, step.queuedTransfers());
+        assertEquals(0, step.budget().outlet(), 1e-12);
+        assertEquals(step.budget().input(), step.budget().frontier(), 1e-6);
+        assertEquals(step.budget().frontier(),
+            runner.receiptBudget().pendingVolume(), 1e-6);
+        var storedLandscape = runner.worldState();
+
+        runner = HydrologyWorldRunnerV2.open(path, 0, "ignored");
+        var receiver = List.of(new HydrologyFlowGraphV2.Node(exit, 0, null, true));
+        var received = runner.advanceAndQueueKnownFrontier(
+            storedLandscape, List.of(receiver));
+        assertEquals(step.budget().frontier(),
+            received.committed().flow().terminalOutflow().get(exit), 1e-6);
+        assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
+        assertEquals(storedLandscape, runner.worldState());
+        var restored = HydrologyWorldRunnerV2.open(path, 0, "ignored");
+        assertEquals(1, restored.inboxSnapshot().delivered().size());
+        assertEquals(0, restored.advance(storedLandscape, List.of(receiver))
+            .terminalOutflow().get(exit), 1e-12);
+    }
+
+    @Test void rejectsUnverifiedOrUphillFrontierWithoutChangingWorld()
+            throws IOException {
+        Path path = directory.resolve("invalid-frontier.chk");
+        var runner = HydrologyWorldRunnerV2.open(path, 0, initial());
+        var original = HydrologyCheckpointStoreV2.load(path);
+        var capacity = new double[25];
+        Arrays.fill(capacity, 1e12);
+        var flat = new GlobalHydrologyAddressV2.Sample(2, 4, 7, 9);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalLandscapeEpochV2.advanceVerifiedFrontier(
+                runner, window(), 5, 5, slope(), weather(2),
+                RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24),
+                Map.of(24, flat)));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalLandscapeEpochV2.advanceVerifiedFrontier(
+                runner, window(), 5, 5, slope(), weather(2),
+                RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24),
+                Map.of(0, new GlobalHydrologyAddressV2.Sample(2, 4, 3, 4))));
+        assertEquals(original, HydrologyCheckpointStoreV2.load(path));
+    }
+
+    @Test void frozenSnowWaitsForThawInsteadOfBeingCountedTwice()
+            throws IOException {
+        Path path = directory.resolve("snow.chk");
+        var runner = HydrologyWorldRunnerV2.open(path, 0, initial());
+        var capacity = new double[25];
+        Arrays.fill(capacity, 1e12);
+        var frozen = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+                                        HydrologySnowSoilStateV2.Forcing>();
+        var thawed = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+                                        HydrologySnowSoilStateV2.Forcing>();
+        for (var address : window()) {
+            frozen.put(address, HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address, RADIUS, 2, -5, 0, 0, 1, 10));
+            thawed.put(address, HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address, RADIUS, 0, 5, 0, 0, 1, 10));
+        }
+        var winter = HydrologySeasonalLandscapeEpochV2.advanceClosedWindow(
+            runner, window(), 5, 5, slope(), frozen, RADIUS, 2000,
+            0.01, 0.05, capacity, Set.of(24));
+        assertEquals(0, winter.budget().input(), 1e-12);
+        assertTrue(winter.prepared().preview().season().storedVolume() > 0);
+        runner = HydrologyWorldRunnerV2.open(path, 0, "ignored");
+        var spring = HydrologySeasonalLandscapeEpochV2.advanceClosedWindow(
+            runner, window(), 5, 5, slope(), thawed, RADIUS, 2000,
+            0.01, 0.05, capacity, Set.of(24));
+        assertEquals(winter.prepared().preview().season().storedVolume(),
+            spring.budget().outlet(), 1e-6);
+        assertEquals(0, spring.prepared().preview().season().storedVolume(), 1e-12);
+        assertEquals(2, runner.epoch());
+    }
 }

@@ -21,11 +21,14 @@ public final class HydrologySeasonalLandscapeEpochV2 {
 
     public record Committed(HydrologySeasonalLandscapeStateV2.Prepared prepared,
                             HydrologyFlowGraphV2.Result flow,
-                            HydrologyConservationV2.Budget budget) {
+                            HydrologyConservationV2.Budget budget,
+                            int queuedTransfers) {
         public Committed {
             Objects.requireNonNull(prepared);
             Objects.requireNonNull(flow);
             Objects.requireNonNull(budget);
+            if (queuedTransfers < 0)
+                throw new IllegalArgumentException("Invalid queued transfer count");
         }
     }
 
@@ -37,6 +40,28 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             double radiusMeters, double sedimentDensity,
             double erosionStrength, double maximumCut,
             double[] transportCapacity, Collection<Integer> verifiedOutlets)
+            throws IOException {
+        return advanceVerifiedFrontier(runner, addresses, width, height, seed,
+            weather, radiusMeters, sedimentDensity, erosionStrength, maximumCut,
+            transportCapacity, verifiedOutlets, Map.of());
+    }
+
+    /**
+     * Optionally export a verified outlet to an adjacent, strictly lower
+     * canonical sample outside this window. The resulting transfer is parked
+     * in the same durable epoch checkpoint as the updated seasonal landscape.
+     * Only a known one-step exit is supported; unknown downstreams and
+     * in-flight old-topology receipts remain forbidden.
+     */
+    public static Committed advanceVerifiedFrontier(
+            HydrologyWorldRunnerV2 runner,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits)
             throws IOException {
         synchronized (Objects.requireNonNull(runner)) {
             String oldWorld = runner.worldState();
@@ -60,6 +85,26 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             var surface = landscape.drainage().waterSurface();
             var terrain = landscape.terrain();
             var outlets = Set.copyOf(verifiedOutlets);
+            var exits = Map.copyOf(externalExits);
+            var owned = Set.copyOf(addresses);
+            var elevation = HydrologyTerrainOverlayV2.elevations(
+                seed, prepared.state().terrain());
+            for (var exit : exits.entrySet()) {
+                int index = exit.getKey();
+                if (!outlets.contains(index))
+                    throw new IllegalArgumentException("Unverified external exit");
+                var from = addresses.get(index);
+                var to = exit.getValue();
+                if (owned.contains(to) ||
+                    !HydrologySphericalTopologyV2.isCanonical(to) ||
+                    !HydrologySphericalTopologyV2.adjacent(from, to))
+                    throw new IllegalArgumentException("Invalid external exit edge");
+                double downstreamHeight = elevation.at(to);
+                if (!Double.isFinite(downstreamHeight) ||
+                    !(downstreamHeight < terrain[index]))
+                    throw new IllegalArgumentException(
+                        "External river exit is not strictly downhill");
+            }
 
             // A priority-flood path through a submerged depression is NOT an
             // instantaneous river. Such water needs a lake-volume transition.
@@ -84,16 +129,18 @@ public final class HydrologySeasonalLandscapeEpochV2 {
                 boolean terminal = next < 0;
                 if (terminal != outlets.contains(i))
                     throw new IllegalArgumentException("Unverified drainage termination");
+                var external = exits.get(i);
                 nodes.add(new HydrologyFlowGraphV2.Node(address, water,
-                    terminal ? null : addresses.get(next), terminal));
+                    terminal ? external : addresses.get(next),
+                    terminal && external == null));
             }
             if (!runoff.isEmpty())
                 throw new IllegalArgumentException("Unknown seasonal water owner");
             var solved = HydrologyFlowGraphV2.solve(nodes);
             var budget = HydrologyConservationV2.verify(nodes, solved);
-            if (!solved.pendingOutflow().isEmpty() ||
-                !close(budget.input(), erosion.runoffVolume()) ||
-                !close(budget.outlet(), erosion.terminalVolume()))
+            if (!close(budget.input(), erosion.runoffVolume()) ||
+                !close(budget.outlet() + budget.frontier(),
+                    erosion.terminalVolume()))
                 throw new IllegalArgumentException("Seasonal routing budget mismatch");
 
             if (runner.epoch() != oldEpoch ||
@@ -102,10 +149,11 @@ public final class HydrologySeasonalLandscapeEpochV2 {
                 throw new IOException("World changed during seasonal preparation");
             // The runner atomically persists both stores and the epoch/inbox.
             // No pending water can be consumed on this restricted path.
-            var committed = runner.advance(
+            var committed = runner.advanceAndQueueKnownFrontier(
                 HydrologySeasonalLandscapeStateV2.encode(prepared.state()),
                 List.of(nodes));
-            return new Committed(prepared, committed, budget);
+            return new Committed(prepared, committed.committed().flow(),
+                budget, committed.queuedTransfers());
         }
     }
 
