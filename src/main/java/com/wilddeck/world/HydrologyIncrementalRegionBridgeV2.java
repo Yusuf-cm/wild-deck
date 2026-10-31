@@ -162,13 +162,18 @@ public final class HydrologyIncrementalRegionBridgeV2 {
         var world = HydrologyCheckpointStoreV2.load(worldCheckpoint);
         var inbox = HydrologyInboxCodecV2.decode(world.inboxState());
         var first = expected.verifiedOutlets().iterator().next();
+        long due = Math.addExact(world.epoch(), 1);
         var targets = new TreeSet<GlobalHydrologyAddressV2.Sample>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         for (var key : inbox.receipts().keySet()) {
-            if (inbox.delivered().contains(key)) continue;
+            // Future water must remain parked without forcing premature
+            // terrain exploration or rejecting a resolution not yet due.
+            if (inbox.delivered().contains(key) || key.epoch() > due) continue;
             var destination = key.to();
             if (!HydrologySphericalTopologyV2.isCanonical(destination) ||
                 !HydrologySphericalTopologyV2.isCanonical(key.from()) ||
+                key.from().level() != first.level() ||
+                key.from().divisions() != first.divisions() ||
                 destination.level() != first.level() ||
                 destination.divisions() != first.divisions())
                 throw new IllegalArgumentException(

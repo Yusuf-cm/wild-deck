@@ -147,9 +147,7 @@ public final class HydrologyIncrementalAtomicEpochV2 {
                     !HydrologySphericalTopologyV2.isCanonical(key.to()) ||
                     key.from().level() != first.level() ||
                     key.from().divisions() != first.divisions() ||
-                    key.from().level() != first.level() ||
-                key.from().divisions() != first.divisions() ||
-                key.to().level() != first.level() ||
+                    key.to().level() != first.level() ||
                     key.to().divisions() != first.divisions())
                     throw new IllegalArgumentException(
                         "Due receipt endpoints do not match canonical flood resolution");
