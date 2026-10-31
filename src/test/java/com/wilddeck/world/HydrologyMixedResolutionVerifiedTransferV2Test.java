@@ -91,4 +91,31 @@ class HydrologyMixedResolutionVerifiedTransferV2Test {
         assertEquals(1, HydrologyMixedResolutionCheckpointStoreV2.pending(
             HydrologyMixedResolutionCheckpointStoreV2.load(sender)).size());
     }
+
+    @Test void receiverWithItsOwnPendingOutboxCanAcceptAndConsumeUpstreamWater()
+            throws IOException {
+        Path sender = temp.resolve("upstream.bin"), receiver = temp.resolve("middle.bin");
+        var receipt = queued(sender);
+        HydrologyMixedResolutionCheckpointStoreV2.initialize(receiver, initial());
+        var middle = HydrologyMixedResolutionCheckpointStoreV2.advanceAndQueue(
+            receiver, initial(), "middle:1", List.of(
+                new HydrologyMixedResolutionDischargeV2.Node(
+                    coarse(7, 4), 11, coarse(8, 4), false)), Set.of(), 2).checkpoint();
+        assertEquals(1, HydrologyMixedResolutionCheckpointStoreV2.pending(middle).size());
+        var delivered = HydrologyMixedResolutionLocalTransferV2.transferToVerifiedDestination(
+            sender, receiver, receipt, List.of(node(coarse(5, 4))));
+        assertTrue(delivered.newlyAcknowledged());
+        assertEquals(middle.outbox(), delivered.receiver().outbox());
+        var consumed = HydrologyMixedResolutionCheckpointStoreV2.advance(
+            receiver, HydrologyMixedResolutionCheckpointStoreV2.load(receiver),
+            "middle:2", List.of(new HydrologyMixedResolutionDischargeV2.Node(
+                coarse(5, 4), 3, null, true)), Set.of(coarse(5, 4)));
+        assertEquals(10.0, consumed.flow().terminalOutflow().get(coarse(5, 4)));
+        assertEquals(1, consumed.checkpoint().inbox().delivered().size());
+        assertEquals(11.0, HydrologyMixedResolutionCheckpointStoreV2.pending(
+            HydrologyMixedResolutionCheckpointStoreV2.load(receiver))
+            .values().iterator().next());
+        assertFalse(HydrologyMixedResolutionLocalTransferV2.transferToVerifiedDestination(
+            sender, receiver, receipt, List.of(node(fine(10, 8)))).newlyAcknowledged());
+    }
 }
