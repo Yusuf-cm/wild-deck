@@ -81,6 +81,40 @@ public final class LakeReservoirV2 {
     }
 
     /**
+     * Opt-in finite-volume split step: deliver all inflow, spill any excess,
+     * then lower the filled lake surface by a uniform evaporation depth.
+     * Because the water surface changes as the lake dries, evaporation is
+     * V(stageBefore) - V(max(minBed, stageBefore - depth)), not a fixed
+     * area times depth. A lake that starts dry but fills can evaporate.
+     *
+     * This is an inflow-first operator split, NOT continuous seasonal forcing,
+     * a calibrated heat budget, or a replacement for the legacy explicit
+     * start-of-step evaporation scheme. Overflow occurs before evaporation.
+     */
+    public static Step stepInflowThenEvaporation(Basin basin,
+            double previousVolume, double inflow, double evaporationDepth) {
+        Objects.requireNonNull(basin);
+        double capacity = basin.capacity();
+        if (!Double.isFinite(previousVolume) || previousVolume < 0 ||
+            previousVolume > capacity || !Double.isFinite(inflow) || inflow < 0 ||
+            !Double.isFinite(evaporationDepth) || evaporationDepth < 0)
+            throw new IllegalArgumentException("Invalid lake water forcing");
+        double available = previousVolume + inflow;
+        if (!Double.isFinite(available))
+            throw new IllegalArgumentException("Lake inflow overflow");
+        double filled = Math.min(capacity, available);
+        double overflow = available - filled;
+        if (evaporationDepth == 0 || filled == 0)
+            return new Step(filled, basin.stageAt(filled), 0, overflow);
+        double filledStage = basin.stageAt(filled);
+        double evaporatedStage = Math.max(basin.minimumBed(),
+                                         filledStage - evaporationDepth);
+        double retained = Math.min(filled, basin.volumeAt(evaporatedStage));
+        double evaporated = filled - retained;
+        return new Step(retained, basin.stageAt(retained), evaporated, overflow);
+    }
+
+    /**
      * Evaporation depth is multiplied by the wetted surface at the *start*
      * of the time step. This explicit approximation is conservative in
      * volume but requires sufficiently short steps for realistic dynamics.
