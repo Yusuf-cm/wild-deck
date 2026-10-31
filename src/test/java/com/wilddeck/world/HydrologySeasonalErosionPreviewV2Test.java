@@ -158,6 +158,46 @@ class HydrologySeasonalErosionPreviewV2Test {
                 RADIUS,2000,.1,.4,capacity(),Set.of(24)));
     }
 
+    @Test void importedDischargeDrivesErosionWithoutDoubleCountingSeasonalRunoff() {
+        var dry=season(window(),0);
+        var source=window().get(0);
+        var previous=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var baseline=HydrologySeasonalErosionPreviewV2.calculate(
+            previous,window(),5,5,seed(),dry,RADIUS,2000,.1,.4,
+            capacity(),Set.of(24));
+        var imported=HydrologySeasonalErosionPreviewV2.calculate(
+            previous,window(),5,5,seed(),dry,RADIUS,2000,.1,.4,
+            capacity(),Set.of(24),Map.of(source,500.0));
+        assertEquals(0,imported.runoffVolume(),0);
+        assertEquals(500,imported.terminalVolume(),1e-6);
+        assertEquals(0,baseline.terrain().landscape().erodedMass(),0);
+        assertTrue(imported.terrain().landscape().erodedMass()>0);
+        assertEquals(500,
+            imported.terrain().landscape().discharge().flow()[24],1e-6);
+        assertTrue(previous.elevations().isEmpty());
+        assertEquals(imported.terrain().state(),
+            HydrologySeasonalErosionPreviewV2.calculate(
+                previous,window(),5,5,seed(),dry,RADIUS,2000,.1,.4,
+                capacity(),Set.of(24),Map.of(source,500.0)).terrain().state());
+    }
+
+    @Test void importedDischargeRejectsUnownedNegativeAndOverflowWater() {
+        var dry=season(window(),0);
+        var previous=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var unknown=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        for(var incoming:List.of(
+                Map.of(unknown,1.0),
+                Map.of(window().get(0),-1.0),
+                Map.of(window().get(0),Double.POSITIVE_INFINITY),
+                Map.of(window().get(0),Double.MAX_VALUE,
+                       window().get(1),Double.MAX_VALUE))) {
+            assertThrows(IllegalArgumentException.class,()->
+                HydrologySeasonalErosionPreviewV2.calculate(
+                    previous,window(),5,5,seed(),dry,RADIUS,2000,.1,.4,
+                    capacity(),Set.of(24),incoming));
+        }
+    }
+
     @Test void drySeasonDoesNotInventWaterOrSediment() {
         var dry=preview(season(window(),0));
         assertEquals(0,dry.runoffVolume(),0);
