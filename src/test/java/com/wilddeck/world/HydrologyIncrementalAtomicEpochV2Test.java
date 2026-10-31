@@ -153,4 +153,35 @@ class HydrologyIncrementalAtomicEpochV2Test {
         assertEquals("initial",
             HydrologyIncrementalAtomicEpochV2.decode(reopened.worldState()).world());
     }
+    @Test void futureEpochReceiptsStayParkedUntilTheirDueEpoch()
+            throws IOException {
+        var session = flood();
+        var snapshot = session.advance(100);
+        var world = directory.resolve("future-world.bin");
+        var runner = HydrologyWorldRunnerV2.open(world, 0,
+            HydrologyIncrementalAtomicEpochV2.encode(
+                new HydrologyIncrementalAtomicEpochV2.Bound(
+                    "initial", session.checkpoint("fixed"))));
+        var key = new HydrologyTransferLedgerV2.Key(3, at(3, 2), at(4, 2));
+        assertTrue(runner.receive(key, 2));
+        var zeros = snapshot.settled().keySet().stream()
+            .map(a -> new HydrologyGlobalSlopeRouterV2.Source(a, 0)).toList();
+        for (int epoch = 1; epoch <= 2; epoch++) {
+            var step = HydrologyIncrementalAtomicEpochV2.advance(
+                runner, "step-" + epoch, "fixed", session,
+                a -> a.equals(OUTLET) ? 0 : 10, zeros);
+            assertEquals(0, step.committed().flow().terminalOutflow()
+                .get(OUTLET), 1e-12);
+            assertEquals(2, runner.receiptBudget().pendingVolume(), 1e-12);
+        }
+        runner = HydrologyWorldRunnerV2.open(world, 0, "ignored");
+        var delivered = HydrologyIncrementalAtomicEpochV2.advance(
+            runner, "step-3", "fixed", session,
+            a -> a.equals(OUTLET) ? 0 : 10, zeros);
+        assertEquals(2, delivered.committed().flow().terminalOutflow()
+            .get(OUTLET), 1e-12);
+        assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
+        assertEquals(Set.of(key), runner.inboxSnapshot().delivered());
+    }
+
 }
