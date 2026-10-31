@@ -86,4 +86,53 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
         }
         return new Report(matched, blockers);
     }
+
+    /**
+     * Extend the receiver-first audit with a reverse check of sender records
+     * addressed to a caller-supplied set of physical receiver vertices.
+     * This detects acknowledged water absent from the receiver, as well as
+     * still-in-flight old water that would make pruning unsafe. The caller
+     * MUST provide all owned receiving vertices and all relevant senders;
+     * this method cannot discover omitted senders or prove a global barrier.
+     */
+    public static Report auditForDestinations(
+            HydrologyMixedResolutionCheckpointStoreV2.Checkpoint receiver,
+            Collection<HydrologyMixedResolutionCheckpointStoreV2.Checkpoint> senders,
+            long throughEpoch,
+            Collection<GlobalHydrologyAddressV2.Sample> receiverDestinations) {
+        Objects.requireNonNull(receiverDestinations);
+        Objects.requireNonNull(senders);
+        var owned = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        for (var sample : receiverDestinations) {
+            Objects.requireNonNull(sample);
+            if (!owned.add(HydrologyGlobalCatchmentsV2.coordinate(sample)))
+                throw new IllegalArgumentException("Duplicate geographic receiver ownership");
+        }
+        if (owned.isEmpty())
+            throw new IllegalArgumentException("Receiver destination inventory is empty");
+        var base = audit(receiver, senders, throughEpoch);
+        var absent = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
+        var duplicated = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
+        var seen = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
+        for (var sender : senders) {
+            for (var key : sender.outbox().keySet()) {
+                if (key.epoch() > throughEpoch ||
+                    !owned.contains(HydrologyGlobalCatchmentsV2.coordinate(key.to())))
+                    continue;
+                if (!receiver.inbox().receipts().containsKey(key)) {
+                    absent.add(key);
+                    if (!seen.add(key)) duplicated.add(key);
+                }
+            }
+        }
+        var ordered = new ArrayList<>(absent);
+        ordered.sort(Comparator.comparing(HydrologyMixedResolutionHistoryAuditV2::identity));
+        var blockers = new ArrayList<>(base.blockers());
+        for (var key : ordered) {
+            blockers.add("Sender transfer absent from receiver " + identity(key));
+            if (duplicated.contains(key))
+                blockers.add("Multiple sender records for absent transfer " + identity(key));
+        }
+        return new Report(base.locallyMatched(), blockers);
+    }
 }
