@@ -52,6 +52,27 @@ class HydrologySphericalRegionSchedulerV2Test {
         assertEquals(List.of(region(0,1),region(3,1)),visited);
     }
 
+    @Test void pendingSphericalReceiptsMustMatchRequestedLevelAndCanonicalOwnership() {
+        var wrongLevel = new HydrologyEpochInboxV2();
+        wrongLevel.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(0, 2, 1, 1),
+            new GlobalHydrologyAddressV2.Sample(0, 2, 0, 1)), 3);
+        var alias = new HydrologyEpochInboxV2();
+        alias.receive(new HydrologyTransferLedgerV2.Key(1, at(7, 2), at(8, 2)), 5);
+        var loaded = new ArrayList<HydrologyRegionSchedulerV2.Region>();
+        HydrologyRegionSchedulerV2.Provider provider = r -> {
+            loaded.add(r);
+            return List.of();
+        };
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySphericalRegionSchedulerV2.loadWithPending(
+                List.of(), wrongLevel.snapshot(), 1, 0, 4, provider));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySphericalRegionSchedulerV2.loadWithPending(
+                List.of(), alias.snapshot(), 1, 0, 4, provider));
+        assertTrue(loaded.isEmpty(), "Invalid receipts must fail before loading any tile");
+    }
+
     @Test void checkpointRunnerLoadsPendingDatelineDestinationAutomatically()
             throws IOException {
         Path checkpoint=directory.resolve("spherical-runner.chk");
