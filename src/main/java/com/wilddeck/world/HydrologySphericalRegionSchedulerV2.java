@@ -60,12 +60,15 @@ public final class HydrologySphericalRegionSchedulerV2 {
         Objects.requireNonNull(pending);
         // Region coordinates are not resolution-qualified. Never load a
         // different-level receipt into a superficially matching tile.
-        // Reject noncanonical seam/pole aliases before invoking the provider.
+        // Reject noncanonical seam/pole aliases at BOTH ends of a receipt.
+        // A noncanonical source can otherwise replay the same geographic
+        // discharge under a second edge key and double-count incoming water.
         for (var key : pending.receipts().keySet()) {
             if (pending.delivered().contains(key)) continue;
             var destination = key.to();
             if (destination.level() != level ||
-                !HydrologySphericalTopologyV2.isCanonical(destination))
+                !HydrologySphericalTopologyV2.isCanonical(destination) ||
+                !HydrologySphericalTopologyV2.isCanonical(key.from()))
                 throw new IllegalArgumentException(
                     "Pending spherical receipt has incompatible resolution or address");
         }

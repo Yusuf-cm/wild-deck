@@ -161,10 +161,11 @@ public final class HydrologyIncrementalRegionBridgeV2 {
             if (inbox.delivered().contains(key)) continue;
             var destination = key.to();
             if (!HydrologySphericalTopologyV2.isCanonical(destination) ||
+                !HydrologySphericalTopologyV2.isCanonical(key.from()) ||
                 destination.level() != first.level() ||
                 destination.divisions() != first.divisions())
                 throw new IllegalArgumentException(
-                    "Pending destination does not match canonical flood resolution");
+                    "Pending receipt endpoints do not match canonical flood resolution");
             targets.add(destination);
         }
         var snapshot = session.snapshot();
