@@ -108,4 +108,31 @@ class HydrologyMixedResolutionDischargeV2Test {
         assertThrows(UnsupportedOperationException.class,()->result.discharge().clear());
         assertThrows(UnsupportedOperationException.class,()->result.resolvedCatchments().clear());
     }
+
+    @Test void unloadedMixedResolutionFrontierCanResumeWithoutNewRainfall() {
+        var source=coarse(4,4);var landing=coarse(5,4);var mouth=fine(12,8);
+        var first=HydrologyMixedResolutionDischargeV2.solve(List.of(
+            node(source,7,fine(10,8),false)),Set.of());
+        var second=HydrologyMixedResolutionDischargeV2.solveWithIncoming(List.of(
+            node(landing,3,mouth,false),node(mouth,5,null,true)),Set.of(mouth),
+            first.pendingOutflow());
+        assertEquals(15.0,second.terminalOutflow().get(mouth));
+        assertTrue(second.pendingOutflow().isEmpty());
+        assertEquals(10.0,second.discharge().get(landing));
+    }
+
+    @Test void receivingRejectsUnownedNonfiniteAndOverflowingWater() {
+        var landing=coarse(5,4);
+        var graph=List.of(node(landing,Double.MAX_VALUE,null,true));
+        var coordinate=HydrologyGlobalCatchmentsV2.coordinate(landing);
+        var missing=HydrologyGlobalCatchmentsV2.coordinate(coarse(6,4));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyMixedResolutionDischargeV2.solveWithIncoming(graph,Set.of(landing),Map.of(missing,3.0)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyMixedResolutionDischargeV2.solveWithIncoming(graph,Set.of(landing),Map.of(coordinate,-1.0)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyMixedResolutionDischargeV2.solveWithIncoming(graph,Set.of(landing),Map.of(coordinate,Double.NaN)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyMixedResolutionDischargeV2.solveWithIncoming(graph,Set.of(landing),Map.of(coordinate,Double.MAX_VALUE)));
+    }
 }
