@@ -147,4 +147,39 @@ class HydrologyMixedResolutionHistoryAuditV2Test {
         assertTrue(report.blockers().stream().anyMatch(
             b -> b.contains("outside supplied ownership")));
     }
+
+    @Test void forkedSourceAcrossSenderCheckpointsBlocksConservation() {
+        var fork = new HydrologyMixedResolutionEpochV2.Receipt(
+            1, at(4, 4), at(4, 5));
+        var forkedSender = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            1, "forked", new HydrologyMixedResolutionEpochV2.Snapshot(
+                1, Map.of(), Set.of()), Map.of(fork, 7.0), Set.of(fork));
+        var senders = List.of(sender(7, true), forkedSender);
+        var report = HydrologyMixedResolutionHistoryAuditV2.audit(
+            receiver(true), senders, 1);
+        assertFalse(report.locallyConsistent());
+        assertFalse(report.locallyMatched().containsKey(receipt()));
+        assertTrue(report.blockers().stream().anyMatch(
+            b -> b.contains("Conflicting sender drainage destinations")));
+        var reverse = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            receiver(true), senders, 1, List.of(at(5, 4)));
+        assertFalse(reverse.locallyConsistent());
+    }
+
+    @Test void crossResolutionSourceAliasesCannotForkOnePhysicalDischarge() {
+        // (8,8) on the finer grid owns the same geographic point as
+        // (4,4) on the coarse grid, even though the addresses differ.
+        var fork = new HydrologyMixedResolutionEpochV2.Receipt(
+            1, new GlobalHydrologyAddressV2.Sample(3, 4, 8, 8),
+               new GlobalHydrologyAddressV2.Sample(3, 4, 9, 8));
+        var forkedSender = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            1, "cross-lod-fork", new HydrologyMixedResolutionEpochV2.Snapshot(
+                1, Map.of(), Set.of()), Map.of(fork, 11.0), Set.of(fork));
+        var report = HydrologyMixedResolutionHistoryAuditV2.audit(
+            receiver(true), List.of(sender(7, true), forkedSender), 1);
+        assertFalse(report.locallyConsistent());
+        assertTrue(report.locallyMatched().isEmpty());
+        assertTrue(report.blockers().stream().anyMatch(
+            b -> b.contains("Conflicting sender drainage destinations")));
+    }
 }
