@@ -64,7 +64,7 @@ class HydrologyIncrementalAtomicEpochV2Test {
         var advanced = session.checkpoint("fixed");
         var snapshot = session.snapshot();
         var result = HydrologyIncrementalAtomicEpochV2.advance(
-            runner, "next", "fixed", session, water(snapshot, at(7, 2)));
+            runner, "next", "fixed", session, a -> a.equals(OUTLET) ? 0 : 10, water(snapshot, at(7, 2)));
         assertEquals(5, result.committed().flow().terminalOutflow().get(OUTLET), 1e-12);
         assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
         assertEquals(1, runner.epoch());
@@ -75,11 +75,13 @@ class HydrologyIncrementalAtomicEpochV2Test {
         assertEquals(Set.of(key), reopened.inboxSnapshot().delivered());
         assertEquals(advanced,
             HydrologyIncrementalAtomicEpochV2.decode(reopened.worldState()).flood());
+        assertEquals(snapshot, HydrologyIncrementalAtomicEpochV2.resumeBound(
+            world, "fixed", a -> a.equals(OUTLET) ? 0 : 10).snapshot());
         var zeros = water(snapshot, at(7, 2)).stream()
             .map(source -> new HydrologyGlobalSlopeRouterV2.Source(
                 source.address(), 0)).toList();
         var dry = HydrologyIncrementalAtomicEpochV2.advance(
-            reopened, "dry", "fixed", session, zeros);
+            reopened, "dry", "fixed", session, a -> a.equals(OUTLET) ? 0 : 10, zeros);
         assertEquals(0, dry.committed().flow().terminalOutflow().get(OUTLET), 1e-12);
         assertEquals(0, reopened.receiptBudget().pendingVolume(), 1e-12);
     }
@@ -98,7 +100,7 @@ class HydrologyIncrementalAtomicEpochV2Test {
         var original = HydrologyCheckpointStoreV2.load(world);
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyIncrementalAtomicEpochV2.advance(
-                runner, "wrong", "fixed", session, water(session.snapshot(), OUTLET)));
+                runner, "wrong", "fixed", session, a -> a.equals(OUTLET) ? 0 : 10, water(session.snapshot(), OUTLET)));
         assertEquals(original, HydrologyCheckpointStoreV2.load(world));
         assertEquals(4, runner.receiptBudget().pendingVolume(), 1e-12);
 
@@ -106,10 +108,15 @@ class HydrologyIncrementalAtomicEpochV2Test {
         var snapshot = session.snapshot();
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyIncrementalAtomicEpochV2.advance(
-                runner, "wrong", "other-terrain", session, water(snapshot, OUTLET)));
+                runner, "wrong", "other-terrain", session, a -> a.equals(OUTLET) ? 0 : 10, water(snapshot, OUTLET)));
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyIncrementalAtomicEpochV2.advance(
-                runner, "wrong", "fixed", session, List.of()));
+                runner, "wrong", "fixed", session, a -> a.equals(OUTLET) ? 0 : 10, List.of()));
+        assertEquals(original, HydrologyCheckpointStoreV2.load(world));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyIncrementalAtomicEpochV2.advance(
+                runner, "wrong", "fixed", session, a -> a.equals(OUTLET) ? 0 : 20,
+                water(snapshot, OUTLET)));
         assertEquals(original, HydrologyCheckpointStoreV2.load(world));
     }
 
@@ -137,7 +144,7 @@ class HydrologyIncrementalAtomicEpochV2Test {
         };
         assertThrows(IOException.class, () ->
             HydrologyIncrementalAtomicEpochV2.advance(
-                runner, "should-not-commit", "fixed", session, racingSources));
+                runner, "should-not-commit", "fixed", session, a -> a.equals(OUTLET) ? 0 : 10, racingSources));
         assertTrue(fired.get());
         var reopened = HydrologyWorldRunnerV2.open(world, 0, "ignored");
         assertEquals(0, reopened.epoch());
