@@ -390,6 +390,40 @@ class HydrologySeasonalLandscapeEpochV2Test {
             .terminalOutflow().get(exit),1e-12);
     }
 
+
+    @Test void reconciledInteriorPreservesExactWaterWhenOldAndNewRoutesAgree()
+            throws IOException {
+        var strict = HydrologyWorldRunnerV2.open(
+            directory.resolve("strict-interior-route.chk"),0,initial());
+        var migrated = HydrologyWorldRunnerV2.open(
+            directory.resolve("migrated-interior-route.chk"),0,initial());
+        var source = new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var landing = window().get(0);
+        var key = new HydrologyTransferLedgerV2.Key(1,source,landing);
+        assertTrue(strict.receive(key,1000));
+        assertTrue(migrated.receive(key,1000));
+        var terrain = (HydrologyGlobalSlopeRouterV2.Elevations) a ->
+            a.equals(source) ? 100 : slope().at(a);
+        var capacity = new double[25];
+        Arrays.fill(capacity,1e12);
+        var old = HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+            strict,window(),5,5,terrain,weather(0),RADIUS,2000,
+            0.01,0.05,capacity,Set.of(24),Map.of());
+        var next = HydrologySeasonalLandscapeEpochV2.advanceWithReconciledInteriorReceipts(
+            migrated,window(),5,5,terrain,weather(0),RADIUS,2000,
+            0.01,0.05,capacity,Set.of(24),Map.of());
+        assertEquals(old.prepared().state(),next.prepared().state());
+        assertEquals(old.budget(),next.budget());
+        assertEquals(1000,next.budget().outlet(),1e-6);
+        assertEquals(1,migrated.inboxSnapshot().delivered().size());
+        assertEquals(0,migrated.receiptBudget().pendingVolume(),1e-12);
+        var restored = HydrologyWorldRunnerV2.open(
+            directory.resolve("migrated-interior-route.chk"),0,"ignored");
+        assertEquals(1,restored.epoch());
+        assertEquals(migrated.worldState(),restored.worldState());
+        assertEquals(0,restored.receiptBudget().pendingVolume(),1e-12);
+    }
+
     @Test void interiorReceiptCannotPassPondedLakeOrOverwriteConcurrentWater()
             throws IOException {
         var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
