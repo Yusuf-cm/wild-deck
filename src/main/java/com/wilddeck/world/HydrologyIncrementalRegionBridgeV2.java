@@ -112,7 +112,14 @@ public final class HydrologyIncrementalRegionBridgeV2 {
         var persisted = HydrologyIncrementalFloodCheckpointStoreV2.load(floodCheckpoint);
         if (!persisted.equals(session.checkpoint(terrainRevision)))
             throw new IllegalArgumentException("Flood session differs from durable checkpoint");
-        return partition(session.snapshot(), ownedWater);
+        var regions = partition(session.snapshot(), ownedWater);
+        // Rainfall enumeration can be slow or caller-backed. A newer flood
+        // checkpoint must not be mistaken for the session we partitioned.
+        // This is a local optimistic preflight, not a cross-file CAS.
+        if (!HydrologyIncrementalFloodCheckpointStoreV2.load(floodCheckpoint)
+                .equals(persisted))
+            throw new IOException("Flood checkpoint changed during region partition");
+        return regions;
     }
 
     /**

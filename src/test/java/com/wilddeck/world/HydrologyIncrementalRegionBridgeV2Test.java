@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -224,6 +225,38 @@ class HydrologyIncrementalRegionBridgeV2Test {
                 floodPath, worldPath, "terrain-fixed", staleSession, 100));
         assertEquals(original,
             HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath));
+    }
+
+
+    @Test void partitionRejectsCheckpointChangedDuringWaterEnumeration()
+            throws IOException {
+        var path = directory.resolve("racing-flood.bin");
+        var session = flood();
+        var snapshot = session.advance(1);
+        var expected = session.checkpoint("fixed");
+        HydrologyIncrementalFloodCheckpointStoreV2.save(path, expected);
+        var newer = HydrologyIncrementalPriorityFloodV2.resume(
+            expected, "fixed", a -> a.equals(OUTLET) ? 0 : 10);
+        var sources = water(snapshot, OUTLET);
+        var racingSources = new AbstractCollection<HydrologyGlobalSlopeRouterV2.Source>() {
+            @Override public int size() { return sources.size(); }
+            @Override public Iterator<HydrologyGlobalSlopeRouterV2.Source> iterator() {
+                newer.advance(1);
+                try {
+                    HydrologyIncrementalFloodCheckpointStoreV2.saveNext(
+                        path, expected, newer.checkpoint("fixed"));
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+                return sources.iterator();
+            }
+        };
+        assertThrows(IOException.class, () ->
+            HydrologyIncrementalRegionBridgeV2.partitionPersisted(
+                path, "fixed", session, racingSources));
+        assertEquals(newer.checkpoint("fixed"),
+            HydrologyIncrementalFloodCheckpointStoreV2.load(path));
+        assertEquals(snapshot, session.snapshot());
     }
 
 }
