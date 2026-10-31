@@ -1057,3 +1057,26 @@ All seven implementation/test commits above **PASSED** the repository's full Jav
 **Verified CI:** All four implementation/test commits passed the complete Java CI workflow, including Maven tests, world experiment, resource replay, browser save verification, atlas export and real-browser checks: `7a79afce` https://github.com/Yusuf-cm/wild-deck/actions/runs/41152642194 (**PASSED**); `8a529b2d` https://github.com/Yusuf-cm/wild-deck/actions/runs/41152660041 (**PASSED**); `19323de9` https://github.com/Yusuf-cm/wild-deck/actions/runs/41152676042 (**PASSED**); `eea59d9e` https://github.com/Yusuf-cm/wild-deck/actions/runs/41152684806 (**PASSED**). The documentation-only commit `80480225` has its own workflow https://github.com/Yusuf-cm/wild-deck/actions/runs/41152715715; check its final status independently.
 
 **Unfinished acceptance gaps:** This adapter only exposes settled, single-resolution, fixed-terrain routes and uses the existing local single-writer receipt checkpoint. It does not atomically coordinate the independent flood and world files, automatically settle regions containing parked receipts, persist the priority queue efficiently, or prove complete catchment runoff from undiscovered terrain. Zero-receipt suppression prevents new dry entries but does not compact historical receipt keys. Mixed-resolution routing, atomic erosion/sediment/terrain/lake/snow/soil transitions, multi-spillway lakes, planetary-radius provenance, calibrated climate, groundwater, flood travel times, long-horizon large-world tests and distributed locking remain open. **Water subsystem is not complete.**
+
+
+## 2026-10-31 — Bounded discovery for parked water and spherical receipt validation
+
+**Scope:** Only `Yusuf-cm/wild-deck`, `feature/world-engine-v2`. Baseline `f144efcad420fd1dd4c91cb26fcfe2d174b6fa10` passed the full Java workflow: https://github.com/Yusuf-cm/wild-deck/actions/runs/41152792486 (job conclusion checked: success).
+
+**Implementation on this run:**
+- `HydrologySphericalRegionSchedulerV2.loadWithPending` now rejects undelivered receipts whose sample level differs from the requested spherical region level, or whose destination is a noncanonical seam/polar alias. Rejection happens before any provider load. This closes a cross-resolution misdelivery hazard caused by region IDs that omit resolution.
+- `HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted` reads the authoritative durable world inbox and flood checkpoint, validates canonical single-resolution destinations and checkpoint freshness, advances outlet-seeded priority flood by a bounded settlement budget, and persists forward flood progress with the existing stale-writer guard. It returns an explicit set of **unresolved** destinations; a partial solve is not falsely advertised as ready. A second call can resume the checkpointed exploration.
+- The discovery helper rechecks the world checkpoint before persisting new flood progress and before returning. It **does not** advance a world epoch, acknowledge receipts, or claim atomicity across the two independent checkpoint files.
+- New regressions cover level mismatch and seam aliases without provider invocation; partial persisted discovery, deterministic restart, verified full-route partition, exactly-once parked-water delivery to an outlet, and stale/mismatched flood rejection with pending water preserved.
+
+**Commits:**
+- `1a8e1e124924fb3535142ef3bf303b975b4dccbb` spherical pending validation.
+- `65e099521c2bc35bb3cc19c1ca17cdd8a42c7d1f` scheduler rejection tests.
+- `be2c4b6801010cac82b64b7d72506a33846f2473` bounded persisted pending discovery.
+- `c53ea925784c43b2d4dcb7def8db9fc401d6c191` recovery and exactly-once tests.
+- `6edca8a3b51effc4248dee9626e63d2d3ca9dfe1` Java lambda fixture correction.
+- `ceb6154378b7deac64389d6bdac6c516621a10ca` final world-checkpoint freshness check.
+
+**Verification status:** The *baseline* CI was checked and passed. The new commits have been pushed but their GitHub Actions push-run IDs and conclusions could not be retrieved using the available commit-workflow query (which returns only pull-request-triggered runs), and no local Maven environment or repository checkout is available in this execution environment. **The new code and tests are NOT YET CI-ACCEPTED.** Inspect https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 and repair failures before claiming success. The regression scenarios above describe tests added, **not observed passing results**.
+
+**Unfinished acceptance gaps:** Pending destination discovery is a bounded planner, not automatic live-world activation. Flood and world checkpoints remain separate and can race between checks; there is no cross-process CAS or single atomic commit. It does not settle all sources in an unvisited catchment, guarantee complete water budgets, support mixed-resolution routing, persist the priority queue directly, or reconcile seasonal erosion/sediment with terrain, lake, snow and soil state atomically. Multi-spillway lakes, transient flood travel, groundwater, calibrated climate, radius provenance, long-horizon large-world tests and receipt-history compaction remain open. **Hydrology is not complete; do not move to other layers.**
