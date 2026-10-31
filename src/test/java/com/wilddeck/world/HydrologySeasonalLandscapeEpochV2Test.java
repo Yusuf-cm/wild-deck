@@ -324,6 +324,66 @@ class HydrologySeasonalLandscapeEpochV2Test {
         assertEquals(1, wet.inboxSnapshot().delivered().size());
     }
 
+    @Test void importedInteriorWaterDrivesErosionAndRoutesExactlyOnce()
+            throws IOException {
+        Path path=directory.resolve("interior-reconciled.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,initial());
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var landing=window().get(0);
+        var key=new HydrologyTransferLedgerV2.Key(1,source,landing);
+        assertTrue(runner.receive(key,1000));
+        assertFalse(runner.receive(key,1000));
+        var heights=(HydrologyGlobalSlopeRouterV2.Elevations) a ->
+            a.equals(source) ? 100 : slope().at(a);
+        var capacity=new double[25];
+        Arrays.fill(capacity,1e12);
+        var wet=HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+            runner,window(),5,5,heights,weather(0),RADIUS,2000,
+            0.01,0.05,capacity,Set.of(24),Map.of());
+        assertEquals(1,runner.epoch());
+        assertEquals(1000,wet.budget().input(),1e-6);
+        assertEquals(1000,wet.budget().outlet(),1e-6);
+        assertEquals(1000,wet.prepared().preview().erosion().terminalVolume(),1e-6);
+        assertEquals(0,wet.prepared().preview().erosion().runoffVolume(),0);
+        assertTrue(wet.prepared().preview().erosion().terrain()
+            .landscape().erodedMass()>0);
+        assertEquals(0,runner.receiptBudget().pendingVolume(),1e-12);
+        assertEquals(1,runner.inboxSnapshot().delivered().size());
+        var saved=runner.worldState();
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(saved,runner.worldState());
+        assertEquals(0,runner.receiptBudget().pendingVolume(),1e-12);
+        assertEquals(0,runner.advance(saved,
+            List.of(List.of(new HydrologyFlowGraphV2.Node(landing,0,null,true))))
+            .terminalOutflow().get(landing),1e-12);
+    }
+
+    @Test void interiorReceiptRejectsFutureAndUphillEdgesWithoutConsumption()
+            throws IOException {
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var landing=window().get(0);
+        var capacity=new double[25];
+        Arrays.fill(capacity,1e12);
+        var future=HydrologyWorldRunnerV2.open(
+            directory.resolve("interior-future.chk"),0,initial());
+        future.receive(new HydrologyTransferLedgerV2.Key(3,source,landing),10);
+        assertThrows(IllegalStateException.class,()->
+            HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+                future,window(),5,5,slope(),weather(0),RADIUS,2000,
+                0.01,0.05,capacity,Set.of(24),Map.of()));
+        assertEquals(0,future.epoch());
+        assertEquals(10,future.receiptBudget().pendingVolume(),1e-12);
+        var uphill=HydrologyWorldRunnerV2.open(
+            directory.resolve("interior-uphill.chk"),0,initial());
+        uphill.receive(new HydrologyTransferLedgerV2.Key(1,source,landing),12);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+                uphill,window(),5,5,slope(),weather(0),RADIUS,2000,
+                0.01,0.05,capacity,Set.of(24),Map.of()));
+        assertEquals(0,uphill.epoch());
+        assertEquals(12,uphill.receiptBudget().pendingVolume(),1e-12);
+    }
+
     @Test void receiptArrivingDuringSeasonalPreparationCannotBeOverwritten()
             throws IOException {
         Path path = directory.resolve("concurrent-outlet.chk");
