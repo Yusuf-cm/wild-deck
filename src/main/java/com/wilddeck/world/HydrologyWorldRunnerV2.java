@@ -192,6 +192,17 @@ public final class HydrologyWorldRunnerV2 {
             nextWorld,plan,forcing,ignored->{});
     }
 
+    /** Opt-in inflow-first evaporation while retaining atomic receipt delivery. */
+    public synchronized HydrologyLakeNetworkStepV2.Result advanceClosedSphericalLakeNetwork(
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
+        return advanceClosedSphericalLakeNetworkValidated(
+            nextWorld,plan,forcing,mode,ignored->{});
+    }
+
     /**
      * Stage receipt delivery and the lake solve, then validate the complete
      * water budget BEFORE replacing the checkpoint. The package-local hook
@@ -204,6 +215,18 @@ public final class HydrologyWorldRunnerV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
             java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
             throws IOException {
+        return advanceClosedSphericalLakeNetworkValidated(nextWorld,plan,forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP,beforeCommit);
+    }
+
+    synchronized HydrologyLakeNetworkStepV2.Result advanceClosedSphericalLakeNetworkValidated(
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode mode,
+            java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
+            throws IOException {
+        Objects.requireNonNull(mode);
         Objects.requireNonNull(beforeCommit);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(plan);
@@ -228,7 +251,7 @@ public final class HydrologyWorldRunnerV2 {
         }
         var solved=HydrologyLakeNetworkStepV2.step(
             new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
-            previous,forcing);
+            previous,forcing,mode);
         var updated=new HydrologyLakeStateV2.State(
             nextWorld,solved.state().volumes());
         var result=new HydrologyLakeNetworkStepV2.Result(updated,
@@ -257,6 +280,20 @@ public final class HydrologyWorldRunnerV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
             java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
             throws IOException {
+        return advanceBoundClosedSphericalLakeNetworkValidated(nextWorld,atlas,
+            plan,forcing,SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP,
+            beforeCommit);
+    }
+
+    synchronized HydrologyLakeNetworkStepV2.Result advanceBoundClosedSphericalLakeNetworkValidated(
+            String nextWorld,
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> forcing,
+            SeasonalLakeEvolutionV2.EvaporationMode mode,
+            java.util.function.Consumer<HydrologyLakeNetworkStepV2.Result> beforeCommit)
+            throws IOException {
+        Objects.requireNonNull(mode);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(atlas);
         Objects.requireNonNull(plan);
@@ -290,7 +327,7 @@ public final class HydrologyWorldRunnerV2 {
         }
         var solved=HydrologyLakeNetworkStepV2.step(
             new HydrologySphericalLakeBasinsV2.Plan(enriched,plan.lakes()),
-            previous,forcing);
+            previous,forcing,mode);
         var updated=new HydrologyLakeStateV2.State(
             nextWorld,solved.state().volumes());
         var result=new HydrologyLakeNetworkStepV2.Result(updated,
