@@ -48,7 +48,7 @@ class LakeFilledSurfaceEvaporationV2Test {
         assertThrows(IllegalArgumentException.class, () ->
             LakeReservoirV2.stepInflowThenEvaporation(basin(), 0, 1, -1));
         assertThrows(IllegalArgumentException.class, () ->
-            LakeReservoirV2.stepInflowThenEvaporation(basin(), 5, Double.MAX_VALUE, 1));
+            LakeReservoirV2.stepInflowThenEvaporation(\n                new LakeReservoirV2.Basin(new double[]{0}, new double[]{1}, 1e308),\n                1e308, 1e308, 1));
     }
 
     @Test void seededHypsometryConservesInflowAndNonnegativeFlux() {
