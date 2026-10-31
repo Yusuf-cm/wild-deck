@@ -68,8 +68,21 @@ public final class HydrologyMixedResolutionDischargeV2 {
      */
     public static Result solve(Collection<Node> sources,
                                Set<GlobalHydrologyAddressV2.Sample> verifiedMouths) {
+        return solveWithIncoming(sources, verifiedMouths, Map.of());
+    }
+
+    /**
+     * Resume conserved water from a previously exported physical frontier.
+     * Each imported coordinate must be owned by exactly one loaded vertex.
+     * The caller MUST atomically consume imported receipts exactly once; this
+     * pure solver cannot authenticate, acknowledge, or persist delivery.
+     */
+    public static Result solveWithIncoming(Collection<Node> sources,
+            Set<GlobalHydrologyAddressV2.Sample> verifiedMouths,
+            Map<HydrologyGlobalCatchmentsV2.Coordinate, Double> incoming) {
         Objects.requireNonNull(sources);
         Objects.requireNonNull(verifiedMouths);
+        Objects.requireNonNull(incoming);
         if (sources.isEmpty()) throw new IllegalArgumentException("Empty drainage graph");
         var owners = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,
                                  GlobalHydrologyAddressV2.Sample>();
@@ -96,6 +109,16 @@ public final class HydrologyMixedResolutionDischargeV2 {
                 throw new IllegalArgumentException("Unverified terminal or missing mouth");
             indegree.put(node.address(), 0);
             flow.put(node.address(), node.localWater());
+        }
+        for (var receipt : incoming.entrySet()) {
+            Objects.requireNonNull(receipt.getKey());
+            var amount = Objects.requireNonNull(receipt.getValue());
+            if (!Double.isFinite(amount) || amount < 0)
+                throw new IllegalArgumentException("Invalid imported water");
+            var destination = owners.get(receipt.getKey());
+            if (destination == null)
+                throw new IllegalArgumentException("Unloaded receipt destination");
+            add(flow, destination, amount);
         }
         for (var node : nodes.values()) {
             if (node.downstream() == null) continue;
