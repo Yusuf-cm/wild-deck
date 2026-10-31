@@ -48,7 +48,19 @@ public final class HydrologySeasonalLakeNetworkV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing)
             throws IOException {
-        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,null);
+        return advance(runner,nextWorld,plan,weather,lakeForcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+    }
+
+    /** Opt-in evaporation timing with durable snow/soil, receipts and lakes. */
+    public static Advanced advance(HydrologyWorldRunnerV2 runner,
+            String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing,
+            SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
+        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,null,mode);
     }
 
     /**
@@ -63,10 +75,23 @@ public final class HydrologySeasonalLakeNetworkV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing)
             throws IOException {
+        return advanceBound(runner,nextWorld,atlas,plan,weather,lakeForcing,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+    }
+
+    public static Advanced advanceBound(HydrologyWorldRunnerV2 runner,
+            String nextWorld,
+            HydrologySphericalRouteAtlasV2 atlas,
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing,
+            SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
         Objects.requireNonNull(atlas);
         Objects.requireNonNull(runner);
+        Objects.requireNonNull(mode);
         runner.verifyBoundWetLakeDrainage(atlas,plan);
-        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,atlas);
+        return advanceInternal(runner,nextWorld,plan,weather,lakeForcing,atlas,mode);
     }
 
     private static Advanced advanceInternal(HydrologyWorldRunnerV2 runner,
@@ -74,8 +99,10 @@ public final class HydrologySeasonalLakeNetworkV2 {
             HydrologySphericalLakeBasinsV2.Plan plan,
             Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> lakeForcing,
-            HydrologySphericalRouteAtlasV2 boundAtlas)
+            HydrologySphericalRouteAtlasV2 boundAtlas,
+            SeasonalLakeEvolutionV2.EvaporationMode mode)
             throws IOException {
+        Objects.requireNonNull(mode);
         Objects.requireNonNull(runner);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(plan);
@@ -131,10 +158,10 @@ public final class HydrologySeasonalLakeNetworkV2 {
         var lakes=boundAtlas==null ?
             runner.advanceClosedSphericalLakeNetworkValidated(
                 HydrologySnowSoilStateV2.encode(nextSnow),
-                runoffPlan,lakeForcing,validator) :
+                runoffPlan,lakeForcing,mode,validator) :
             runner.advanceBoundClosedSphericalLakeNetworkValidated(
                 HydrologySnowSoilStateV2.encode(nextSnow),
-                boundAtlas,runoffPlan,lakeForcing,validator);
+                boundAtlas,runoffPlan,lakeForcing,mode,validator);
         return new Advanced(snow,lakes,checked[0]);
     }
 
