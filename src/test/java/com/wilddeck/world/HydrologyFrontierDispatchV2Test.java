@@ -58,4 +58,32 @@ class HydrologyFrontierDispatchV2Test {
         assertEquals(1,dispatch.transfers().size());
         assertEquals(2,dispatch.transfers().get(0).flow());
     }
+    @Test void dryKnownFrontiersDoNotCreateDurableReceipts() {
+        var destination=at(5,3);
+        var nodes=List.of(
+            new HydrologyFlowGraphV2.Node(at(4,3),0,destination,false),
+            new HydrologyFlowGraphV2.Node(at(4,2),3,destination,false));
+        var solved=HydrologyFlowGraphV2.solve(nodes);
+        var dispatch=HydrologyFrontierDispatchV2.export(4,nodes,solved);
+        assertEquals(1,dispatch.transfers().size());
+        assertEquals(3,dispatch.transfers().get(0).flow(),1e-12);
+        var inbox=new HydrologyEpochInboxV2();
+        assertEquals(1,dispatch.deliver(inbox));
+        assertEquals(1,inbox.snapshot().receipts().size());
+        assertEquals(0,dispatch.deliver(inbox));
+        var allDry=List.of(new HydrologyFlowGraphV2.Node(
+            at(4,3),0,destination,false));
+        var dry=HydrologyFrontierDispatchV2.export(
+            5,allDry,HydrologyFlowGraphV2.solve(allDry));
+        assertTrue(dry.transfers().isEmpty());
+        assertEquals(0,dry.deliver(inbox));
+        assertEquals(1,inbox.snapshot().receipts().size());
+        // Unknown routes still remain explicitly unresolved even when dry.
+        var unknown=List.of(new HydrologyFlowGraphV2.Node(
+            at(4,3),0,null,false));
+        assertTrue(HydrologyFrontierDispatchV2.export(
+            5,unknown,HydrologyFlowGraphV2.solve(unknown))
+            .unresolved().containsKey(at(4,3)));
+    }
+
 }
