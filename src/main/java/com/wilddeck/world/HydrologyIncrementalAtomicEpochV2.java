@@ -99,6 +99,15 @@ public final class HydrologyIncrementalAtomicEpochV2 {
         }
     }
 
+    /** Reconstruct authoritative drainage directly from the atomic world file. */
+    public static HydrologyIncrementalPriorityFloodV2.Session resumeBound(
+            java.nio.file.Path worldCheckpoint, String terrainRevision,
+            HydrologyGlobalSlopeRouterV2.Elevations terrain) throws IOException {
+        var bound = decode(HydrologyCheckpointStoreV2.load(worldCheckpoint).worldState());
+        return HydrologyIncrementalPriorityFloodV2.resume(
+            bound.flood(), terrainRevision, terrain);
+    }
+
     /**
      * Commit one water epoch using ONLY settled, globally owned drainage.
      * All due parked destinations must be settled. Future-epoch receipts may
@@ -112,11 +121,13 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             HydrologyWorldRunnerV2 runner, String nextWorld,
             String terrainRevision,
             HydrologyIncrementalPriorityFloodV2.Session session,
+            HydrologyGlobalSlopeRouterV2.Elevations terrain,
             Collection<HydrologyGlobalSlopeRouterV2.Source> ownedWater)
             throws IOException {
         Objects.requireNonNull(runner);
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(session);
+        Objects.requireNonNull(terrain);
         Objects.requireNonNull(ownedWater);
         var previous = decode(runner.worldState()).flood();
         var current = session.checkpoint(terrainRevision);
@@ -126,6 +137,15 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             (current.settledCount() == previous.settledCount() &&
              !current.equals(previous)))
             throw new IllegalArgumentException("Incompatible or regressed flood checkpoint");
+        // Independently replay the previous committed state and the proposed
+        // forward progress against the caller-supplied immutable terrain.
+        // A forged session with the same outlet/count cannot change routing.
+        var replay = HydrologyIncrementalPriorityFloodV2.resume(
+            previous, terrainRevision, terrain);
+        int delta = current.settledCount() - previous.settledCount();
+        if (delta > 0) replay.advance(delta);
+        if (!replay.checkpoint(terrainRevision).equals(current))
+            throw new IllegalArgumentException("Flood continuation failed deterministic replay");
 
         var snapshot = session.snapshot();
         var first = current.verifiedOutlets().iterator().next();
