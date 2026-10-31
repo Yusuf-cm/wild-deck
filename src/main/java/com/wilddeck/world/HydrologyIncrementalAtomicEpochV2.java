@@ -109,6 +109,101 @@ public final class HydrologyIncrementalAtomicEpochV2 {
     }
 
     /**
+     * Discover due, undelivered water destinations using the authoritative
+     * bound world checkpoint. A bounded batch is persisted IN THE SAME FILE
+     * without changing epoch, inbox, or the caller's opaque world payload.
+     *
+     * Unsettled water stays parked. A restart resumes from the embedded flood
+     * identity, not from an independent flood file. Caller terrain must be an
+     * immutable oracle matching terrainRevision. This is single-writer local
+     * persistence, not a distributed compare-and-swap.
+     */
+    public static HydrologyIncrementalRegionBridgeV2.PendingDiscovery discoverPending(
+            HydrologyWorldRunnerV2 runner, String terrainRevision,
+            HydrologyGlobalSlopeRouterV2.Elevations terrain,
+            int maxSettlements) throws IOException {
+        synchronized (Objects.requireNonNull(runner)) {
+            Objects.requireNonNull(terrainRevision);
+            Objects.requireNonNull(terrain);
+            if (maxSettlements < 1 ||
+                maxSettlements > HydrologyIncrementalPriorityFloodV2.MAX_SAMPLES)
+                throw new IllegalArgumentException("Invalid discovery batch budget");
+            var bound = decode(runner.worldState());
+            var previous = bound.flood();
+            var session = HydrologyIncrementalPriorityFloodV2.resume(
+                previous, terrainRevision, terrain);
+            var first = previous.verifiedOutlets().iterator().next();
+            var targets = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            long due = Math.addExact(runner.epoch(), 1);
+            for (var key : runner.inboxSnapshot().receipts().keySet()) {
+                if (runner.inboxSnapshot().delivered().contains(key) ||
+                    key.epoch() > due) continue;
+                if (!HydrologySphericalTopologyV2.isCanonical(key.from()) ||
+                    !HydrologySphericalTopologyV2.isCanonical(key.to()) ||
+                    key.from().level() != first.level() ||
+                    key.from().divisions() != first.divisions() ||
+                    key.from().level() != first.level() ||
+                key.from().divisions() != first.divisions() ||
+                key.to().level() != first.level() ||
+                    key.to().divisions() != first.divisions())
+                    throw new IllegalArgumentException(
+                        "Due receipt endpoints do not match canonical flood resolution");
+                targets.add(key.to());
+            }
+            var snapshot = session.snapshot();
+            if (!snapshot.settled().keySet().containsAll(targets)) {
+                snapshot = session.advance(maxSettlements);
+                var updated = session.checkpoint(terrainRevision);
+                if (updated.settledCount() > previous.settledCount())
+                    runner.checkpointIncrementalFloodProgress(
+                        encode(new Bound(bound.world(), updated)));
+            }
+            targets.removeAll(snapshot.settled().keySet());
+            return new HydrologyIncrementalRegionBridgeV2.PendingDiscovery(
+                snapshot, targets);
+        }
+    }
+
+    /** Result of automatic discovery followed by optional epoch activation. */
+    public record DiscoveryAdvance(
+            HydrologyIncrementalRegionBridgeV2.PendingDiscovery discovery,
+            HydrologyDurableEpochV2.Routed committed) {
+        public DiscoveryAdvance {
+            Objects.requireNonNull(discovery);
+            if (!discovery.ready() && committed != null)
+                throw new IllegalArgumentException("Unsettled water cannot be committed");
+        }
+        public boolean advanced() { return committed != null; }
+    }
+
+    /**
+     * Automatically activate ONLY when all due parked water has settled
+     * drainage. The water provider is called only on the ready path and must
+     * return one unique local-water owner for every settled sample.
+     */
+    public static DiscoveryAdvance discoverAndAdvance(
+            HydrologyWorldRunnerV2 runner, String nextWorld,
+            String terrainRevision, HydrologyGlobalSlopeRouterV2.Elevations terrain,
+            int maxSettlements,
+            java.util.function.Function<HydrologyIncrementalPriorityFloodV2.Snapshot,
+                Collection<HydrologyGlobalSlopeRouterV2.Source>> ownedWater)
+            throws IOException {
+        synchronized (Objects.requireNonNull(runner)) {
+            Objects.requireNonNull(nextWorld);
+            Objects.requireNonNull(ownedWater);
+            var discovery = discoverPending(runner, terrainRevision, terrain, maxSettlements);
+            if (!discovery.ready()) return new DiscoveryAdvance(discovery, null);
+            var session = HydrologyIncrementalPriorityFloodV2.resume(
+                decode(runner.worldState()).flood(), terrainRevision, terrain);
+            var water = Objects.requireNonNull(ownedWater.apply(discovery.snapshot()));
+            var committed = advance(runner, nextWorld, terrainRevision,
+                session, terrain, water);
+            return new DiscoveryAdvance(discovery, committed);
+        }
+    }
+
+    /**
      * Commit one water epoch using ONLY settled, globally owned drainage.
      * All due parked destinations must be settled. Future-epoch receipts may
      * remain parked. A failed solve/receipt check leaves the world file intact.
