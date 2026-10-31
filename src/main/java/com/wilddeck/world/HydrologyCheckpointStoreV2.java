@@ -75,6 +75,39 @@ public final class HydrologyCheckpointStoreV2 {
     }
 
     /**
+     * Opt-in same-epoch checkpoint for deterministic incremental flood progress.
+     * Neither the world payload nor a single receipt/consumption marker may
+     * change. This allows bounded discovery to survive a restart without
+     * consuming water before its destination is settled.
+     *
+     * Single-writer optimistic freshness only, NOT an interprocess CAS.
+     */
+    static void saveFloodDiscovery(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        Objects.requireNonNull(destination);
+        Objects.requireNonNull(expected);
+        Objects.requireNonNull(next);
+        if (next.epoch() != expected.epoch() ||
+            !next.inboxState().equals(expected.inboxState()))
+            throw new IllegalArgumentException("Flood discovery cannot advance an epoch or change receipts");
+        var before = HydrologyIncrementalAtomicEpochV2.decode(expected.worldState());
+        var after = HydrologyIncrementalAtomicEpochV2.decode(next.worldState());
+        if (!before.world().equals(after.world()) ||
+            !before.flood().terrainRevision().equals(after.flood().terrainRevision()) ||
+            !before.flood().verifiedOutlets().equals(after.flood().verifiedOutlets()) ||
+            after.flood().settledCount() <= before.flood().settledCount())
+            throw new IllegalArgumentException("Flood discovery may only extend settled drainage");
+        if (!load(destination).equals(expected))
+            throw new IOException("World or receipt inbox changed during flood discovery");
+        Path target = destination.toAbsolutePath();
+        Path parent = target.getParent();
+        if (parent == null || !Files.isDirectory(parent))
+            throw new IOException("Checkpoint parent directory must exist");
+        writeAtomic(target, parent, next);
+    }
+
+    /**
      * Persist additional future-epoch receipts without changing the committed
      * world or consumption markers. Ordinary save() deliberately continues to
      * reject conflicting same-epoch replacements.
