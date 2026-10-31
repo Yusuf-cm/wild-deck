@@ -149,4 +149,80 @@ class HydrologyIncrementalRegionBridgeV2Test {
         assertEquals(0, replay.committed().flow().terminalOutflow().get(OUTLET), 1e-12);
         assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
     }
+    @Test void parkedWaterTriggersBoundedDurableDiscoveryThenRoutesOnce()
+            throws IOException {
+        var worldPath = directory.resolve("pending-world.bin");
+        var floodPath = directory.resolve("pending-flood.bin");
+        var runner = HydrologyWorldRunnerV2.open(worldPath, 0, "seed");
+        var destination = at(4, 2);
+        var key = new HydrologyTransferLedgerV2.Key(1, at(3, 2), destination);
+        assertTrue(runner.receive(key, 4));
+
+        var session = flood();
+        session.advance(1);
+        HydrologyIncrementalFloodCheckpointStoreV2.save(
+            floodPath, session.checkpoint("terrain-fixed"));
+        var partial = HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
+            floodPath, worldPath, "terrain-fixed", session, 1);
+        assertFalse(partial.ready());
+        assertEquals(Set.of(destination), partial.unresolved());
+        assertEquals(2, HydrologyIncrementalFloodCheckpointStoreV2.load(
+            floodPath).settledCount());
+        assertEquals(4, runner.receiptBudget().pendingVolume(), 1e-12);
+
+        session = HydrologyIncrementalPriorityFloodV2.resume(
+            HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath),
+            "terrain-fixed", a -> a.equals(OUTLET) ? 0 : 10);
+        var ready = HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
+            floodPath, worldPath, "terrain-fixed", session, 100);
+        assertTrue(ready.ready());
+        assertTrue(ready.snapshot().settled().containsKey(destination));
+        assertEquals(ready.snapshot().settled().size(),
+            HydrologyIncrementalFloodCheckpointStoreV2.load(
+                floodPath).settledCount());
+        var zeros = ready.snapshot().settled().keySet().stream()
+            .map(a -> new HydrologyGlobalSlopeRouterV2.Source(a, 0)).toList();
+        var regions = HydrologyIncrementalRegionBridgeV2.partitionPersisted(
+            floodPath, "terrain-fixed", session, zeros);
+
+        var routed = runner.advanceAndQueueKnownFrontier(
+            "delivered", regions.values());
+        assertEquals(4, routed.committed().flow().terminalOutflow()
+            .get(OUTLET), 1e-12);
+        assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
+        runner = HydrologyWorldRunnerV2.open(worldPath, 0, "ignored");
+        assertEquals(Set.of(key), runner.inboxSnapshot().delivered());
+        assertEquals(0, runner.advanceAndQueueKnownFrontier(
+            "no-replay", regions.values()).committed().flow()
+            .terminalOutflow().get(OUTLET), 1e-12);
+    }
+
+    @Test void pendingDiscoveryRejectsStaleFloodAndMismatchedReceiptWithoutMutation()
+            throws IOException {
+        var worldPath = directory.resolve("reject-world.bin");
+        var floodPath = directory.resolve("reject-flood.bin");
+        var runner = HydrologyWorldRunnerV2.open(worldPath, 0, "seed");
+        var wrongLevel = new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(0, 2, 1, 1),
+            new GlobalHydrologyAddressV2.Sample(0, 2, 0, 1));
+        runner.receive(wrongLevel, 7);
+        var session = flood();
+        session.advance(1);
+        var original = session.checkpoint("terrain-fixed");
+        HydrologyIncrementalFloodCheckpointStoreV2.save(floodPath, original);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
+                floodPath, worldPath, "terrain-fixed", session, 100));
+        assertEquals(original,
+            HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath));
+        assertEquals(7, runner.receiptBudget().pendingVolume(), 1e-12);
+
+        session.advance(1);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
+                floodPath, worldPath, "terrain-fixed", session, 100));
+        assertEquals(original,
+            HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath));
+    }
+
 }
