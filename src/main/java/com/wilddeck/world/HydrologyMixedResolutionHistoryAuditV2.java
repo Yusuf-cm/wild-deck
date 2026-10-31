@@ -31,10 +31,16 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
             HydrologyGlobalCatchmentsV2.coordinate(key.to()).stableKey();
     }
 
+    private static String sourceIdentity(HydrologyMixedResolutionEpochV2.Receipt key) {
+        return key.epoch() + ":" +
+            HydrologyGlobalCatchmentsV2.coordinate(key.from()).stableKey();
+    }
+
     /**
      * Examine delivered receipts through an inclusive arrival epoch against
      * available sender checkpoints. Reject missing acknowledgments, mismatched
-     * volumes, duplicate sender provenance and undelivered old receipts.
+     * volumes, duplicate sender provenance, conflicting physical source routes,
+     * and undelivered old receipts.
      * Receipt epochs are ARRIVAL epochs, so a sender may legitimately queue
      * and acknowledge a future arrival in an earlier committed sender epoch.
      * Even an empty blocker list is NOT authorization to prune replay markers.
@@ -51,6 +57,8 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
         var provenance = new HashMap<HydrologyMixedResolutionEpochV2.Receipt, Double>();
         var acknowledged = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
         var duplicates = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
+        var physicalSources = new HashMap<String, HydrologyMixedResolutionEpochV2.Receipt>();
+        var forkedSources = new TreeSet<String>();
         for (var sender : senders) {
             Objects.requireNonNull(sender);
             for (var entry : sender.outbox().entrySet()) {
@@ -58,6 +66,10 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
                 if (key.epoch() > throughEpoch) continue;
                 if (provenance.putIfAbsent(key, entry.getValue()) != null)
                     duplicates.add(key);
+                String origin = sourceIdentity(key);
+                var prior = physicalSources.putIfAbsent(origin, key);
+                if (prior != null && !prior.equals(key))
+                    forkedSources.add(origin);
                 if (sender.acknowledged().contains(key)) acknowledged.add(key);
             }
         }
@@ -80,10 +92,12 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
                 blockers.add("Sender volume mismatch " + id);
             } else if (!acknowledged.contains(key)) {
                 blockers.add("Sender not acknowledged " + id);
-            } else {
+            } else if (!forkedSources.contains(sourceIdentity(key))) {
                 matched.put(key, amount);
             }
         }
+        for (var origin : forkedSources)
+            blockers.add("Conflicting sender drainage destinations " + origin);
         return new Report(matched, blockers);
     }
 
