@@ -66,7 +66,7 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             throws IOException {
         return advance(runner, addresses, width, height, seed, weather,
             radiusMeters, sedimentDensity, erosionStrength, maximumCut,
-            transportCapacity, verifiedOutlets, externalExits, false, false);
+            transportCapacity, verifiedOutlets, externalExits, false, false, false);
     }
 
     /**
@@ -92,7 +92,7 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             throws IOException {
         return advance(runner, addresses, width, height, seed, weather,
             radiusMeters, sedimentDensity, erosionStrength, maximumCut,
-            transportCapacity, verifiedOutlets, externalExits, true, false);
+            transportCapacity, verifiedOutlets, externalExits, true, false, false);
     }
 
     /**
@@ -115,7 +115,34 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             throws IOException {
         return advance(runner, addresses, width, height, seed, weather,
             radiusMeters, sedimentDensity, erosionStrength, maximumCut,
-            transportCapacity, verifiedOutlets, externalExits, true, true);
+            transportCapacity, verifiedOutlets, externalExits, true, true, false);
+    }
+
+    /**
+     * Opt-in reconciliation of already-landed interior water across a changed
+     * in-window river path. The geographic receipt landing stays fixed; both
+     * old and new routes must reach explicitly verified outlets without
+     * ponding or cycles. Imported water participates in incision before the
+     * rebuilt drainage is solved, and is consumed only with the atomic
+     * seasonal checkpoint. A changed terminal is reported by the independent
+     * HydrologyRouteMigrationV2 audit, not treated as a globally stable basin.
+     *
+     * This does not authenticate external historical drainage, support
+     * mixed-resolution routing, or migrate future-dated receipts.
+     */
+    public static Committed advanceWithReconciledInteriorReceipts(
+            HydrologyWorldRunnerV2 runner,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits)
+            throws IOException {
+        return advance(runner, addresses, width, height, seed, weather,
+            radiusMeters, sedimentDensity, erosionStrength, maximumCut,
+            transportCapacity, verifiedOutlets, externalExits, true, true, true);
     }
 
     private static Committed advance(
@@ -128,7 +155,8 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             double[] transportCapacity, Collection<Integer> verifiedOutlets,
             Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits,
             boolean acceptVerifiedOutletReceipts,
-            boolean reconcileInterior)
+            boolean reconcileInterior,
+            boolean allowReroute)
             throws IOException {
         synchronized (Objects.requireNonNull(runner)) {
             String oldWorld = runner.worldState();
@@ -276,14 +304,22 @@ public final class HydrologySeasonalLandscapeEpochV2 {
                             1e-9 * Math.max(1.0, Math.abs(oldGrid[i])))
                             throw new IllegalStateException(
                                 "Old ponded lake requires storage-aware reconciliation");
-                    for (var landing : erosionIncoming.keySet()) {
-                        int cursor = indices.get(landing);
-                        var visited = new HashSet<Integer>();
-                        while (cursor >= 0) {
-                            if (!visited.add(cursor) || oldRoute[cursor] != spill[cursor])
-                                throw new IllegalStateException(
-                                    "Imported river changed downstream route during erosion");
-                            cursor = oldRoute[cursor];
+                    if (allowReroute) {
+                        var landings = new TreeSet<Integer>();
+                        for (var landing : erosionIncoming.keySet())
+                            landings.add(indices.get(landing));
+                        HydrologyRouteMigrationV2.verify(
+                            oldRoute, spill, outlets, landings);
+                    } else {
+                        for (var landing : erosionIncoming.keySet()) {
+                            int cursor = indices.get(landing);
+                            var visited = new HashSet<Integer>();
+                            while (cursor >= 0) {
+                                if (!visited.add(cursor) || oldRoute[cursor] != spill[cursor])
+                                    throw new IllegalStateException(
+                                        "Imported river changed downstream route during erosion");
+                                cursor = oldRoute[cursor];
+                            }
                         }
                     }
                     dueIncoming = erosionIncoming;
