@@ -49,10 +49,11 @@ public final class HydrologyIncrementalPriorityFloodV2 {
 
         /**
          * Attach ONLY globally owned local water to settled routes. Duplicate
-         * shared vertices, seam aliases, unknown/unsettled sources and
-         * missing settled owners are rejected instead of double-counted or
-         * silently replaced by zero rainfall. Use knownRoutes() for an
-         * intentionally dry topology-only graph.
+         * shared vertices, seam aliases and unknown/unsettled sources are
+         * rejected. This legacy sparse API deliberately fills unspecified
+         * settled vertices with zero water. For conservation-sensitive callers
+         * that require an explicit owner (including zero) at EVERY settled
+         * vertex, use ownedRoutesExact().
          *
          * A partial snapshot is not a complete catchment budget: water from
          * undiscovered terrain and future cross-region receipts is absent.
@@ -71,16 +72,32 @@ public final class HydrologyIncrementalPriorityFloodV2 {
                 if (water.putIfAbsent(address, source.localWater()) != null)
                     throw new IllegalArgumentException("Duplicate owned water vertex");
             }
-            if (!water.keySet().equals(settled.keySet()))
-                throw new IllegalArgumentException("Missing settled water owner");
             var nodes = new ArrayList<HydrologyFlowGraphV2.Node>();
             for (var entry : settled.entrySet()) {
                 var route = entry.getValue();
                 nodes.add(new HydrologyFlowGraphV2.Node(
-                    entry.getKey(), water.get(entry.getKey()),
+                    entry.getKey(), water.getOrDefault(entry.getKey(), 0.0),
                     route.downstream(), route.downstream() == null));
             }
             return List.copyOf(nodes);
+        }
+
+        /**
+         * Strict conservation-safe water attachment. Requires exactly one
+         * explicit volume for every settled vertex, including dry vertices.
+         * Unlike ownedRoutes(), omissions never become implicit zero rainfall.
+         */
+        public List<HydrologyFlowGraphV2.Node> ownedRoutesExact(
+                Collection<HydrologyGlobalSlopeRouterV2.Source> ownedSources) {
+            Objects.requireNonNull(ownedSources);
+            var sources = List.copyOf(ownedSources);
+            var addresses = new HashSet<GlobalHydrologyAddressV2.Sample>();
+            for (var source : sources)
+                if (!addresses.add(source.address()))
+                    throw new IllegalArgumentException("Duplicate owned water vertex");
+            if (!addresses.equals(settled.keySet()))
+                throw new IllegalArgumentException("Missing or unknown settled water owner");
+            return ownedRoutes(sources);
         }
 
         /** Zero-water topology only. Caller owns rainfall and receipt budgets. */
