@@ -130,9 +130,10 @@ public final class HydrologyIncrementalAtomicEpochV2 {
         var snapshot = session.snapshot();
         var first = current.verifiedOutlets().iterator().next();
         long due = Math.addExact(runner.epoch(), 1);
-        for (var entry : runner.inboxSnapshot().receipts().entrySet()) {
+        var inboxBefore = runner.inboxSnapshot();
+        for (var entry : inboxBefore.receipts().entrySet()) {
             var key = entry.getKey();
-            if (runner.inboxSnapshot().delivered().contains(key) || key.epoch() > due)
+            if (inboxBefore.delivered().contains(key) || key.epoch() > due)
                 continue;
             if (!HydrologySphericalTopologyV2.isCanonical(key.from()) ||
                 !HydrologySphericalTopologyV2.isCanonical(key.to()) ||
@@ -145,6 +146,9 @@ public final class HydrologyIncrementalAtomicEpochV2 {
 
         var partition = HydrologyIncrementalRegionBridgeV2.partition(
             snapshot, ownedWater);
+        if (runner.epoch() != due - 1 ||
+            !runner.inboxSnapshot().equals(inboxBefore))
+            throw new IOException("World inbox changed during flood partition");
         if (!current.equals(session.checkpoint(terrainRevision)))
             throw new IllegalArgumentException("Flood changed during water partition");
         return runner.advanceAndQueueKnownFrontier(
