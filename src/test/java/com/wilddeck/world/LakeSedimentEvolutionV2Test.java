@@ -75,6 +75,10 @@ class LakeSedimentEvolutionV2Test {
             LakeSedimentEvolutionV2.deposit(basin(), 1, Double.NaN, 2000));
         assertThrows(IllegalArgumentException.class, () ->
             LakeSedimentEvolutionV2.deposit(basin(), 1, 1, Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () ->
+            LakeSedimentEvolutionV2.deposit(
+                new LakeReservoirV2.Basin(new double[]{0}, new double[]{1}, 1e-300),
+                0, 1, Double.MIN_VALUE));
     }
 
     @Test void seededGeometrySweepPreservesBothConservationLaws() {
