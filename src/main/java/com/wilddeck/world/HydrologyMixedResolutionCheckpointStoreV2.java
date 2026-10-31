@@ -88,8 +88,12 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
         long epoch = Math.addExact(expected.epoch(), 1);
         var staged = HydrologyMixedResolutionEpochV2.prepare(
             expected.inbox(), epoch, nodes, verifiedMouths);
-        // A plain world advance does not queue new frontier transfers, but it
-        // must never erase transfers queued by earlier epochs.
+        // Never commit a world epoch that exported water without recording its
+        // receipts. Use advanceAndQueue for any unloaded downstream frontier.
+        if (!staged.flow().pendingOutflow().isEmpty())
+            throw new IllegalArgumentException(
+                "Unqueued frontier discharge: use advanceAndQueue");
+        // Preserve transfers queued by earlier epochs.
         var next = new Checkpoint(epoch, nextWorld, staged.next(),
             expected.outbox(), expected.acknowledged());
         saveExpected(file, expected, next);
