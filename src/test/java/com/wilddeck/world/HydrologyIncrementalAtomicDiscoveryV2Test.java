@@ -167,6 +167,36 @@ class HydrologyIncrementalAtomicDiscoveryV2Test {
             .terminalOutflow().get(OUTLET), 1e-12);
     }
 
+    @Test void staleRunnerCannotDiscoverAgainstAnOutdatedInbox()
+            throws IOException {
+        var file = directory.resolve("stale.bin");
+        var writer = initial(file);
+        var stale = HydrologyWorldRunnerV2.open(file, 0, "ignored");
+        var key = new HydrologyTransferLedgerV2.Key(1, at(3, 2), at(4, 2));
+        writer.receive(key, 6);
+        var persisted = HydrologyCheckpointStoreV2.load(file);
+        assertThrows(IOException.class, () ->
+            HydrologyIncrementalAtomicEpochV2.discoverPending(
+                stale, "fixed", TERRAIN, 2));
+        assertEquals(persisted, HydrologyCheckpointStoreV2.load(file));
+        assertEquals(6, writer.receiptBudget().pendingVolume(), 1e-12);
+    }
+
+    @Test void futureReceiptDoesNotForcePrematureFloodExpansion()
+            throws IOException {
+        var file = directory.resolve("future.bin");
+        var runner = initial(file);
+        var key = new HydrologyTransferLedgerV2.Key(3, at(3, 2), at(4, 2));
+        runner.receive(key, 8);
+        var before = HydrologyCheckpointStoreV2.load(file);
+        var discovery = HydrologyIncrementalAtomicEpochV2.discoverPending(
+            runner, "fixed", TERRAIN, 2);
+        assertTrue(discovery.ready());
+        assertEquals(1, discovery.snapshot().settled().size());
+        assertEquals(before, HydrologyCheckpointStoreV2.load(file));
+        assertEquals(8, runner.receiptBudget().pendingVolume(), 1e-12);
+    }
+
     @Test void sameEpochFloodStoreRejectsWorldAndInboxTampering()
             throws IOException {
         var file = directory.resolve("tamper.bin");
