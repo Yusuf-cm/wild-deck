@@ -1414,3 +1414,9 @@ The final checked job's `Run tests`, world experiment, resource replay, browser-
 **Outstanding / not claimed:** There is **no safe receipt-history compaction yet**. Even a locally consistent audit cannot establish the complete sender set, durable global replay watermark, or absence of delayed senders; deleting receiver delivery markers could double-count water. Batch dispatch is sequential, not all-or-nothing, and may require caller retries after concurrent stale-checkpoint writes. Verified ownership is caller-supplied, not independently authenticated or cryptographically bound to terrain. Remote transport authentication, distributed fencing, recovery of lost acknowledged receiver state, true global drainage discovery, actual erosion-driven in-flight route migration, coupled persistent lake/sediment/terrain changes, multiple spillways, groundwater, calibrated seasons, timed floods, long-run planetary endurance, and production save integration remain unfinished. **Hydrology is NOT complete.**
 
 **Next:** Establish a durable replay barrier and safe sender/receiver compaction protocol before deleting any receipt history. Then verify historical-route provenance, erosion-driven in-flight migration, and persistent lake/sediment coupling. No other world layer, production deployment, paid infrastructure, PR, merge, or main-branch change was touched.
+
+### 2026-10-31 — Sender receipt chronology audit
+
+- Read-only mixed-resolution retention audit now blocks receipt provenance if a supplied sender checkpoint's committed epoch precedes that receipt's transfer epoch.
+- Added a regression test for a future-dated receipt in a premature sender checkpoint.
+- Passing a local audit remains insufficient for receipt pruning: distributed replay barriers and outstanding sender inventories are not proven. No history compaction is enabled.
