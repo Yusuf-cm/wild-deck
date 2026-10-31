@@ -295,4 +295,68 @@ class HydrologySeasonalLandscapeEpochV2Test {
         assertEquals(0, uphill.epoch());
         assertEquals(7, uphill.receiptBudget().pendingVolume(), 1e-12);
     }
+
+    @Test void importedOutletWaterDoesNotReErodeInteriorCells() throws IOException {
+        var dry = HydrologyWorldRunnerV2.open(
+            directory.resolve("dry-erosion.chk"), 0, initial());
+        var wet = HydrologyWorldRunnerV2.open(
+            directory.resolve("wet-erosion.chk"), 0, initial());
+        var outlet = window().get(24);
+        var source = new GlobalHydrologyAddressV2.Sample(2, 4, 9, 8);
+        var elevations = (HydrologyGlobalSlopeRouterV2.Elevations) a ->
+            a.equals(source) ? 100 : slope().at(a);
+        wet.receive(new HydrologyTransferLedgerV2.Key(1, source, outlet), 7);
+        var capacity = new double[25];
+        Arrays.fill(capacity, 1e12);
+        var dryStep = HydrologySeasonalLandscapeEpochV2.advanceClosedWindow(
+            dry, window(), 5, 5, elevations, weather(2),
+            RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24));
+        var wetStep = HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedOutletReceipts(
+            wet, window(), 5, 5, elevations, weather(2),
+            RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24), Map.of());
+        assertEquals(dryStep.prepared().state().terrain(),
+            wetStep.prepared().state().terrain());
+        assertEquals(dryStep.prepared().state().snowSoil(),
+            wetStep.prepared().state().snowSoil());
+        assertEquals(dryStep.budget().outlet() + 7,
+            wetStep.budget().outlet(), 1e-6);
+        assertEquals(0, wet.receiptBudget().pendingVolume(), 1e-12);
+        assertEquals(1, wet.inboxSnapshot().delivered().size());
+    }
+
+    @Test void receiptArrivingDuringSeasonalPreparationCannotBeOverwritten()
+            throws IOException {
+        Path path = directory.resolve("concurrent-outlet.chk");
+        var runner = HydrologyWorldRunnerV2.open(path, 0, initial());
+        var outlet = window().get(24);
+        var firstSource = new GlobalHydrologyAddressV2.Sample(2, 4, 9, 8);
+        var secondSource = new GlobalHydrologyAddressV2.Sample(2, 4, 8, 9);
+        runner.receive(new HydrologyTransferLedgerV2.Key(
+            1, firstSource, outlet), 3);
+        var inserted = new java.util.concurrent.atomic.AtomicBoolean();
+        HydrologyGlobalSlopeRouterV2.Elevations reentrant = a -> {
+            if (inserted.compareAndSet(false, true)) {
+                try {
+                    runner.receive(new HydrologyTransferLedgerV2.Key(
+                        1, secondSource, outlet), 4);
+                } catch (IOException ex) {
+                    throw new java.io.UncheckedIOException(ex);
+                }
+            }
+            return a.equals(firstSource) || a.equals(secondSource)
+                ? 100 : slope().at(a);
+        };
+        var capacity = new double[25];
+        Arrays.fill(capacity, 1e12);
+        assertThrows(IOException.class, () ->
+            HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedOutletReceipts(
+                runner, window(), 5, 5, reentrant, weather(2),
+                RADIUS, 2000, 0.01, 0.05, capacity, Set.of(24), Map.of()));
+        assertTrue(inserted.get());
+        var restored = HydrologyWorldRunnerV2.open(path, 0, "ignored");
+        assertEquals(0, restored.epoch());
+        assertEquals(initial(), restored.worldState());
+        assertEquals(7, restored.receiptBudget().pendingVolume(), 1e-12);
+        assertTrue(restored.inboxSnapshot().delivered().isEmpty());
+    }
 }
