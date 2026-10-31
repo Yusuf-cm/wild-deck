@@ -1387,3 +1387,30 @@ The workflow's Maven/JUnit, world experiment, resource replay, browser-save, atl
 **Boundaries / remaining hydrology acceptance:** OS locks rely on a cooperative local filesystem with working advisory locking. They do not supply remote authentication, distributed leases, fencing across network partitions, or proof of safe operation on all network filesystems; on non-Unix filesystems hardlink detection may be unavailable. There is no safe receipt/ack-history compaction yet: removing historical delivery markers without an enforced durable replay horizon could duplicate water. Receiver-checkpoint loss after acknowledgment remains detectable but not reconstructable. The unverified `transfer` overload still trusts caller routing; `transferToVerifiedDestination` checks only caller-supplied geographic ownership. No automatic planetary drainage discovery, end-to-end actual erosion-driven in-flight topology migration, persistent lake/sediment/terrain coupling, multiple lake spillways, groundwater, calibrated climate, physically timed floods, large-world endurance, or production save integration is claimed. **Hydrology remains unfinished.**
 
 **Next:** First independently inspect new push-triggered GitHub Actions and repair any failures. Then implement a provable replay-safe receipt-history compaction watermark and stronger sender/receiver coordination; after that, continue real route migration and persistent lake/erosion coupling before any other world layer.
+
+
+## 2026-10-31 — Deterministic mixed-resolution frontier dispatch and receipt-history audit
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. The prior branch HEAD `da2e2cf0dd09fdbe4c9384d676bf6a4c90cbd6d1` has now been independently verified as **CI passed**: https://github.com/Yusuf-cm/wild-deck/actions/runs/41231508640 . This supersedes the earlier "CI unverified" statement for that HEAD; earlier entries remain historical.
+
+**Implementation:**
+- `ae34eca8191873336de41a094a7b1bb44749a8ca`: Added `HydrologyMixedResolutionDispatchBatchV2`, which deterministically selects and dispatches only the pending geographic frontier receipts owned by a caller-supplied receiving graph. Unloaded or different-region destinations stay in the durable sender outbox. Per-receipt receiver acceptance precedes sender acknowledgment; a partially completed batch is explicitly *not* a multi-file atomic transaction, and retries are idempotent.
+- `6144fbcd1cbff8ea84aeebc51db4ed3f6b41376e`: Added five JUnit integration/regression tests for two-source mixed-LOD confluence (7 + 11 imported + 3 local = 21), leaving a third 13-unit unloaded-neighbor receipt pending, later receiving that third receipt at a different LOD, idempotent replay, duplicate physical receiver ownership, missing receiver checkpoint, and self-dispatch rejection.
+- `c25b46ed30f64646ea6b09377af672280d4f0602`: Added read-only `HydrologyMixedResolutionHistoryAuditV2`. It checks delivered receiver receipts against supplied sender outbox amounts and durable acknowledgments, flagging missing, conflicting, duplicate, unacknowledged or undelivered history. **It does not prune records, prove complete sender inventory, or establish a replay-safe compaction barrier.**
+- `13692f1c74a959ae6e43afd4e8125332449e4265`: Added five JUnit tests for the retention audit's matching and fail-closed cases.
+- `03f0e61a12721713fbb0f78c257208d857909f88`: Fixed a batch integrity gap: before dispatching any new water, the batch checks every previously acknowledged receipt addressed to this receiving graph against the receiver's durable inbox. A missing or replaced receiver checkpoint now fails closed instead of silently appearing fully delivered.
+- `4ca983685e5632049072582359ea18e19f37d7eb`: Added regression for acknowledged receiver checkpoint loss detected by the batch before any new transfer.
+
+**Verified CI (push-triggered Java CI, all completed successfully):**
+- `ae34eca8`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236294262
+- `6144fbcd`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236317702
+- `c25b46ed`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236339822
+- `13692f1c`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236352839
+- `03f0e61a`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236377614
+- `4ca98368`: https://github.com/Yusuf-cm/wild-deck/actions/runs/41236385341
+
+The final checked job's `Run tests`, world experiment, resource replay, browser-save, atlas export, and real-browser verification steps all reported **success**. Eleven new JUnit test methods were added (six batch-dispatch and five history-audit). These are bounded local-checkpoint tests, not a planetary or distributed transport acceptance suite.
+
+**Outstanding / not claimed:** There is **no safe receipt-history compaction yet**. Even a locally consistent audit cannot establish the complete sender set, durable global replay watermark, or absence of delayed senders; deleting receiver delivery markers could double-count water. Batch dispatch is sequential, not all-or-nothing, and may require caller retries after concurrent stale-checkpoint writes. Verified ownership is caller-supplied, not independently authenticated or cryptographically bound to terrain. Remote transport authentication, distributed fencing, recovery of lost acknowledged receiver state, true global drainage discovery, actual erosion-driven in-flight route migration, coupled persistent lake/sediment/terrain changes, multiple spillways, groundwater, calibrated seasons, timed floods, long-run planetary endurance, and production save integration remain unfinished. **Hydrology is NOT complete.**
+
+**Next:** Establish a durable replay barrier and safe sender/receiver compaction protocol before deleting any receipt history. Then verify historical-route provenance, erosion-driven in-flight migration, and persistent lake/sediment coupling. No other world layer, production deployment, paid infrastructure, PR, merge, or main-branch change was touched.
