@@ -35,6 +35,8 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
      * Examine delivered receipts through an inclusive arrival epoch against
      * available sender checkpoints. Reject missing acknowledgments, mismatched
      * volumes, duplicate sender provenance and undelivered old receipts.
+     * Receipt epochs are ARRIVAL epochs, so a sender may legitimately queue
+     * and acknowledge a future arrival in an earlier committed sender epoch.
      * Even an empty blocker list is NOT authorization to prune replay markers.
      */
     public static Report audit(
@@ -49,13 +51,11 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
         var provenance = new HashMap<HydrologyMixedResolutionEpochV2.Receipt, Double>();
         var acknowledged = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
         var duplicates = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
-        var premature = new HashSet<HydrologyMixedResolutionEpochV2.Receipt>();
         for (var sender : senders) {
             Objects.requireNonNull(sender);
             for (var entry : sender.outbox().entrySet()) {
                 var key = entry.getKey();
                 if (key.epoch() > throughEpoch) continue;
-                if (sender.epoch() < key.epoch()) premature.add(key);
                 if (provenance.putIfAbsent(key, entry.getValue()) != null)
                     duplicates.add(key);
                 if (sender.acknowledged().contains(key)) acknowledged.add(key);
@@ -72,8 +72,6 @@ public final class HydrologyMixedResolutionHistoryAuditV2 {
             double amount = receiver.inbox().receipts().get(key);
             if (!receiver.inbox().delivered().contains(key)) {
                 blockers.add("Undelivered receipt " + id);
-            } else if (premature.contains(key)) {
-                blockers.add("Sender checkpoint predates receipt " + id);
             } else if (duplicates.contains(key)) {
                 blockers.add("Multiple sender records " + id);
             } else if (!provenance.containsKey(key)) {
