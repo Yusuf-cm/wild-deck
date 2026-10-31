@@ -155,6 +155,7 @@ public final class HydrologyIncrementalAtomicEpochV2 {
                 targets.add(key.to());
             }
             var snapshot = session.snapshot();
+            String expectedState = boundState;
             if (!snapshot.settled().keySet().containsAll(targets)) {
                 snapshot = session.advance(maxSettlements);
                 var updated = session.checkpoint(terrainRevision);
@@ -162,13 +163,14 @@ public final class HydrologyIncrementalAtomicEpochV2 {
                     !runner.inboxSnapshot().equals(inboxBefore) ||
                     !runner.worldState().equals(boundState))
                     throw new IOException("World inbox changed during pending-water discovery");
-                if (updated.settledCount() > previous.settledCount())
-                    runner.checkpointIncrementalFloodProgress(
-                        encode(new Bound(bound.world(), updated)));
+                if (updated.settledCount() > previous.settledCount()) {
+                    expectedState = encode(new Bound(bound.world(), updated));
+                    runner.checkpointIncrementalFloodProgress(expectedState);
+                }
             }
             if (runner.epoch() != epochBefore ||
                 !runner.inboxSnapshot().equals(inboxBefore) ||
-                !decode(runner.worldState()).world().equals(bound.world()))
+                !runner.worldState().equals(expectedState))
                 throw new IOException("World inbox changed during pending-water discovery");
             targets.removeAll(snapshot.settled().keySet());
             return new HydrologyIncrementalRegionBridgeV2.PendingDiscovery(
