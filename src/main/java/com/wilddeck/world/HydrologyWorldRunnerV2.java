@@ -156,6 +156,23 @@ public final class HydrologyWorldRunnerV2 {
 
 
     /**
+     * Resolution-qualified pending-region advance. Rejects parked receipts
+     * from a different sampling density before loading or consuming water.
+     * Callers must use this overload when the provider has fixed divisions.
+     * Does not interpolate between LODs or solve unknown drainage.
+     */
+    public synchronized HydrologyDurableEpochV2.Routed advanceSphericalPendingRegionsAndQueue(
+            String nextWorldState,
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            int level,int divisions,int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) throws IOException {
+        var loaded=HydrologySphericalRegionSchedulerV2.loadWithPending(
+            focus,inbox.snapshot(),level,divisions,radius,maximumRegions,provider);
+        return advanceAndQueueKnownFrontier(nextWorldState,loaded);
+    }
+
+
+    /**
      * Atomically advance a complete, caller-verified spherical lake network
      * together with durable incoming river receipts and lake storage.
      *

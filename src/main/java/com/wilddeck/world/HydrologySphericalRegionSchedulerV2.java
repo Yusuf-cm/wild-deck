@@ -77,4 +77,27 @@ public final class HydrologySphericalRegionSchedulerV2 {
         all.addAll(HydrologyRegionSchedulerV2.pendingRegions(pending));
         return load(all,level,radius,maximumRegions,provider);
     }
+
+    /**
+     * Resolution-qualified spherical scheduling. The legacy level-only
+     * overload cannot distinguish different divisions at the same level.
+     * Refuse incompatible pending receipts BEFORE invoking any provider.
+     * This is a strict single-resolution contract, not mixed-LOD routing.
+     */
+    public static List<Collection<HydrologyFlowGraphV2.Node>> loadWithPending(
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            HydrologyEpochInboxV2.Snapshot pending,
+            int level,int divisions,int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) {
+        Objects.requireNonNull(pending);
+        if(divisions<1||divisions>128)
+            throw new IllegalArgumentException("Invalid spherical sample divisions");
+        for(var key:pending.receipts().keySet()) {
+            if(pending.delivered().contains(key))continue;
+            if(key.to().divisions()!=divisions)
+                throw new IllegalArgumentException(
+                    "Pending spherical receipt has incompatible sample divisions");
+        }
+        return loadWithPending(focus,pending,level,radius,maximumRegions,provider);
+    }
 }
