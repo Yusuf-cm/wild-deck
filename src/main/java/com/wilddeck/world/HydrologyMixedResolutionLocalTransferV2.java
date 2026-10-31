@@ -2,6 +2,9 @@ package com.wilddeck.world;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
 
 /**
@@ -39,7 +42,9 @@ public final class HydrologyMixedResolutionLocalTransferV2 {
         Objects.requireNonNull(receiverFile);
         Objects.requireNonNull(key);
         if (senderFile.toAbsolutePath().normalize()
-                .equals(receiverFile.toAbsolutePath().normalize()))
+                .equals(receiverFile.toAbsolutePath().normalize()) ||
+            (Files.exists(senderFile) && Files.exists(receiverFile) &&
+             Files.isSameFile(senderFile, receiverFile)))
             throw new IllegalArgumentException("Sender and receiver must be different checkpoints");
 
         var sender = HydrologyMixedResolutionCheckpointStoreV2.load(senderFile);
@@ -62,5 +67,29 @@ public final class HydrologyMixedResolutionLocalTransferV2 {
         var acknowledged = HydrologyMixedResolutionCheckpointStoreV2.acknowledgePersisted(
             senderFile, sender, key, amount);
         return new Delivery(acknowledged, accepted, true);
+    }
+
+    /**
+     * Opt-in ownership-checked dispatch for an explicitly verified receiving
+     * graph. Rejects a wrong-region receiver before any checkpoint mutation.
+     * Cross-resolution aliases are compared by physical coordinates, never
+     * tile indices. The caller MUST supply the actual receiver's authoritative
+     * graph; this method cannot authenticate that graph or its persisted world.
+     */
+    public static Delivery transferToVerifiedDestination(Path senderFile,
+            Path receiverFile, HydrologyMixedResolutionEpochV2.Receipt key,
+            Collection<HydrologyMixedResolutionDischargeV2.Node> receiverNodes)
+            throws IOException {
+        Objects.requireNonNull(key);
+        Objects.requireNonNull(receiverNodes);
+        var owners = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        for (var node : receiverNodes) {
+            Objects.requireNonNull(node);
+            if (!owners.add(HydrologyGlobalCatchmentsV2.coordinate(node.address())))
+                throw new IllegalArgumentException("Duplicate geographic receiver owner");
+        }
+        if (!owners.contains(HydrologyGlobalCatchmentsV2.coordinate(key.to())))
+            throw new IllegalArgumentException("Receipt does not belong to verified receiver");
+        return transfer(senderFile, receiverFile, key);
     }
 }
