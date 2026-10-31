@@ -165,7 +165,9 @@ class HydrologyMixedResolutionOutboxV2Test {
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyMixedResolutionCheckpointStoreV2.acknowledgePersisted(
                 sender, committed.checkpoint(), entry.getKey(), 8));
-        assertThrows(IOException.class, () ->
+        // An obsolete snapshot has no record of this receipt; reject it
+        // before attempting any acknowledgment or checkpoint mutation.
+        assertThrows(IllegalArgumentException.class, () ->
             HydrologyMixedResolutionCheckpointStoreV2.acknowledgePersisted(
                 sender, initial(), entry.getKey(), entry.getValue()));
         var acked = HydrologyMixedResolutionCheckpointStoreV2.acknowledgePersisted(
