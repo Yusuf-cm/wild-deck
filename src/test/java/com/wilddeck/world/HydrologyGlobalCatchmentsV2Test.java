@@ -83,12 +83,14 @@ class HydrologyGlobalCatchmentsV2Test {
             HydrologyGlobalCatchmentsV2.resolve(extraTerminal,Set.of(a)));
     }
 
-    @Test void longUnloadedChainResolvesIterativelyWithoutRecursion() {
+    @Test void longCrossResolutionAliasChainResolvesIterativelyWithoutRecursion() {
         var graph = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
         int length = 20_000;
         for (int x=1;x<=length;x++) {
             var current=at(16,4,x,100);
-            graph.put(current,x==length ? null : at(16,4,x+1,100));
+            // Every edge refers to the same physical vertex at finer resolution.
+            // Only the coarse sample is an owner; the alias never doubles water.
+            graph.put(current,x==length ? null : at(17,4,2L*(x+1),200));
         }
         var mouth=at(16,4,length,100);
         var resolved=HydrologyGlobalCatchmentsV2.resolve(graph,Set.of(mouth));
