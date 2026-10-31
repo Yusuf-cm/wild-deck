@@ -378,7 +378,9 @@ class HydrologySeasonalLandscapeEpochV2Test {
         uphill.receive(new HydrologyTransferLedgerV2.Key(1,source,landing),12);
         assertThrows(IllegalArgumentException.class,()->
             HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
-                uphill,window(),5,5,slope(),weather(0),RADIUS,2000,
+                uphill,window(),5,5,
+                a -> a.equals(source) ? 0 : slope().at(a),
+                weather(0),RADIUS,2000,
                 0.01,0.05,capacity,Set.of(24),Map.of()));
         assertEquals(0,uphill.epoch());
         assertEquals(12,uphill.receiptBudget().pendingVolume(),1e-12);
