@@ -128,7 +128,10 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             if (maxSettlements < 1 ||
                 maxSettlements > HydrologyIncrementalPriorityFloodV2.MAX_SAMPLES)
                 throw new IllegalArgumentException("Invalid discovery batch budget");
-            var bound = decode(runner.worldState());
+            var boundState = runner.worldState();
+            var inboxBefore = runner.inboxSnapshot();
+            long epochBefore = runner.epoch();
+            var bound = decode(boundState);
             var previous = bound.flood();
             var session = HydrologyIncrementalPriorityFloodV2.resume(
                 previous, terrainRevision, terrain);
@@ -155,10 +158,18 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             if (!snapshot.settled().keySet().containsAll(targets)) {
                 snapshot = session.advance(maxSettlements);
                 var updated = session.checkpoint(terrainRevision);
+                if (runner.epoch() != epochBefore ||
+                    !runner.inboxSnapshot().equals(inboxBefore) ||
+                    !runner.worldState().equals(boundState))
+                    throw new IOException("World inbox changed during pending-water discovery");
                 if (updated.settledCount() > previous.settledCount())
                     runner.checkpointIncrementalFloodProgress(
                         encode(new Bound(bound.world(), updated)));
             }
+            if (runner.epoch() != epochBefore ||
+                !runner.inboxSnapshot().equals(inboxBefore) ||
+                !decode(runner.worldState()).world().equals(bound.world()))
+                throw new IOException("World inbox changed during pending-water discovery");
             targets.removeAll(snapshot.settled().keySet());
             return new HydrologyIncrementalRegionBridgeV2.PendingDiscovery(
                 snapshot, targets);
