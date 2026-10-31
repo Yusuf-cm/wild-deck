@@ -358,6 +358,38 @@ class HydrologySeasonalLandscapeEpochV2Test {
             .terminalOutflow().get(landing),1e-12);
     }
 
+    @Test void importedInteriorWaterExportsThroughUnloadedBoundaryAfterRestart()
+            throws IOException {
+        Path path=directory.resolve("interior-frontier.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,initial());
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var landing=window().get(0);
+        var exit=new GlobalHydrologyAddressV2.Sample(2,4,9,9);
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,source,landing),250);
+        var heights=(HydrologyGlobalSlopeRouterV2.Elevations) a ->
+            a.equals(source) ? 100 : a.equals(exit) ? -10 : slope().at(a);
+        var capacity=new double[25];
+        Arrays.fill(capacity,1e12);
+        var step=HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+            runner,window(),5,5,heights,weather(0),RADIUS,2000,
+            0.01,0.05,capacity,Set.of(24),Map.of(24,exit));
+        assertEquals(250,step.budget().input(),1e-6);
+        assertEquals(250,step.budget().frontier(),1e-6);
+        assertEquals(1,step.queuedTransfers());
+        assertEquals(250,runner.receiptBudget().pendingVolume(),1e-6);
+        var saved=runner.worldState();
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var receiver=List.of(new HydrologyFlowGraphV2.Node(exit,0,null,true));
+        var delivered=runner.advanceAndQueueKnownFrontier(
+            saved,List.of(receiver));
+        assertEquals(250,
+            delivered.committed().flow().terminalOutflow().get(exit),1e-6);
+        assertEquals(0,runner.receiptBudget().pendingVolume(),1e-12);
+        runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(0,runner.advance(saved,List.of(receiver))
+            .terminalOutflow().get(exit),1e-12);
+    }
+
     @Test void interiorReceiptRejectsFutureAndUphillEdgesWithoutConsumption()
             throws IOException {
         var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
