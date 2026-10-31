@@ -29,6 +29,8 @@ public final class HydrologyTerrainOverlayV2 {
                 HydrologyFlowGraphV2.ADDRESS_ORDER);
             for(var entry:elevations.entrySet()){
                 var address=Objects.requireNonNull(entry.getKey());
+                if(!HydrologySphericalTopologyV2.isCanonical(address))
+                    throw new IllegalArgumentException("Noncanonical terrain overlay address");
                 double height=Objects.requireNonNull(entry.getValue());
                 if(!Double.isFinite(height))
                     throw new IllegalArgumentException("Non-finite terrain overlay");
@@ -128,6 +130,8 @@ public final class HydrologyTerrainOverlayV2 {
         var elevation=elevations(seed,previous);
         for(int i=0;i<current.length;i++){
             var address=Objects.requireNonNull(addresses.get(i));
+            if(!HydrologySphericalTopologyV2.isCanonical(address))
+                throw new IllegalArgumentException("Noncanonical erosion window vertex");
             if(address.level()!=first.level()||
                address.divisions()!=first.divisions()||
                address.x()!=Math.addExact(first.x(),i%width)||

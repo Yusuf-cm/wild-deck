@@ -81,6 +81,37 @@ class HydrologyTerrainOverlayV2Test {
             new HydrologyTerrainOverlayV2.State("x",Map.of(id,Double.NaN)));
     }
 
+    @Test void terrainOverlayRejectsDuplicateSeamAndPolarAliases() {
+        var seam = new GlobalHydrologyAddressV2.Sample(1, 2, 8, 2);
+        var pole = new GlobalHydrologyAddressV2.Sample(1, 2, 3, 0);
+        var canonical = new GlobalHydrologyAddressV2.Sample(1, 2, 0, 2);
+        assertThrows(IllegalArgumentException.class, () ->
+            new HydrologyTerrainOverlayV2.State("world", Map.of(seam, 5.0)));
+        assertThrows(IllegalArgumentException.class, () ->
+            new HydrologyTerrainOverlayV2.State("world", Map.of(pole, 5.0)));
+        var valid = new HydrologyTerrainOverlayV2.State(
+            "world", Map.of(canonical, 5.0));
+        assertEquals(valid, HydrologyTerrainOverlayV2.decode(
+            HydrologyTerrainOverlayV2.encode(valid)));
+        var forged = HydrologyTerrainOverlayV2.encode(valid)
+            .replace("1,2,0,2,", "1,2,8,2,");
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyTerrainOverlayV2.decode(forged));
+    }
+
+    @Test void erosionRejectsNoncanonicalWindowBeforePublishingOverlay() {
+        var before = new HydrologyTerrainOverlayV2.State("world", Map.of());
+        var window = List.of(
+            new GlobalHydrologyAddressV2.Sample(1, 2, 7, 2),
+            new GlobalHydrologyAddressV2.Sample(1, 2, 8, 2));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyTerrainOverlayV2.evolveWindow(
+                before, window, 2, 1, a -> 10,
+                new double[]{0, 0}, new double[]{1, 1}, 2000,
+                0.1, 0.4, new double[]{1, 1}, Set.of(1)));
+        assertTrue(before.elevations().isEmpty());
+    }
+
     @Test void persistedDepositionChangesGlobalDownhillRouting() {
         var source=new GlobalHydrologyAddressV2.Sample(2,4,5,5);
         var east=new GlobalHydrologyAddressV2.Sample(2,4,6,5);
