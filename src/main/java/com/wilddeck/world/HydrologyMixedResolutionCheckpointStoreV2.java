@@ -62,8 +62,11 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
     public static void initialize(Path file, Checkpoint initial) throws IOException {
         Objects.requireNonNull(file);
         Objects.requireNonNull(initial);
-        if (Files.exists(file)) throw new IOException("Checkpoint already exists");
-        write(file, initial);
+        HydrologyCheckpointFileLockV2.withLock(file, () -> {
+            if (Files.exists(file)) throw new IOException("Checkpoint already exists");
+            write(file, initial);
+            return null;
+        });
     }
 
     /** Persist receipt acceptance BEFORE acknowledging its delivery. */
@@ -167,8 +170,9 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
         Objects.requireNonNull(file);
         Objects.requireNonNull(expected);
         Objects.requireNonNull(next);
-        if (!load(file).equals(expected))
-            throw new IOException("Stale mixed-resolution checkpoint");
+        HydrologyCheckpointFileLockV2.withLock(file, () -> {
+            if (!load(file).equals(expected))
+                throw new IOException("Stale mixed-resolution checkpoint");
         if (next.epoch() < expected.epoch() || next.epoch() > expected.epoch() + 1)
             throw new IOException("Invalid checkpoint epoch transition");
         if (!next.inbox().receipts().entrySet().containsAll(
@@ -183,8 +187,9 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
              !next.inbox().delivered().equals(expected.inbox().delivered()) ||
              !next.outbox().equals(expected.outbox())))
             throw new IOException("Same-epoch receipt/ack update cannot change world or outbox");
-        if (next.equals(expected)) return;
-        write(file, next);
+            if (!next.equals(expected)) write(file, next);
+            return null;
+        });
     }
 
     public static Checkpoint load(Path file) throws IOException {
