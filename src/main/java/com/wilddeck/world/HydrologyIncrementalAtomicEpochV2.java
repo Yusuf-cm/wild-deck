@@ -124,7 +124,9 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             HydrologyGlobalSlopeRouterV2.Elevations terrain,
             Collection<HydrologyGlobalSlopeRouterV2.Source> ownedWater)
             throws IOException {
-        Objects.requireNonNull(runner);
+        // Serialize the preflight and commit with this runner's synchronized
+        // receipt writes. External processes still need separate coordination.
+        synchronized (Objects.requireNonNull(runner)) {
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(session);
         Objects.requireNonNull(terrain);
@@ -173,5 +175,6 @@ public final class HydrologyIncrementalAtomicEpochV2 {
             throw new IllegalArgumentException("Flood changed during water partition");
         return runner.advanceAndQueueKnownFrontier(
             encode(new Bound(nextWorld, current)), partition.values());
+        }
     }
 }
