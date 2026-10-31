@@ -72,7 +72,10 @@ public final class HydrologyFrontierDispatchV2 {
                 throw new IllegalArgumentException("Missing source discharge");
             var destination=to==null?node.address():to;
             if(to==null)unresolved.put(destination,amount);
-            else transfers.add(new Transfer(
+            // A known edge with zero discharge needs no durable receipt.
+            // Keep it in reconstructed for the exact conservation audit,
+            // but avoid indefinitely accumulating dry-edge inbox history.
+            else if(amount>0)transfers.add(new Transfer(
                 new HydrologyTransferLedgerV2.Key(epoch,node.address(),to),amount));
             reconstructed.merge(destination,amount,(a,b)->{
                 double sum=a+b;
