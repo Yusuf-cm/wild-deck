@@ -139,4 +139,12 @@ class HydrologyMixedResolutionHistoryAuditV2Test {
             HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
                 receiver(true), List.of(sender(7, true)), 1, List.of()));
     }
+
+    @Test void reverseAuditRejectsReceiverReceiptOutsideDeclaredOwnership() {
+        var report = HydrologyMixedResolutionHistoryAuditV2.auditForDestinations(
+            receiver(true), List.of(sender(7, true)), 1, List.of(at(7, 4)));
+        assertFalse(report.locallyConsistent());
+        assertTrue(report.blockers().stream().anyMatch(
+            b -> b.contains("outside supplied ownership")));
+    }
 }
