@@ -56,13 +56,28 @@ public final class HydrologySeasonalLandscapeStateV2 {
             double radiusMeters, double sedimentDensity,
             double erosionStrength, double maximumCut,
             double[] transportCapacity, Collection<Integer> verifiedOutlets) {
+        return prepareWithIncoming(previous,addresses,width,height,seed,weather,
+            radiusMeters,sedimentDensity,erosionStrength,maximumCut,
+            transportCapacity,verifiedOutlets,Map.of());
+    }
+
+    /** Noncommitting seasonal preview including externally verified receipt water. */
+    public static Prepared prepareWithIncoming(
+            State previous, List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incoming) {
         Objects.requireNonNull(previous);
         if (Double.compare(previous.radiusMeters(), radiusMeters) != 0)
             throw new IllegalArgumentException("Seasonal landscape planetary radius changed");
         var preview = HydrologySeasonalErosionPreviewV2.calculateFromForcing(
             previous.terrain(), addresses, width, height, seed,
             previous.snowSoil(), weather, radiusMeters, sedimentDensity,
-            erosionStrength, maximumCut, transportCapacity, verifiedOutlets);
+            erosionStrength, maximumCut, transportCapacity, verifiedOutlets,
+            incoming);
         return new Prepared(new State(previous.world(), previous.radiusMeters(),
             preview.erosion().terrain().state(), preview.season().state()), preview);
     }
