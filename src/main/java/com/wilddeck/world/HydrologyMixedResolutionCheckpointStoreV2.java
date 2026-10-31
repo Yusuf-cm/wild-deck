@@ -71,7 +71,8 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
             HydrologyMixedResolutionEpochV2.Receipt receipt, double volume) throws IOException {
         Objects.requireNonNull(expected);
         var next = new Checkpoint(expected.epoch(), expected.worldState(),
-            HydrologyMixedResolutionEpochV2.receive(expected.inbox(), receipt, volume));
+            HydrologyMixedResolutionEpochV2.receive(expected.inbox(), receipt, volume),
+            expected.outbox(), expected.acknowledged());
         saveExpected(file, expected, next);
         return next;
     }
@@ -84,7 +85,10 @@ public final class HydrologyMixedResolutionCheckpointStoreV2 {
         long epoch = Math.addExact(expected.epoch(), 1);
         var staged = HydrologyMixedResolutionEpochV2.prepare(
             expected.inbox(), epoch, nodes, verifiedMouths);
-        var next = new Checkpoint(epoch, nextWorld, staged.next());
+        // A plain world advance does not queue new frontier transfers, but it
+        // must never erase transfers queued by earlier epochs.
+        var next = new Checkpoint(epoch, nextWorld, staged.next(),
+            expected.outbox(), expected.acknowledged());
         saveExpected(file, expected, next);
         return new Committed(staged.flow(), next);
     }
