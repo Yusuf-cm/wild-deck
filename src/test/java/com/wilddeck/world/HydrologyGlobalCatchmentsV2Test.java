@@ -114,4 +114,56 @@ class HydrologyGlobalCatchmentsV2Test {
         assertEquals(before.reaches().get(source),after.reaches().get(source));
         assertNotEquals(before.reaches().get(junction),after.reaches().get(junction));
     }
+    @Test void crossResolutionDownstreamAliasesUseExactlyOnePhysicalOwner() {
+        var source = at(2,4,4,4);
+        var junction = at(2,4,5,4);
+        var junctionFineAlias = at(3,4,10,8);
+        var unloadedFine = at(3,4,12,10);
+        var mouth = at(3,4,14,12);
+        var graph = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        graph.put(source,junctionFineAlias);
+        graph.put(junction,unloadedFine);
+        graph.put(unloadedFine,mouth);
+        graph.put(mouth,null);
+        var resolved = HydrologyGlobalCatchmentsV2.resolve(graph,Set.of(mouth));
+        assertEquals(4,resolved.catchments().size());
+        assertEquals(3,resolved.reaches().size());
+        assertEquals(resolved.catchments().get(source),resolved.catchments().get(mouth));
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(junction),
+                     resolved.reaches().get(source).downstream());
+        assertFalse(resolved.catchments().containsKey(junctionFineAlias));
+        var reversed = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        var keys = new ArrayList<>(graph.keySet());
+        Collections.reverse(keys);
+        for (var key : keys) reversed.put(key,graph.get(key));
+        assertEquals(resolved,HydrologyGlobalCatchmentsV2.resolve(reversed,Set.of(mouth)));
+    }
+
+    @Test void crossResolutionAliasesCannotDuplicateWaterOrHideCyclesAndMissingFrontiers() {
+        var source = at(2,4,4,4);
+        var junction = at(2,4,5,4);
+        var alias = at(3,4,10,8);
+        var mouth = at(2,4,6,6);
+        var graph = new LinkedHashMap<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>();
+        graph.put(source,alias);
+        graph.put(junction,mouth);
+        graph.put(mouth,null);
+        var duplicate = new LinkedHashMap<>(graph);
+        duplicate.put(alias,mouth);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyGlobalCatchmentsV2.resolve(duplicate,Set.of(mouth)));
+        var selfLoop = new LinkedHashMap<>(graph);
+        selfLoop.put(junction,alias);
+        assertThrows(IllegalStateException.class, () ->
+            HydrologyGlobalCatchmentsV2.resolve(selfLoop,Set.of(mouth)));
+        var missing = new LinkedHashMap<>(graph);
+        missing.put(junction,at(3,4,11,9));
+        assertThrows(IllegalStateException.class, () ->
+            HydrologyGlobalCatchmentsV2.resolve(missing,Set.of(mouth)));
+        var seam = new LinkedHashMap<>(graph);
+        seam.put(junction,at(2,4,32,8));
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyGlobalCatchmentsV2.resolve(seam,Set.of(mouth)));
+    }
+
 }
