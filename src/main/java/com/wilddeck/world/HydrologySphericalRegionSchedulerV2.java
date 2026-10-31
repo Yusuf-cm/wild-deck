@@ -58,6 +58,17 @@ public final class HydrologySphericalRegionSchedulerV2 {
             HydrologyRegionSchedulerV2.Provider provider) {
         Objects.requireNonNull(focus);
         Objects.requireNonNull(pending);
+        // Region coordinates are not resolution-qualified. Never load a
+        // different-level receipt into a superficially matching tile.
+        // Reject noncanonical seam/pole aliases before invoking the provider.
+        for (var key : pending.receipts().keySet()) {
+            if (pending.delivered().contains(key)) continue;
+            var destination = key.to();
+            if (destination.level() != level ||
+                !HydrologySphericalTopologyV2.isCanonical(destination))
+                throw new IllegalArgumentException(
+                    "Pending spherical receipt has incompatible resolution or address");
+        }
         var all=new ArrayList<HydrologyRegionSchedulerV2.Region>();
         all.addAll(focus);
         all.addAll(HydrologyRegionSchedulerV2.pendingRegions(pending));
