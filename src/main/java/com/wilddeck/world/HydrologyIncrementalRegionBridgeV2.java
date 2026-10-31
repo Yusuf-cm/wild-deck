@@ -183,6 +183,8 @@ public final class HydrologyIncrementalRegionBridgeV2 {
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         unresolved.addAll(targets);
         unresolved.removeAll(snapshot.settled().keySet());
+        if (!HydrologyCheckpointStoreV2.load(worldCheckpoint).equals(world))
+            throw new IOException("World inbox changed during flood discovery");
         return new PendingDiscovery(snapshot, unresolved);
     }
 
