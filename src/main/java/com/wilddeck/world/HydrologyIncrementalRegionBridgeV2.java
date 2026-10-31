@@ -116,6 +116,77 @@ public final class HydrologyIncrementalRegionBridgeV2 {
     }
 
     /**
+     * Bounded, restartable discovery for destinations with undelivered durable
+     * receipts. This reads the authoritative world inbox, not caller-supplied
+     * water, and advances the independently checkpointed flood at most once.
+     *
+     * The result explicitly reports destinations still unsettled. Only a
+     * ready result may be used to plan their routing; no world epoch or receipt
+     * is consumed here. The flood and world files are NOT one transaction.
+     */
+    public record PendingDiscovery(
+            HydrologyIncrementalPriorityFloodV2.Snapshot snapshot,
+            Set<GlobalHydrologyAddressV2.Sample> unresolved) {
+        public PendingDiscovery {
+            Objects.requireNonNull(snapshot);
+            Objects.requireNonNull(unresolved);
+            var sorted = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            sorted.addAll(unresolved);
+            unresolved = Collections.unmodifiableSet(sorted);
+        }
+        public boolean ready() { return unresolved.isEmpty(); }
+    }
+
+    public static PendingDiscovery discoverPendingPersisted(
+            Path floodCheckpoint, Path worldCheckpoint, String terrainRevision,
+            HydrologyIncrementalPriorityFloodV2.Session session,
+            int maxSettlements) throws IOException {
+        Objects.requireNonNull(floodCheckpoint);
+        Objects.requireNonNull(worldCheckpoint);
+        Objects.requireNonNull(session);
+        if (maxSettlements < 1 ||
+            maxSettlements > HydrologyIncrementalPriorityFloodV2.MAX_SAMPLES)
+            throw new IllegalArgumentException("Invalid pending discovery budget");
+
+        var expected = HydrologyIncrementalFloodCheckpointStoreV2.load(floodCheckpoint);
+        if (!expected.equals(session.checkpoint(terrainRevision)))
+            throw new IllegalArgumentException("Stale or incompatible flood session");
+        var world = HydrologyCheckpointStoreV2.load(worldCheckpoint);
+        var inbox = HydrologyInboxCodecV2.decode(world.inboxState());
+        var first = expected.verifiedOutlets().iterator().next();
+        var targets = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for (var key : inbox.receipts().keySet()) {
+            if (inbox.delivered().contains(key)) continue;
+            var destination = key.to();
+            if (!HydrologySphericalTopologyV2.isCanonical(destination) ||
+                destination.level() != first.level() ||
+                destination.divisions() != first.divisions())
+                throw new IllegalArgumentException(
+                    "Pending destination does not match canonical flood resolution");
+            targets.add(destination);
+        }
+        var snapshot = session.snapshot();
+        if (!snapshot.settled().keySet().containsAll(targets)) {
+            snapshot = session.advance(maxSettlements);
+            // A concurrently changed world inbox must not be mistaken for the
+            // set of destinations that was actually inspected.
+            if (!HydrologyCheckpointStoreV2.load(worldCheckpoint).equals(world))
+                throw new IOException("World inbox changed during flood discovery");
+            var next = session.checkpoint(terrainRevision);
+            if (next.settledCount() > expected.settledCount())
+                HydrologyIncrementalFloodCheckpointStoreV2.saveNext(
+                    floodCheckpoint, expected, next);
+        }
+        var unresolved = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        unresolved.addAll(targets);
+        unresolved.removeAll(snapshot.settled().keySet());
+        return new PendingDiscovery(snapshot, unresolved);
+    }
+
+    /**
      * Fail closed when a scheduler asks for a region not yet settled by the
      * flood. An empty provider response could otherwise hide missing routes.
      */
