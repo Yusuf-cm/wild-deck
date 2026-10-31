@@ -75,4 +75,33 @@ class SeasonalLakeCycleV2Test {
             SeasonalLakeCycleV2.simulateSubsteps(basin(),0,1,List.of(),4097));
     }
 
+
+    @Test void irregularSubstepsAndWetDryCyclesConserveLakeWater() {
+        var small = new LakeReservoirV2.Basin(
+            new double[]{0}, new double[]{3}, 2);
+        var periods = List.of(
+            new SeasonalLakeCycleV2.Period(0.7, 0.03, 0.2, 0.75),
+            new SeasonalLakeCycleV2.Period(5, 0.1, 1, 0.5),
+            new SeasonalLakeCycleV2.Period(0, 0.4, 0, 0));
+        var result = SeasonalLakeCycleV2.simulateSubsteps(
+            small, 0, 3, periods, 4093);
+        double previous = result.initialVolume();
+        for (int i = 0; i < periods.size(); i++) {
+            var period = periods.get(i);
+            var season = result.seasons().get(i);
+            double supplied = season.runoffInflow() + period.upstreamInflow();
+            assertEquals(previous + supplied,
+                season.lake().volume() + season.lake().evaporated()
+                    + season.lake().overflow(), 1e-7);
+            assertTrue(season.lake().volume() >= 0);
+            assertTrue(season.lake().volume() <= small.capacity());
+            previous = season.lake().volume();
+        }
+        assertEquals(result.initialVolume() + result.totalInput(),
+            result.finalVolume() + result.totalEvaporation()
+                + result.totalOverflow(), 1e-7);
+        assertEquals(result, SeasonalLakeCycleV2.simulateSubsteps(
+            small, 0, 3, periods, 4093));
+    }
+
 }

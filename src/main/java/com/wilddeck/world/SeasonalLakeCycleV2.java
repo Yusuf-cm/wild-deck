@@ -73,7 +73,9 @@ public final class SeasonalLakeCycleV2 {
     /**
      * Subdivide each season into equal water/evaporation increments. This
      * reduces the start-of-step wetted-area bias for filling or drying lakes.
-     * Each returned Season still represents one full input period.
+     * Each returned Season still represents one full input period. Cumulative
+     * inflow targets avoid losing a rounded remainder across many substeps,
+     * and every period is checked for storage + evaporation + spill balance.
      *
      * This is a numerical approximation, not a climate-calibrated timestep.
      */
@@ -96,14 +98,26 @@ public final class SeasonalLakeCycleV2 {
             double inflow=runoff+period.upstreamInflow();
             if(!Double.isFinite(runoff)||!Double.isFinite(inflow))
                 throw new IllegalArgumentException("Seasonal water overflow");
+            double startingVolume=volume;
             double evaporatedThisSeason=0,spilledThisSeason=0;
+            double delivered=0;
             for(int i=0;i<substeps;i++){
-                var step=LakeReservoirV2.step(basin,volume,inflow/substeps,
+                // Cumulative targets ensure the final substep receives the
+                // remaining input, rather than accumulating rounded portions.
+                double target=inflow*((double)(i+1)/substeps);
+                double portion=target-delivered;
+                delivered=target;
+                var step=LakeReservoirV2.step(basin,volume,portion,
                                               period.evaporationDepth()/substeps);
                 volume=step.volume();
                 evaporatedThisSeason+=step.evaporated();
                 spilledThisSeason+=step.overflow();
             }
+            double available=startingVolume+inflow;
+            double accounted=volume+evaporatedThisSeason+spilledThisSeason;
+            if(!Double.isFinite(available)||!Double.isFinite(accounted)||
+               Math.abs(available-accounted)>Math.max(1e-8,available*1e-10))
+                throw new IllegalArgumentException("Seasonal lake water conservation violated");
             input+=inflow;
             evaporation+=evaporatedThisSeason;
             overflow+=spilledThisSeason;
