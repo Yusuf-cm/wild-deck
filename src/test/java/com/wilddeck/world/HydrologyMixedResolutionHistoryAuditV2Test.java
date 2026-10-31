@@ -62,6 +62,19 @@ class HydrologyMixedResolutionHistoryAuditV2Test {
         assertTrue(report.blockers().get(0).contains("Multiple sender"));
     }
 
+    @Test void senderCheckpointCannotClaimReceiptFromItsFuture() {
+        var key = receipt();
+        var impossible = new HydrologyMixedResolutionCheckpointStoreV2.Checkpoint(
+            0, "sender-before-transfer",
+            new HydrologyMixedResolutionEpochV2.Snapshot(0, Map.of(), Set.of()),
+            Map.of(key, 7.0), Set.of(key));
+        var report = HydrologyMixedResolutionHistoryAuditV2.audit(
+            receiver(true), List.of(impossible), 1);
+        assertFalse(report.locallyConsistent());
+        assertTrue(report.blockers().stream().anyMatch(b -> b.contains("predates receipt")));
+        assertTrue(report.locallyMatched().isEmpty());
+    }
+
     @Test void horizonMustBeWithinCommittedReceiverEpoch() {
         assertThrows(IllegalArgumentException.class, () ->
             HydrologyMixedResolutionHistoryAuditV2.audit(receiver(true),
