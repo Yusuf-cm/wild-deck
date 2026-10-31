@@ -390,6 +390,53 @@ class HydrologySeasonalLandscapeEpochV2Test {
             .terminalOutflow().get(exit),1e-12);
     }
 
+    @Test void interiorReceiptCannotPassPondedLakeOrOverwriteConcurrentWater()
+            throws IOException {
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var landing=window().get(0);
+        var capacity=new double[25];
+        Arrays.fill(capacity,1e12);
+        var pond=HydrologyWorldRunnerV2.open(
+            directory.resolve("interior-pond.chk"),0,initial());
+        pond.receive(new HydrologyTransferLedgerV2.Key(1,source,landing),10);
+        var ponded=(HydrologyGlobalSlopeRouterV2.Elevations) a ->
+            a.equals(source) ? 100 :
+            a.x()==6 && a.y()==6 ? -100 : slope().at(a);
+        assertThrows(IllegalStateException.class,()->
+            HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+                pond,window(),5,5,ponded,weather(0),RADIUS,2000,
+                0.01,0.05,capacity,Set.of(24),Map.of()));
+        assertEquals(0,pond.epoch());
+        assertEquals(10,pond.receiptBudget().pendingVolume(),1e-12);
+
+        Path path=directory.resolve("interior-concurrent.chk");
+        var runner=HydrologyWorldRunnerV2.open(path,0,initial());
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,source,landing),10);
+        var another=new GlobalHydrologyAddressV2.Sample(2,4,4,3);
+        var inserted=new java.util.concurrent.atomic.AtomicBoolean();
+        HydrologyGlobalSlopeRouterV2.Elevations reentrant=a -> {
+            if(inserted.compareAndSet(false,true)) {
+                try {
+                    runner.receive(new HydrologyTransferLedgerV2.Key(
+                        1,another,landing),20);
+                } catch(IOException ex) {
+                    throw new java.io.UncheckedIOException(ex);
+                }
+            }
+            return a.equals(source)||a.equals(another) ? 100 : slope().at(a);
+        };
+        assertThrows(IOException.class,()->
+            HydrologySeasonalLandscapeEpochV2.advanceWithVerifiedInteriorReceipts(
+                runner,window(),5,5,reentrant,weather(0),RADIUS,2000,
+                0.01,0.05,capacity,Set.of(24),Map.of()));
+        assertTrue(inserted.get());
+        var restored=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(0,restored.epoch());
+        assertEquals(initial(),restored.worldState());
+        assertEquals(30,restored.receiptBudget().pendingVolume(),1e-12);
+        assertTrue(restored.inboxSnapshot().delivered().isEmpty());
+    }
+
     @Test void interiorReceiptRejectsFutureAndUphillEdgesWithoutConsumption()
             throws IOException {
         var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
