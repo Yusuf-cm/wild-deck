@@ -135,4 +135,28 @@ class HydrologyMixedResolutionDischargeV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyMixedResolutionDischargeV2.solveWithIncoming(graph,Set.of(landing),Map.of(coordinate,Double.MAX_VALUE)));
     }
+
+    @Test void longAlternatingResolutionChainConservesEveryWaterSource() {
+        var graph=new ArrayList<HydrologyMixedResolutionDischargeV2.Node>();
+        double total=0;
+        int length=1024;
+        for(int x=1;x<=length;x++) {
+            var owner=x%2==0
+                ? new GlobalHydrologyAddressV2.Sample(9,4,2L*x,200)
+                : new GlobalHydrologyAddressV2.Sample(8,4,x,100);
+            var downstream=x==length ? null : (x%2==0
+                ? new GlobalHydrologyAddressV2.Sample(8,4,x+1,100)
+                : new GlobalHydrologyAddressV2.Sample(9,4,2L*(x+1),200));
+            double local=x%7+1;
+            total+=local;
+            graph.add(node(owner,local,downstream,x==length));
+        }
+        var mouth=graph.get(length-1).address();
+        var result=HydrologyMixedResolutionDischargeV2.solve(graph,Set.of(mouth));
+        assertEquals(total,result.terminalOutflow().get(mouth));
+        assertEquals(length,result.discharge().size());
+        assertTrue(result.pendingOutflow().isEmpty());
+        Collections.reverse(graph);
+        assertEquals(result,HydrologyMixedResolutionDischargeV2.solve(graph,Set.of(mouth)));
+    }
 }
