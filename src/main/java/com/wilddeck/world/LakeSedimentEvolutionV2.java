@@ -46,8 +46,8 @@ public final class LakeSedimentEvolutionV2 {
             !Double.isFinite(sedimentDensity) || sedimentDensity <= 0)
             throw new IllegalArgumentException("Invalid sediment or stored water");
         double maximumMass = capacity * sedimentDensity;
-        if (!Double.isFinite(maximumMass))
-            throw new IllegalArgumentException("Sediment capacity overflow");
+        if (!Double.isFinite(maximumMass) || maximumMass == 0)
+            throw new IllegalArgumentException("Unrepresentable sediment capacity");
 
         double[] beds = basin.bedElevation();
         double[] areas = basin.cellArea();
