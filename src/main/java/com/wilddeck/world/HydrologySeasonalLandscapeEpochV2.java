@@ -220,8 +220,9 @@ public final class HydrologySeasonalLandscapeEpochV2 {
                         "Ponded lake requires a separate storage-aware activation");
 
             // A previously dispatched receipt has a fixed physical landing.
-            // Only direct terminal landings are safe here: the imported water
-            // cannot change the incision of an interior river segment.
+            // The terminal-only mode excludes imported water from incision;
+            // the interior mode includes it before erosion and requires each
+            // old downstream path to remain identical after terrain changes.
             Map<GlobalHydrologyAddressV2.Sample,Double> dueIncoming = Map.of();
             double incomingTotal = 0;
             if (acceptVerifiedOutletReceipts) {
