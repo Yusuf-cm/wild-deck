@@ -1036,3 +1036,24 @@ The passing workflows include Java/Maven tests, the world experiment, finite-res
 ### 2026-10-31 — Final replay checkpoint and owned-water CI acceptance
 
 All seven implementation/test commits above **PASSED** the repository's full Java CI, including Maven tests, world experiment, finite-resource replay, browser save verification, atlas export and real-browser verification. The initial documentation commit `f0bfb5b5fa867e28c9de75b8b9084cce81dcd9af` also **PASSED** https://github.com/Yusuf-cm/wild-deck/actions/runs/41146932043 . The new file store is replay-based and single-writer only; no production, other branch, PR or main modifications were made. This acceptance does not establish complete planetary hydrology or atomic erosion/terrain/water transitions.
+
+
+## 2026-10-31 — Incremental flood region bridge and dry-frontier receipt suppression
+
+**Scope:** `Yusuf-cm/wild-deck` on `feature/world-engine-v2` only. The prior baseline `b0316ec0e39a17e4db966f08a240e3bbfc8df5b6` passed https://github.com/Yusuf-cm/wild-deck/actions/runs/41147037463 .
+
+**Implemented:**
+- `HydrologyIncrementalRegionBridgeV2` assigns every settled canonical spherical vertex to exactly one west/north-owned region, including seam and pole aliases. It validates settled downstream ancestry, outlet catchment anchors, monotone spill elevations and one-step adjacency. Its `partition` requires **exactly one explicit water volume (including zero)** for every settled sample; duplicate, missing, noncanonical or unsettled sources fail closed.
+- `partitionPersisted` refuses to publish a session whose terrain revision, outlet set, settled count or frontier digest differs from the saved incremental flood checkpoint. `provider` refuses region requests not yet settled by the flood. This is a read-only preflight; the flood and world checkpoints are **not** one atomic transaction.
+- `HydrologyFrontierDispatchV2.export` now omits zero-discharge known-edge receipts from the durable inbox while retaining those edges in the exact reconstructed pending-flow audit. Unknown downstream routes remain unresolved even when their current flow is zero; no river destinations are invented.
+- Added unit/integration tests for canonical pole/seam ownership, eight-region/26-vertex unique-water conservation, verified outlet/reach identity, rejected missing/duplicate/forged sources, persisted flood session mismatch, and durable receipt delivery across an unloaded longitude seam with restart and no replay. Added dry-edge regression tests ensuring no new zero-volume receipts while positive confluences remain conserved.
+
+**Commits:**
+- `7a79afce4c53230211f848a056d7ce8f1003e0a7` incremental region bridge.
+- `8a529b2d35c274541fc1770ce48b35a1b8d89d86` bridge and restart tests.
+- `19323de9c8b8b9609f9f389cd92f3f789fdb4862` dry-frontier receipt suppression.
+- `eea59d9eec6342542f569270d053d9c56b07f1fc` dry-edge regression tests.
+
+**Verification:** CI must be checked before declaring this work accepted: https://github.com/Yusuf-cm/wild-deck/actions/runs/41152660041 (bridge tests), https://github.com/Yusuf-cm/wild-deck/actions/runs/41152684806 (dry-edge tests). Do not infer green status from the previous baseline.
+
+**Unfinished acceptance gaps:** This adapter only exposes settled, single-resolution, fixed-terrain routes and uses the existing local single-writer receipt checkpoint. It does not atomically coordinate the independent flood and world files, automatically settle regions containing parked receipts, persist the priority queue efficiently, or prove complete catchment runoff from undiscovered terrain. Zero-receipt suppression prevents new dry entries but does not compact historical receipt keys. Mixed-resolution routing, atomic erosion/sediment/terrain/lake/snow/soil transitions, multi-spillway lakes, planetary-radius provenance, calibrated climate, groundwater, flood travel times, long-horizon large-world tests and distributed locking remain open. **Water subsystem is not complete.**
