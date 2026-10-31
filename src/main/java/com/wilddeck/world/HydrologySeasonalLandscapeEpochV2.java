@@ -9,8 +9,9 @@ import java.util.*;
  * Recomputes snow/soil runoff, incision, sediment export and post-erosion
  * drainage from the last committed landscape. Only verified outlets may
  * terminate flow. Rejects ponded depressions and all undelivered receipts:
- * neither lake storage nor old-topology boundary water can be safely migrated
- * by this restricted transition.
+ * neither lake storage nor arbitrary old-topology boundary water can be safely
+ * migrated by this restricted transition. A separate opt-in terminal-receipt
+ * path accepts only verified downhill landings at physical outlets.
  *
  * The world payload and consumed epoch are committed by the existing local
  * single-writer checkpoint runner. This does not activate global topology,
@@ -63,16 +64,60 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             double[] transportCapacity, Collection<Integer> verifiedOutlets,
             Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits)
             throws IOException {
+        return advance(runner, addresses, width, height, seed, weather,
+            radiusMeters, sedimentDensity, erosionStrength, maximumCut,
+            transportCapacity, verifiedOutlets, externalExits, false);
+    }
+
+    /**
+     * Receive old-epoch boundary water only where it lands directly on a
+     * verified terminal outlet. The source must be outside this window, the
+     * recorded edge canonical and downhill both before and after erosion,
+     * and every undelivered receipt must be due by the next epoch.
+     *
+     * This is intentionally NOT arbitrary old-topology migration: incoming
+     * water cannot affect in-window incision or pass through a ponded lake.
+     * Outlet receipts, seasonal terrain and outgoing transfers are checkpointed
+     * atomically by the existing single-writer runner.
+     */
+    public static Committed advanceWithVerifiedOutletReceipts(
+            HydrologyWorldRunnerV2 runner,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits)
+            throws IOException {
+        return advance(runner, addresses, width, height, seed, weather,
+            radiusMeters, sedimentDensity, erosionStrength, maximumCut,
+            transportCapacity, verifiedOutlets, externalExits, true);
+    }
+
+    private static Committed advance(
+            HydrologyWorldRunnerV2 runner,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<Integer,GlobalHydrologyAddressV2.Sample> externalExits,
+            boolean acceptVerifiedOutletReceipts)
+            throws IOException {
         synchronized (Objects.requireNonNull(runner)) {
             String oldWorld = runner.worldState();
             long oldEpoch = runner.epoch();
             var oldInbox = runner.inboxSnapshot();
             // Even future-dated receipts must remain bound to their original
             // topology. This restricted mode has no topology migration.
-            for (var key : oldInbox.receipts().keySet())
-                if (!oldInbox.delivered().contains(key))
-                    throw new IllegalStateException(
-                        "Seasonal terrain activation requires no pending boundary water");
+            if (!acceptVerifiedOutletReceipts) {
+                for (var key : oldInbox.receipts().keySet())
+                    if (!oldInbox.delivered().contains(key))
+                        throw new IllegalStateException(
+                            "Seasonal terrain activation requires no pending boundary water");
+            }
 
             var previous = HydrologySeasonalLandscapeStateV2.decode(oldWorld);
             var prepared = HydrologySeasonalLandscapeStateV2.prepare(
@@ -114,6 +159,52 @@ public final class HydrologySeasonalLandscapeEpochV2 {
                     throw new IllegalStateException(
                         "Ponded lake requires a separate storage-aware activation");
 
+            // A previously dispatched receipt has a fixed physical landing.
+            // Only direct terminal landings are safe here: the imported water
+            // cannot change the incision of an interior river segment.
+            Map<GlobalHydrologyAddressV2.Sample,Double> dueIncoming = Map.of();
+            double incomingTotal = 0;
+            if (acceptVerifiedOutletReceipts) {
+                var indices = new HashMap<GlobalHydrologyAddressV2.Sample,Integer>();
+                for (int i = 0; i < addresses.size(); i++)
+                    if (indices.putIfAbsent(addresses.get(i), i) != null)
+                        throw new IllegalArgumentException("Duplicate terrain owner");
+                var before = HydrologyTerrainOverlayV2.elevations(
+                    seed, previous.terrain());
+                long dueEpoch = Math.addExact(oldEpoch, 1);
+                for (var receipt : oldInbox.receipts().entrySet()) {
+                    var key = receipt.getKey();
+                    if (oldInbox.delivered().contains(key)) continue;
+                    if (key.epoch() > dueEpoch)
+                        throw new IllegalStateException(
+                            "Future old-topology receipt needs separate reconciliation");
+                    Integer landing = indices.get(key.to());
+                    if (landing == null || !outlets.contains(landing) ||
+                        owned.contains(key.from()) ||
+                        !HydrologySphericalTopologyV2.isCanonical(key.from()) ||
+                        !HydrologySphericalTopologyV2.isCanonical(key.to()) ||
+                        !HydrologySphericalTopologyV2.adjacent(key.from(), key.to()))
+                        throw new IllegalArgumentException(
+                            "Boundary receipt does not land at a verified external outlet");
+                    double oldFrom = before.at(key.from());
+                    double oldTo = before.at(key.to());
+                    double newFrom = elevation.at(key.from());
+                    double newTo = terrain[landing];
+                    if (!Double.isFinite(oldFrom) || !Double.isFinite(oldTo) ||
+                        !Double.isFinite(newFrom) || !Double.isFinite(newTo) ||
+                        !(oldFrom > oldTo) || !(newFrom > newTo))
+                        throw new IllegalArgumentException(
+                            "Boundary receipt is not downhill across both terrain epochs");
+                    incomingTotal += receipt.getValue();
+                    if (!Double.isFinite(incomingTotal))
+                        throw new IllegalArgumentException("Incoming water overflow");
+                }
+                // Claim only a STAGED inbox for preflight. The runner claims
+                // the real receipts together with the next world checkpoint.
+                dueIncoming = HydrologyEpochInboxV2.restore(oldInbox)
+                    .claimAvailable(dueEpoch, owned);
+            }
+
             var runoff = new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
             for (var source : prepared.preview().season().runoff())
                 if (runoff.putIfAbsent(source.address(), source.localWater()) != null)
@@ -136,11 +227,13 @@ public final class HydrologySeasonalLandscapeEpochV2 {
             }
             if (!runoff.isEmpty())
                 throw new IllegalArgumentException("Unknown seasonal water owner");
-            var solved = HydrologyFlowGraphV2.solve(nodes);
-            var budget = HydrologyConservationV2.verify(nodes, solved);
-            if (!close(budget.input(), erosion.runoffVolume()) ||
+            var effective = HydrologyEpochSolverV2.prepare(
+                List.of(nodes), dueIncoming);
+            var solved = HydrologyFlowGraphV2.solve(effective);
+            var budget = HydrologyConservationV2.verify(effective, solved);
+            if (!close(budget.input(), erosion.runoffVolume() + incomingTotal) ||
                 !close(budget.outlet() + budget.frontier(),
-                    erosion.terminalVolume()))
+                    erosion.terminalVolume() + incomingTotal))
                 throw new IllegalArgumentException("Seasonal routing budget mismatch");
 
             if (runner.epoch() != oldEpoch ||
