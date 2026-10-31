@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -257,6 +258,48 @@ class HydrologyIncrementalRegionBridgeV2Test {
         assertEquals(newer.checkpoint("fixed"),
             HydrologyIncrementalFloodCheckpointStoreV2.load(path));
         assertEquals(snapshot, session.snapshot());
+    }
+
+
+    @Test void worldInboxRaceDuringFloodDiscoveryCannotPublishStaleFrontier()
+            throws IOException {
+        var worldPath = directory.resolve("racing-world.bin");
+        var floodPath = directory.resolve("racing-discovery.bin");
+        var runner = HydrologyWorldRunnerV2.open(worldPath, 0, "seed");
+        var originalReceipt = new HydrologyTransferLedgerV2.Key(
+            1, at(3, 2), at(4, 2));
+        var racingReceipt = new HydrologyTransferLedgerV2.Key(
+            1, at(6, 2), at(7, 2));
+        assertTrue(runner.receive(originalReceipt, 4));
+        var armed = new AtomicBoolean(false);
+        var fired = new AtomicBoolean(false);
+        HydrologyGlobalSlopeRouterV2.Elevations terrain = address -> {
+            if (armed.get() && fired.compareAndSet(false, true)) {
+                try {
+                    runner.receive(racingReceipt, 2);
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            }
+            return address.equals(OUTLET) ? 0 : 10;
+        };
+        var session = HydrologyIncrementalPriorityFloodV2.start(
+            Set.of(OUTLET), terrain);
+        session.advance(1);
+        var originalFlood = session.checkpoint("fixed-terrain");
+        HydrologyIncrementalFloodCheckpointStoreV2.save(
+            floodPath, originalFlood);
+        armed.set(true);
+        assertThrows(IOException.class, () ->
+            HydrologyIncrementalRegionBridgeV2.discoverPendingPersisted(
+                floodPath, worldPath, "fixed-terrain", session, 100));
+        assertTrue(fired.get());
+        assertEquals(originalFlood,
+            HydrologyIncrementalFloodCheckpointStoreV2.load(floodPath));
+        var recovered = HydrologyWorldRunnerV2.open(worldPath, 0, "ignored");
+        assertEquals(6, recovered.receiptBudget().pendingVolume(), 1e-12);
+        assertTrue(recovered.inboxSnapshot().delivered().isEmpty());
+        assertEquals(0, recovered.epoch());
     }
 
 }
