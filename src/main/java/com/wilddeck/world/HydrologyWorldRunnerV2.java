@@ -470,6 +470,20 @@ public final class HydrologyWorldRunnerV2 {
         return receive(key,flow);
     }
 
+    /**
+     * Persist only settled flood discovery inside the authoritative world file.
+     * Package-local so callers cannot bypass the hydrology replay preflight.
+     * The epoch and complete inbox stay unchanged.
+     */
+    synchronized void checkpointIncrementalFloodProgress(String boundWorldState)
+            throws IOException {
+        Objects.requireNonNull(boundWorldState);
+        var next = HydrologyCheckpointV2.capture(
+            last.epoch(), boundWorldState, inbox);
+        HydrologyCheckpointStoreV2.saveFloodDiscovery(checkpointPath, last, next);
+        last = next;
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
