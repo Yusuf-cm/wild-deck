@@ -212,4 +212,24 @@ class HydrologyIncrementalAtomicEpochV2Test {
         assertEquals(0, runner.receiptBudget().pendingVolume(), 1e-12);
     }
 
+    @Test void noncanonicalSeamReceiptCannotBeCountedAsSecondSource()
+            throws IOException {
+        var session = flood();
+        var snapshot = session.advance(100);
+        var world = directory.resolve("seam-world.bin");
+        var runner = HydrologyWorldRunnerV2.open(world, 0,
+            HydrologyIncrementalAtomicEpochV2.encode(
+                new HydrologyIncrementalAtomicEpochV2.Bound(
+                    "start", session.checkpoint("fixed"))));
+        var alias = new HydrologyTransferLedgerV2.Key(1, at(8, 2), OUTLET);
+        runner.receive(alias, 7);
+        var before = HydrologyCheckpointStoreV2.load(world);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologyIncrementalAtomicEpochV2.advance(
+                runner, "bad", "fixed", session,
+                a -> a.equals(OUTLET) ? 0 : 10, water(snapshot, OUTLET)));
+        assertEquals(before, HydrologyCheckpointStoreV2.load(world));
+        assertEquals(7, runner.receiptBudget().pendingVolume(), 1e-12);
+    }
+
 }
