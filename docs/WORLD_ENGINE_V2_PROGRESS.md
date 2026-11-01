@@ -1649,3 +1649,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. **Audit scope:** `reconcile` requires complete sender outbox history for every receiver receipt supplied. It is not an online distributed consistency protocol and does not infer unknown transfers or authenticate senders. Unloaded destinations are represented as awaiting delivery only after their receipt has reached a receiving ledger; before that they are in transit.
 
 **Safety:** No merges, PRs, main-branch changes, writes to other branches, production changes or paid infrastructure operations. Continue hydrology before other world layers. **Hydrology is NOT complete.**
+
+## 2026-11-01 — Durable sediment sender journals, receiver-backed acknowledgments, and recovery (verification pending)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD: `e94d265a8b8de115453a99195407df03b4e1425e`. The last independently inspected baseline Actions run [41286377681](https://github.com/Yusuf-cm/wild-deck/actions/runs/41286377681) completed successfully; the previous documented Maven/JUnit result was **836 tests, zero failures, errors, or skips**. This is **baseline evidence only**, not a result for the changes below.
+
+### Implemented in this continuation
+
+- `59ab46b7d60846eaa1f47cc6d8ff629f344ebbaf`: added `HydrologySedimentSenderOutboxV2`. An opt-in sender-side, checksummed, canonically ordered journal retains all emitted sediment receipts and exact amounts, including acknowledged entries. It rejects source/epoch forks, altered replay masses, invalid budgets, corrupted/noncanonical serialization, and duplicate physical sources. `initialize` and `appendDurable` use the existing local atomic checkpoint store; the caller must persist the sender journal **before transmitting** a receipt. No records are compacted.
+- `d77fbb2cebf1f646826cbff47de5269762c037f0`: initial sender-journal JUnit regression coverage for restart, checksum integrity, stale writers, receiver-backed acknowledgment, sender forks, lost receiver history and seeded confluences.
+- `1b5b581632fb4adda4dc39821aad641272a9dd27`: `HydrologySedimentCrossRegionAuditV2.reconcileAllDurable` reads **both** sender and receiver checkpoint files rather than trusting caller-supplied outbox maps. Existing strict physical-vertex ownership, transfer provenance, and in-transit/awaiting/delivered mass reconciliation apply.
+- `3af77615f941be9b2ae4edf8e00a8c908e875d65`: persisted confluence reconciliation and missing-checkpoint tests.
+- `cabeba75eb254cce243de6740ddfd327a6db72fe`: added atomic sender acknowledgment batches, validated against one durable receiver checkpoint before a single local sender write, plus `replayMissingDurable` to detect receipt history absent after receiver rollback even when sender previously acknowledged it.
+- `ec7eb12dc4459519d50ceb94784446184f6c4288`: added rollback, batch acknowledgment, and durable replay tests. **Eleven new JUnit methods** were added across the new test class. No production/paid services were changed.
+
+### Verification and acceptance status
+
+- **Source/test commits exist on the development branch.** The GitHub connector's commit workflow lookup exposes only pull-request-triggered runs; it returned **no workflow runs** for `ec7eb12d`. The legacy combined-status endpoint returned **no statuses**. These empty responses are not proof of success or failure.
+- **No new-commit Maven/JUnit execution was verified in this run.** Local environment lacks Maven and an accessible repository checkout. The new eleven JUnit methods are committed but must not be called passing until the actual build runs. The last independently checked green baseline remains [41286377681](https://github.com/Yusuf-cm/wild-deck/actions/runs/41286377681). Check [branch Actions history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) and fix any failures before accepting this milestone.
+- **Acceptance demonstrated by implementation design but not yet CI-confirmed:** durable sender retention, receiver-checkpoint-backed acknowledgments, atomic local acknowledgment batches, replay candidates after receiver rollback, and full sender/receiver ledger audit. These are opt-in APIs; no network delivery worker or authoritative world-runner integration is claimed.
+
+### Unfinished water/hydrology requirements
+
+1. **Immediate gate:** run full Maven/JUnit and branch push-triggered Actions for these commits; correct any compilation/integration regressions.
+2. **End-to-end sender/receiver crash protocol:** actual durable transmission, authenticated sender identity, receiver checkpoint loss recovery and acknowledgment retries. The sender history permits replay, but automatic resend/repair is **not** implemented. No interprocess CAS or distributed transaction is claimed.
+3. **Replay-safe compaction:** no global replay barriers or watermarks exist; do not delete old sender or receiver receipt identities.
+4. **Authoritative terrain/sediment integration:** commit riverbed erosion/deposition with lake water, imported sediment and both receipt histories in a verified terrain epoch. Current sediment-lake checkpoint rejects riverbed mutation and exported sediment.
+5. **Drainage topology migration:** safely reconcile in-flight water and sediment when river routes, lake outlets, or erosion-altered slopes change.
+6. **Planetary/physical gaps:** automatic global drainage discovery, multiple lake spillways, groundwater, climate-calibrated seasonal forcing, timed flooding, transport/trapping calibration, and large-world endurance benchmarks.
+
+**Safety:** No merge, PR, `main` or other-branch write, production deployment, or paid infrastructure operation. Hydrology is **NOT complete** and remains the next development priority.
