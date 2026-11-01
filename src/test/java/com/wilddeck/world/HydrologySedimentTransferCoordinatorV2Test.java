@@ -190,7 +190,7 @@ class HydrologySedimentTransferCoordinatorV2Test {
         Path source = sender("alias", Map.of(r(0), 2.0));
         Path target = receiver("alias", 0);
         var before = HydrologyCheckpointStoreV2.load(target);
-        var alias = new GlobalHydrologyAddressV2.Sample(2, 4, 2, 4);
+        var alias = new GlobalHydrologyAddressV2.Sample(2, 4, 4, 8);
         assertThrows(IllegalArgumentException.class, () ->
             HydrologySedimentTransferCoordinatorV2.deliverAndAcknowledge(
                 source, target, List.of(B, alias)));
