@@ -196,7 +196,8 @@ class HydrologyMixedResolutionLoadedNetworkV2Test {
     @Test void canonicalOrderIndependentOfInputMapIteration() throws IOException {
         var first = sender("first",Map.of(WEST,7.0),Set.of());
         var second = sender("second",Map.of(EAST,13.0),Set.of());
-        var west = emptyReceiver("west"), east = emptyReceiver("east");
+        var west = emptyReceiver("west");
+        var east = emptyReceiver("east");
         var a = HydrologyMixedResolutionLoadedNetworkV2.plan(
             new LinkedHashMap<>(Map.of("second",second,"first",first)),
             Map.of("east",owned(east,coarse(8,4)),
