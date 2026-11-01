@@ -12,6 +12,8 @@ import java.util.*;
  * Reconstructs the original epoch's staged receipts, simulates the requested
  * lake/terrain step without writing, and compares the entire expected next
  * checkpoint (including lake volume, bed geometry and receipt markers).
+ * Different inputs that produce an identical checkpoint are intentionally
+ * indistinguishable; this is state replay verification, not input attestation.
  * This is not a distributed lock or proof of authenticated senders.
  */
 public final class HydrologySedimentLakeReplayVerifierV2 {
