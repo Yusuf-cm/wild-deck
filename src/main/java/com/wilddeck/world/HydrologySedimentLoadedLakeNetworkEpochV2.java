@@ -88,6 +88,22 @@ public final class HydrologySedimentLoadedLakeNetworkEpochV2 {
         for (var entry : ordered.entrySet()) {
             var key = entry.getKey();
             var step = entry.getValue();
+            // Every lake bed this region may evolve must belong to this
+            // receiver. A full-planet routing graph may be shared, but lake
+            // sediment/water cannot be advanced in two region checkpoints.
+            var owned = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+            for (var vertex : step.receiver().ownedVertices())
+                owned.add(HydrologyGlobalCatchmentsV2.coordinate(vertex));
+            var anchors = new HashSet<GlobalHydrologyAddressV2.Sample>();
+            for (var lake : step.baseline().lakes()) {
+                if (!anchors.add(lake.anchor()))
+                    throw new IllegalArgumentException("Duplicate region lake anchor");
+                for (var cell : lake.cells())
+                    if (!owned.contains(HydrologyGlobalCatchmentsV2.coordinate(cell)))
+                        throw new IllegalArgumentException("Lake bed outside loaded region ownership");
+            }
+            if (!anchors.containsAll(step.water().keySet()))
+                throw new IllegalArgumentException("Water forcing outside owned lake basins");
             var checkpoint = HydrologyCheckpointStoreV2.load(step.receiver().checkpoint());
             if (checkpoint.epoch() == targetEpoch) {
                 var sediment = HydrologySedimentCheckpointV2.decode(
