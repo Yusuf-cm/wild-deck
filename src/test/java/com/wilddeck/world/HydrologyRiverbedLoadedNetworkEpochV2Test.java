@@ -204,6 +204,22 @@ class HydrologyRiverbedLoadedNetworkEpochV2Test {
             steps.get("z").receiver().checkpoint()).epoch());
     }
 
+    @Test void unprovenSedimentArrivalRejectsWholeBatch()
+            throws IOException {
+        var steps=steps();
+        var second=steps.get("z");
+        var path=second.receiver().checkpoint();
+        var receipt=new HydrologySedimentReceiptInboxV2.Receipt(
+            0,1,at(3,5),at(4,5));
+        var parked=HydrologySedimentCheckpointV2.receive(
+            path,second.expectedPrevious(),receipt,2);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverbedLoadedNetworkEpochV2.advance(Map.of(),steps,1));
+        assertEquals(parked,HydrologyCheckpointStoreV2.load(path));
+        assertEquals(0,HydrologyCheckpointStoreV2.load(
+            steps.get("a").receiver().checkpoint()).epoch());
+    }
+
     @Test void parkedWaterRejectsWholeBatchWithoutSkippingReceipts()
             throws IOException {
         var steps=steps();
