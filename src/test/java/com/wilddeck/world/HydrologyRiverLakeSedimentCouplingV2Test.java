@@ -205,4 +205,70 @@ class HydrologyRiverLakeSedimentCouplingV2Test {
         assertEquals(4,original.volumes().get(A),1e-12);
         assertEquals(5,base.lakes().get(0).reservoir().capacity(),1e-12);
     }
+
+    @Test void importedRiverSedimentFillsLakeOnceAndDisplacedWaterConserves() {
+        var base=plan();
+        var state=new HydrologyLakeStateV2.State("initial",Map.of(A,4.0));
+        var received=HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+            base,state,water(),masses(base,0,0),capacity(base),
+            Map.of(FROM,4000.0,B,100.0),2000,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        assertEquals(0,received.localEroded(),1e-12);
+        assertEquals(4100,received.imported(),1e-12);
+        assertEquals(4100,received.result().budget().eroded(),1e-12);
+        assertEquals(4000,received.result().budget().lakeDeposited(),1e-12);
+        assertEquals(100,received.result().budget().terminalExported(),1e-12);
+        assertEquals(1,received.result().lake().displaced().get(A),1e-12);
+        assertEquals(3,received.result().lake().budget().finalStorage(),1e-12);
+        assertEquals(1,received.result().lake().budget().terminalOutflow(),1e-12);
+        assertEquals(0,received.result().budget().residual(),1e-12);
+        assertEquals(Map.of(A,4.0),state.volumes());
+    }
+
+    @Test void directLakeImportIsCapturedWithoutDoubleForwarding() {
+        var base=plan();
+        var result=HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+            base,new HydrologyLakeStateV2.State("initial",Map.of(A,4.0)),
+            water(),masses(base,0,0),capacity(base),Map.of(A,1000.0),
+            2000,SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        assertEquals(1000,result.result().river().lakeCaptured().get(A),1e-12);
+        assertEquals(1000,result.result().budget().lakeDeposited(),1e-12);
+        assertEquals(0,result.result().budget().terminalExported(),1e-12);
+        assertEquals(0,result.result().budget().residual(),1e-12);
+    }
+
+    @Test void invalidSedimentImportsFailBeforeChangingLakeStorage() {
+        var base=plan();
+        var state=new HydrologyLakeStateV2.State("initial",Map.of(A,4.0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+                base,state,water(),masses(base,0,0),capacity(base),
+                Map.of(at(8,2),1.0),2000,
+                SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+                base,state,water(),masses(base,0,0),capacity(base),
+                Map.of(FROM,Double.POSITIVE_INFINITY),2000,
+                SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP));
+        assertEquals(4,state.volumes().get(A),1e-12);
+    }
+
+    @Test void importedSedimentIsDeterministicAcrossRouteAndMapOrdering() {
+        var base=plan();
+        var reversed=new ArrayList<>(base.routes());
+        Collections.reverse(reversed);
+        var other=new HydrologySphericalLakeBasinsV2.Plan(reversed,base.lakes());
+        var state=new HydrologyLakeStateV2.State("initial",Map.of(A,4.0));
+        var imports=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        imports.put(B,100.0);
+        imports.put(FROM,4000.0);
+        var first=HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+            base,state,water(),masses(base,0,0),capacity(base),
+            Map.of(FROM,4000.0,B,100.0),2000,
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        var second=HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
+            other,state,water(),masses(base,0,0),capacity(base),
+            imports,2000,SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        assertEquals(first,second);
+    }
 }

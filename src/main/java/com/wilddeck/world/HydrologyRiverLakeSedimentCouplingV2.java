@@ -38,12 +38,57 @@ public final class HydrologyRiverLakeSedimentCouplingV2 {
             Map<GlobalHydrologyAddressV2.Sample,Double> capacity,
             double dryBulkDensity,
             SeasonalLakeEvolutionV2.EvaporationMode mode) {
+        return stepInternal(plan,previous,water,eroded,capacity,Map.of(),
+            dryBulkDensity,mode);
+    }
+
+    /**
+     * Opt-in imported sediment, already deduplicated by a separate receipt
+     * ledger. The result's eroded budget denotes TOTAL source mass (local
+     * erosion plus imports); the wrapper preserves the two contributions.
+     * This method is in-memory and does not acknowledge durable receipts.
+     */
+    public static ImportedResult stepWithIncoming(
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            HydrologyLakeStateV2.State previous,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            Map<GlobalHydrologyAddressV2.Sample,Double> capacity,
+            Map<GlobalHydrologyAddressV2.Sample,Double> imported,
+            double dryBulkDensity,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) {
+        var result=stepInternal(plan,previous,water,eroded,capacity,imported,
+            dryBulkDensity,mode);
+        BigDecimal local=BigDecimal.ZERO, external=BigDecimal.ZERO;
+        for (var mass:eroded.values()) local=local.add(BigDecimal.valueOf(mass));
+        for (var mass:imported.values()) external=external.add(BigDecimal.valueOf(mass));
+        return new ImportedResult(result,local.doubleValue(),external.doubleValue());
+    }
+
+    public record ImportedResult(Result result,double localEroded,double imported) {
+        public ImportedResult {
+            Objects.requireNonNull(result);
+            if (!Double.isFinite(localEroded) || localEroded < 0 ||
+                !Double.isFinite(imported) || imported < 0)
+                throw new IllegalArgumentException("Invalid imported sediment accounting");
+        }
+    }
+
+    private static Result stepInternal(HydrologySphericalLakeBasinsV2.Plan plan,
+            HydrologyLakeStateV2.State previous,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            Map<GlobalHydrologyAddressV2.Sample,Double> capacity,
+            Map<GlobalHydrologyAddressV2.Sample,Double> imported,
+            double dryBulkDensity,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(water);
         Objects.requireNonNull(mode);
         if (!Double.isFinite(dryBulkDensity) || dryBulkDensity <= 0)
             throw new IllegalArgumentException("Invalid lake sediment bulk density");
-        var river = HydrologyRiverSedimentTransportV2.route(plan,eroded,capacity);
+        var river = HydrologyRiverSedimentTransportV2.routeWithIncoming(
+            plan,eroded,capacity,imported).result();
         if (!river.pendingExport().isEmpty())
             throw new IllegalArgumentException("Unresolved river sediment frontier");
         var forcing = new TreeMap<GlobalHydrologyAddressV2.Sample,
