@@ -29,6 +29,36 @@ public final class HydrologyLakeSedimentSeasonsV2 {
         }
     }
 
+    /**
+     * Resume from a canonical geometry+water payload and return a new payload
+     * for atomic storage by the caller. The baseline must be the same original
+     * lake/river geometry used when the snapshot was first created.
+     *
+     * No filesystem write occurs here; callers must commit the new payload
+     * and any external transfer receipts together in their own transaction.
+     */
+    public record Continuation(List<HydrologyLakeSedimentNetworkV2.Result> steps,
+                               String snapshot) {
+        public Continuation {
+            steps = List.copyOf(steps);
+            Objects.requireNonNull(snapshot);
+        }
+    }
+
+    public static Continuation resume(
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String snapshot,
+            List<Season> seasons,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) {
+        var restored = HydrologyLakeSedimentSnapshotV2.decode(baseline, snapshot);
+        var steps = simulate(restored.plan(), restored.water(), seasons, mode);
+        if (steps.isEmpty()) return new Continuation(steps, snapshot);
+        var last = steps.get(steps.size() - 1);
+        return new Continuation(steps,
+            HydrologyLakeSedimentSnapshotV2.encode(
+                baseline, last.updatedPlan(), last.water().state()));
+    }
+
     public static List<HydrologyLakeSedimentNetworkV2.Result> simulate(
             HydrologySphericalLakeBasinsV2.Plan zeroRunoffPlan,
             HydrologyLakeStateV2.State initial,
