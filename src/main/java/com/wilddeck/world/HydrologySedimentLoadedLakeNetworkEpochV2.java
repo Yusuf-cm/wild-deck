@@ -106,8 +106,31 @@ public final class HydrologySedimentLoadedLakeNetworkEpochV2 {
                 throw new IllegalArgumentException("Water forcing outside owned lake basins");
             var checkpoint = HydrologyCheckpointStoreV2.load(step.receiver().checkpoint());
             if (checkpoint.epoch() == targetEpoch) {
-                var sediment = HydrologySedimentCheckpointV2.decode(
-                    checkpoint.worldState()).sediment();
+                var completedState = HydrologySedimentCheckpointV2.decode(
+                    checkpoint.worldState());
+                // A retry must not silently accept a different world or a
+                // lake bed that disagrees with the authoritative terrain.
+                // The snapshot codec independently binds lake identity,
+                // geometry and drainage to the supplied baseline.
+                var restored = HydrologyLakeSedimentSnapshotV2.decode(
+                    step.baseline(),completedState.world());
+                var terrain = HydrologyTerrainOverlayV2.decode(
+                    restored.water().world());
+                if (!terrain.world().equals(step.nextWorld()))
+                    throw new IllegalArgumentException("Completed lake epoch world mismatch");
+                var elevations = HydrologyTerrainOverlayV2.elevations(
+                    step.seed(),terrain);
+                for (var lake : restored.plan().lakes()) {
+                    var beds = lake.reservoir().bedElevation();
+                    for (int i=0;i<lake.cells().size();i++) {
+                        var cell = lake.cells().get(i);
+                        if (!owned.contains(HydrologyGlobalCatchmentsV2.coordinate(cell)) ||
+                            Double.compare(elevations.at(cell),beds[i]) != 0)
+                            throw new IllegalArgumentException(
+                                "Completed lake bed disagrees with owned terrain");
+                    }
+                }
+                var sediment = completedState.sediment();
                 if (sediment.lastClaimedEpoch() != targetEpoch)
                     throw new IllegalArgumentException("Completed lake ledger epoch mismatch");
                 for (var receipt : sediment.receipts().keySet())
