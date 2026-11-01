@@ -217,7 +217,8 @@ public final class HydrologySedimentCheckpointV2 {
             String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
             Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
-            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode) {
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
         Objects.requireNonNull(nextWorld);
         Objects.requireNonNull(seed);
         return planLakeInternal(previous,baseline,water,transportCapacity,
