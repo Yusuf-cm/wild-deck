@@ -205,4 +205,24 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
         assertEquals(before,HydrologyCheckpointStoreV2.load(
             regions.get("east").receiver().checkpoint()));
     }
+    @Test void lakeOwnedByAnotherRegionIsRejectedBeforeAnyCheckpointWrites()
+            throws IOException {
+        var senders=Map.of("s1",sender("ownership",Map.of(
+            receipt(0,A,B),1000.0)));
+        var regions=new HashMap<>(regions(0));
+        var east=regions.get("east");
+        // The east receiver owns E, but this altered baseline evolves B.
+        // A shared full-planet route graph must not imply shared lake beds.
+        regions.put("east",step(east.receiver().checkpoint(),E,baseline(B,C,D)));
+        var before=HydrologyCheckpointStoreV2.load(
+            regions.get("west").receiver().checkpoint());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentLoadedLakeNetworkEpochV2.advance(senders,regions,1));
+        assertEquals(before,HydrologyCheckpointStoreV2.load(
+            regions.get("west").receiver().checkpoint()));
+        assertTrue(HydrologySedimentSenderOutboxV2.restore(
+            HydrologyCheckpointStoreV2.load(senders.get("s1")))
+            .acknowledged().isEmpty());
+    }
+
 }
