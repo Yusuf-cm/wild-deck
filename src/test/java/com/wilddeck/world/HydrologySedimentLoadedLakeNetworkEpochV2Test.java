@@ -253,4 +253,44 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
                 senders,wrongBaseline,1));
         assertEquals(before,HydrologyCheckpointStoreV2.load(checkpoint));
     }
+
+    @Test void strictTwoRegionEpochRequiresExactOriginalCheckpoints()
+            throws IOException {
+        var senders=Map.of("s1",sender("strict-multi",Map.of(
+            receipt(0,A,B),2000.0,receipt(0,H,E),1000.0)));
+        var regions=regions(0);
+        var originals=new TreeMap<String,HydrologyCheckpointV2.Checkpoint>();
+        for (var entry:paths(regions).entrySet())
+            originals.put(entry.getKey(),HydrologyCheckpointStoreV2.load(entry.getValue()));
+        var result=HydrologySedimentLoadedLakeNetworkEpochV2.advanceVerified(
+            senders,regions,originals,1);
+        assertEquals(Set.of("west","east"),result.advanced().keySet());
+        assertEquals(3000,result.after().deliveredMass(),0.0);
+        var replay=HydrologySedimentLoadedLakeNetworkEpochV2.advanceVerified(
+            senders,regions,originals,1);
+        assertEquals(Set.of("west","east"),replay.alreadyCompleted());
+        assertTrue(replay.advanced().isEmpty());
+    }
+
+    @Test void strictPartialRecoveryValidatesCommittedRegionBeforeContinuing()
+            throws IOException {
+        var senders=Map.of("s1",sender("strict-recover",Map.of(
+            receipt(0,A,B),2000.0,receipt(0,H,E),1000.0)));
+        var regions=regions(0);
+        var originals=new TreeMap<String,HydrologyCheckpointV2.Checkpoint>();
+        for (var entry:paths(regions).entrySet())
+            originals.put(entry.getKey(),HydrologyCheckpointStoreV2.load(entry.getValue()));
+        var loaded=new TreeMap<String,HydrologySedimentLoadedRegionsV2.Receiver>();
+        for (var entry:regions.entrySet())
+            loaded.put(entry.getKey(),entry.getValue().receiver());
+        var east=regions.get("east");
+        HydrologySedimentLoadedLakeEpochV2.advanceWithTerrain(
+            senders,loaded,"east",east.baseline(),east.nextWorld(),east.seed(),
+            east.water(),east.capacity(),east.dryBulkDensity(),east.mode());
+        var recovered=HydrologySedimentLoadedLakeNetworkEpochV2.advanceVerified(
+            senders,regions,originals,1);
+        assertEquals(Set.of("east"),recovered.alreadyCompleted());
+        assertEquals(Set.of("west"),recovered.advanced().keySet());
+        assertEquals(3000,recovered.after().deliveredMass(),0.0);
+    }
 }
