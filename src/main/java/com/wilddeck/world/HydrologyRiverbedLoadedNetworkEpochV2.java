@@ -147,6 +147,8 @@ public final class HydrologyRiverbedLoadedNetworkEpochV2 {
         for (var entry : ordered.entrySet())
             loaded.put(entry.getKey(),entry.getValue().receiver());
         var gate = HydrologySedimentTopologyGateV2.requireQuiescent(senderFiles,loaded);
+        // Also prove water receipts have unique physical owners and sources.
+        HydrologyLoadedWaterAuditV2.requireSettled(loaded);
 
         var pending = new TreeMap<String,HydrologyRiverbedCheckpointV2.Planned>();
         var completed = new TreeSet<String>();
