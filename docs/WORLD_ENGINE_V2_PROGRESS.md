@@ -1957,3 +1957,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 **Verification status:** The above **11 new JUnit tests are committed but have NOT been independently executed** against the complete Maven project. The available commit-workflow lookup and combined status returned no CI result for the new commits at this documentation point; do not infer success from the earlier 929-test baseline. No Maven installation or accessible repository checkout is available in the execution container. New-commit CI history: https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2 .
 
 **Remaining hydrology acceptance gaps:** obtain and fix full CI for these commits; connect the opt-in riverbed transaction to the authoritative region runner; include sediment imports/exports and lake capture in a coupled multi-region epoch; re-solve drainage after any terrain edits and reconcile changed catchment/spillway topology and in-transit material; enforce single-writer locking or true multi-writer CAS; validate physically calibrated transport capacity and area/density forcing; implement durable replay-safe receipt compaction; complete real ocean boundaries, multiple lake spillways, groundwater, calibrated seasons, timed flooding and planetary-scale endurance tests. The new riverbed edit only preserves the supplied directed edges; it does **not** prove the edited graph remains the steepest physically possible routing among all neighboring vertices. No claim of completed hydrology.
+
+## 2026-11-01 — Strict spherical riverbed reroute guard and guarded checkpoint (CI verified)
+
+**Scope:** `Yusuf-cm/wild-deck`, `feature/world-engine-v2` only. Starting HEAD `c05c4a569034559cc8305a6327107fd309b6a508`. [Starting Java CI 41339092158](https://github.com/Yusuf-cm/wild-deck/actions/runs/41339092158) completed successfully with **940 Maven/JUnit tests, zero failures/errors/skips and BUILD SUCCESS**, including the previously unverified riverbed incision/deposition checkpoint work.
+
+### Implemented
+
+1. `HydrologyRiverbedRouteGuardV2` (`e085b88ead61492be1163f618c2bf71b50e11b1c`) adds an opt-in, **read-only strict routing check** for terrain edits. It detects changed physical vertices, requires each changed vertex to have an owned loaded nonterminal downstream, and recomputes spherical steepest descent **before and after** at changed vertices, adjacent loaded nodes and adjacent unloaded one-ring halo nodes. It rejects changes that would reroute any of these nodes, stale loaded routing, noncanonical/duplicate geographic ownership and lake-spillway edits requiring a separate drainage transition. The guard does not write checkpoints, consume water, reroute material or infer unknown global catchments.
+2. `HydrologyRiverbedCheckpointV2.planRouteVerified` and `commitRouteVerified` (`03decca32cc1a10abb16f6e1faa775aecf4405b4`) opt into this stronger check after the existing closed-budget sediment incision/deposition preview, before the guarded single-file `saveNext` write. The ordinary `plan` and `commit` APIs remain unchanged for callers whose priority-flood routing is not locally steepest descent. An invalid or stale route rejects without changing the checkpoint.
+3. Six `HydrologyRiverbedRouteGuardV2Test` tests (`7d6428b039444248a21e41c66510eb1dbf1b3ee2`) cover stable routes, alternative downhill competition, unloaded-halo rerouting, unowned terrain, stale routes, no-op edits and lake-spillway rejection. Three `HydrologyRiverbedRouteVerifiedCheckpointV2Test` integration tests (`8dff0b04f82a03ff3de52437c7d6b967cef244a1`) cover persisted mass-conserving incision/deposition after restart, rollback when the unloaded halo would reroute, and stale-writer rejection.
+
+### Exact verification
+
+- [Guard-source CI 41343399715](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343399715): **PASSED**.
+- [Six-test CI 41343420414](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343420414): **PASSED**, **946 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`.
+- [Guarded-checkpoint implementation CI 41343437432](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343437432): **PASSED**.
+- [Nine-new-test final source CI 41343456226](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343456226): **PASSED**, **949 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser-save, atlas export and real-browser atlas checks also passed.
+- This documentation commit will have a separate CI result; do not infer its result from the source CI.
+
+### Remaining acceptance gaps (water/hydrology NOT complete)
+
+1. The strict route guard is **opt-in** and requires an immutable authoritative elevation sampler. It verifies a one-ring spherical halo and loaded routes but does not re-solve priority-flood lakes, competing distant spillways, watershed identities or in-transit water/sediment. Lake-bearing edits intentionally fail closed when elevations change.
+2. The authoritative world runner still does not automatically schedule coupled sediment imports/exports, sender acknowledgments, riverbed erosion, lake evolution and water epochs. The new guarded commit handles only a **closed local sediment budget**, with no lake capture, unresolved exports or cross-region transaction.
+3. Cross-region commits are separately durable, not globally atomic; external single-writer coordination and retained sender histories remain necessary. Durable replay-safe receipt-history compaction, authenticated transfers and complete topology-change migration/rollback are unfinished.
+4. Automatic planet-wide drainage and stable basin discovery, authoritative mixed-LOD region ownership, multiple lake spillways, groundwater, calibrated seasonal climate, timed flooding, erosion physics calibration and planetary-scale endurance tests remain incomplete.
+
+**Safety:** No merge, PR, write to `main` or another branch, production operation or paid infrastructure change. Continue hydrology before other world layers.
