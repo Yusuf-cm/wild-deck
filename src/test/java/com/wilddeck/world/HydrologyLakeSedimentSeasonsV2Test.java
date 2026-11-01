@@ -73,7 +73,7 @@ class HydrologyLakeSedimentSeasonsV2Test {
                 new HydrologyLakeStateV2.State("world",Map.of()),List.of(),
                 SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP));
         var unknown=new HydrologyLakeSedimentSeasonsV2.Season(
-            Map.of(at(100,100),1.0),season(0,0).water(),season(0,0).sediment());
+            Map.of(at(8,2),1.0),season(0,0).water(),season(0,0).sediment());
         assertThrows(IllegalArgumentException.class,()->
             HydrologyLakeSedimentSeasonsV2.simulate(base,
                 new HydrologyLakeStateV2.State("world",Map.of()),List.of(unknown),
