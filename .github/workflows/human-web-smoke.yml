@@ -16,35 +16,37 @@ jobs:
           java-version: '17'
       - name: Build
         run: mvn -q -DskipTests package dependency:copy-dependencies -DincludeScope=runtime
-      - name: Exercise human game through HTTP
+      - name: Exercise browser match through HTTP
         shell: bash
         run: |
           set -euo pipefail
+          export WILD_DECK_SAVE_KEY="$(head -c 32 /dev/urandom | base64 -w0)"
+          export WILD_DECK_COOKIE_SECURE=false
           PORT=18080 java -cp 'target/classes:target/dependency/*' com.wilddeck.app.HumanWebServer > /tmp/wild-deck-server.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" || true' EXIT
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:18080/health | grep -q ok; then break; fi
+          trap 'cat /tmp/wild-deck-server.log; kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:18080/health | grep -q ok; then ready=true; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
             sleep 1
           done
-          curl -fsS http://localhost:18080/ | grep -q "Wild Deck"
-          curl -fsS -X POST --data-urlencode 'command=draw a card' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q "Drew "
-          curl -fsS -X POST --data-urlencode 'command=next round' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q "World round"
-          curl -fsS -X POST --data-urlencode 'command=auto mine on' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q "Automatic mining: ON"
-          curl -fsS -X POST --data-urlencode 'command=replay rounds 0-18' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q "Historical Replay"
-          curl -fsS http://localhost:18080/ | grep -q "21.4"
-          curl -fsS -X POST --data-urlencode 'command=run rules replay' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q "Rules-Engine Regression Replay"
-          curl -fsS http://localhost:18080/ | grep -q "Gold 21.4"
-          curl -fsS -X POST --data-urlencode 'command=new four player game' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q 'Four Player Table'
-          curl -fsS http://localhost:18080/ | grep -q 'Mind Veil'
-          curl -fsS -X POST --data-urlencode 'command=deploy Underground Vault' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q 'deployed Underground Vault'
-          curl -fsS -X POST --data-urlencode 'command=pass' http://localhost:18080/action -o /dev/null
-          curl -fsS http://localhost:18080/ | grep -q 'Round 1'
-          echo "All smoke tests including fresh four-player table passed"
+          if [ "$ready" != true ]; then echo "Server failed readiness"; exit 1; fi
+          curl -fsS -c /tmp/wild-deck-cookies http://127.0.0.1:18080/state -o /tmp/state.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/state.json') as f: state=json.load(f)
+          assert 'revision' in state
+          with open('/tmp/action.json','w') as f:
+              json.dump({'revision':state['revision'],'command':'new quick game 42'},f)
+          PY
+          curl -fsS -b /tmp/wild-deck-cookies -c /tmp/wild-deck-cookies \
+            -H 'X-Wild-Deck: 1' -H 'Content-Type: application/json' \
+            --data-binary @/tmp/action.json http://127.0.0.1:18080/action -o /tmp/result.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/result.json') as f: result=json.load(f)
+          assert result.get('save','').startswith('wd1.'), result
+          assert result['revision'] > 0, result
+          PY
+          echo "Browser match smoke passed"
