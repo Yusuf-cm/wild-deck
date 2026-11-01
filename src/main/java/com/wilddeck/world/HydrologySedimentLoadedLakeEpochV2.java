@@ -91,7 +91,8 @@ public final class HydrologySedimentLoadedLakeEpochV2 {
             throws IOException {
         previewInternal(senderFiles,loaded,regionKey,baseline,water,
             transportCapacity,dryBulkDensity,mode,nextWorld,seed);
-        Path path = loaded.get(regionKey).checkpoint();
+        var receiver = loaded.get(regionKey);
+        Path path = receiver.checkpoint();
         // Only the target loaded receiver is mutated. Other loaded regions
         // are validated above but advanced independently by their own epochs.
         var delivered = HydrologySedimentLoadedNetworkV2.deliver(
