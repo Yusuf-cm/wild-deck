@@ -188,7 +188,7 @@ public final class HydrologySedimentLoadedLakeNetworkEpochV2 {
      * Strict recovery mode: every region must supply its ORIGINAL checksummed
      * pre-epoch checkpoint. Exact lake volumes, terrain, receipt histories,
      * forcing, sediment capacity and evaporation are recomputed before writes.
-     * Unlike epoch-number-only recovery, altered replay inputs fail closed.
+     * Unlike epoch-number-only recovery, altered resulting state fails closed.
      */
     public static Plan planVerified(Map<String,Path> senders,
             Map<String,RegionStep> steps,
