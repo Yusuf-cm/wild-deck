@@ -137,6 +137,43 @@ public final class HydrologyCheckpointStoreV2 {
         writeAtomic(target,parent,checkpoint);
     }
 
+    /**
+     * Narrow same-epoch append for the opt-in sediment checkpoint envelope.
+     * Preserves the existing water inbox, underlying world, delivery markers
+     * and last claimed epoch. Only future sediment receipts may be added.
+     * Single-writer optimistic freshness, NOT an interprocess CAS.
+     */
+    static void saveSedimentIncoming(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        Objects.requireNonNull(destination);
+        Objects.requireNonNull(expected);
+        Objects.requireNonNull(next);
+        if (expected.epoch() != next.epoch() ||
+            !expected.inboxState().equals(next.inboxState()))
+            throw new IllegalArgumentException("Sediment append cannot advance water or epoch");
+        var before = HydrologySedimentCheckpointV2.decode(expected.worldState());
+        var after = HydrologySedimentCheckpointV2.decode(next.worldState());
+        if (!before.world().equals(after.world()) ||
+            before.sediment().lastClaimedEpoch() != after.sediment().lastClaimedEpoch() ||
+            !before.sediment().delivered().equals(after.sediment().delivered()) ||
+            !after.sediment().receipts().entrySet().containsAll(
+                before.sediment().receipts().entrySet()))
+            throw new IllegalArgumentException("Sediment append modifies committed state");
+        for (var receipt : after.sediment().receipts().keySet())
+            if (!before.sediment().receipts().containsKey(receipt) &&
+                receipt.arrivalEpoch() <= expected.epoch())
+                throw new IllegalArgumentException("Cannot append sediment to a closed epoch");
+        if (!load(destination).equals(expected))
+            throw new IOException("Sediment checkpoint changed since it was loaded");
+        if (expected.equals(next)) return;
+        Path target = destination.toAbsolutePath();
+        Path parent = target.getParent();
+        if (parent == null || !Files.isDirectory(parent))
+            throw new IOException("Checkpoint parent directory must exist");
+        writeAtomic(target,parent,next);
+    }
+
     private static void writeAtomic(Path target,Path parent,
                                     HydrologyCheckpointV2.Checkpoint checkpoint)
             throws IOException {
