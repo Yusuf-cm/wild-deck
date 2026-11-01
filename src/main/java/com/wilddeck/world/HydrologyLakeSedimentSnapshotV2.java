@@ -131,7 +131,7 @@ public final class HydrologyLakeSedimentSnapshotV2 {
             if (!encode(baseline, restored.plan(), restored.water()).equals(encoded))
                 throw new IllegalArgumentException("Noncanonical sediment snapshot");
             return restored;
-        } catch (NumberFormatException | IllegalArgumentException ex) {
+        } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Malformed sediment snapshot", ex);
         }
     }
