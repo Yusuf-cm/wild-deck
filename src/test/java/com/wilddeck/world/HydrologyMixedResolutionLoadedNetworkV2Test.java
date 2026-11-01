@@ -214,4 +214,81 @@ class HydrologyMixedResolutionLoadedNetworkV2Test {
             HydrologyMixedResolutionLoadedNetworkV2.plan(
                 Map.of("s",upstream),Map.of("r",owned(upstream,coarse(5,4)))));
     }
+
+    @Test void loadedSenderRegionCanExportToAnotherLoadedRegion() throws IOException {
+        var source = sender("source",Map.of(WEST,7.0),Set.of());
+        var destination = emptyReceiver("destination");
+        var loaded = Map.of("source",owned(source,coarse(4,4)),
+            "destination",owned(destination,coarse(5,4)));
+        var senders = Map.of("source",source);
+        var result = HydrologyMixedResolutionLoadedNetworkV2.deliver(senders,loaded);
+        assertEquals(1,result.newlyAcknowledged());
+        assertEquals(7.0,result.after().report().acknowledged().doubleValue());
+        assertEquals(1,HydrologyMixedResolutionCheckpointStoreV2.load(destination)
+            .inbox().receipts().size());
+    }
+
+    @Test void crossNamedFileAliasCannotClaimSenderAndReceiverOwnership()
+            throws IOException {
+        var source = sender("source",Map.of(WEST,7.0),Set.of());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyMixedResolutionLoadedNetworkV2.plan(
+                Map.of("sender",source),
+                Map.of("different",owned(source,coarse(4,4)))));
+    }
+
+    @Test void acknowledgedButCurrentlyUnloadedDestinationRetainsHistory()
+            throws IOException {
+        var source = sender("source",Map.of(WEST,7.0),Set.of(WEST));
+        var plan = HydrologyMixedResolutionLoadedNetworkV2.plan(
+            Map.of("s",source),Map.of());
+        assertEquals(1,plan.report().unloadedCount());
+        assertTrue(plan.report().loadedSettled());
+        assertEquals(7.0,plan.report().unloaded().doubleValue());
+        // Reloading the receiver exposes missing acknowledged water.
+        var restored = emptyReceiver("restored");
+        assertThrows(IOException.class,() ->
+            HydrologyMixedResolutionLoadedNetworkV2.plan(
+                Map.of("s",source),Map.of("r",owned(restored,coarse(5,4)))));
+    }
+
+    @Test void receiverDeliveredAndParkedWaterAreAuditedSeparately()
+            throws IOException {
+        var source = sender("source",Map.of(WEST,7.0),Set.of());
+        var destination = emptyReceiver("destination");
+        var senders = Map.of("s",source);
+        var loaded = Map.of("r",owned(destination,coarse(5,4)));
+        var before = HydrologyMixedResolutionLoadedNetworkV2.deliver(senders,loaded);
+        assertEquals(0.0,before.after().report().delivered().doubleValue());
+        assertEquals(7.0,before.after().report().parked().doubleValue());
+        HydrologyMixedResolutionCheckpointStoreV2.advance(
+            destination,HydrologyMixedResolutionCheckpointStoreV2.load(destination),
+            "receiver:1",List.of(new HydrologyMixedResolutionDischargeV2.Node(
+                coarse(5,4),0,null,true)),Set.of(coarse(5,4)));
+        var after = HydrologyMixedResolutionLoadedNetworkV2.plan(senders,loaded);
+        assertEquals(7.0,after.report().delivered().doubleValue());
+        assertEquals(0.0,after.report().parked().doubleValue());
+        assertEquals(7.0,after.report().accepted().doubleValue());
+    }
+
+    @Test void loadedPhysicalSourceCannotBeClaimedByDifferentSenderFile()
+            throws IOException {
+        var upstream = sender("upstream",Map.of(WEST,7.0),Set.of());
+        var source = emptyReceiver("source");
+        var destination = emptyReceiver("destination");
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyMixedResolutionLoadedNetworkV2.plan(
+                Map.of("upstream",upstream),
+                Map.of("source",owned(source,coarse(4,4)),
+                    "destination",owned(destination,coarse(5,4)))));
+    }
+
+    @Test void localEdgeCannotBeReimportedAsCrossRegionWater()
+            throws IOException {
+        var source = sender("source",Map.of(WEST,7.0),Set.of());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyMixedResolutionLoadedNetworkV2.plan(
+                Map.of("source",source),
+                Map.of("source",owned(source,coarse(4,4),coarse(5,4)))));
+    }
 }
