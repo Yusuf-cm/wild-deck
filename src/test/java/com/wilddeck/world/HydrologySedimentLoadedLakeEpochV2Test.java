@@ -188,12 +188,16 @@ class HydrologySedimentLoadedLakeEpochV2Test {
     @Test void pendingWaterBlocksLakeEpochWithoutSedimentDelivery()
             throws IOException {
         Path sender=sender("water",Map.of(receipt(0,A,B),2000.0));
-        Path target=receiver("water",3,Map.of());
-        var before=HydrologyCheckpointStoreV2.load(target);
+        Path target=directory.resolve("water.receiver");
         var inbox=new HydrologyEpochInboxV2();
         inbox.receive(new HydrologyTransferLedgerV2.Key(1,A,B),2);
-        var modified=HydrologyCheckpointV2.capture(before.epoch(),
-            before.worldState(),inbox);
+        var base=baseline();
+        var terrain=HydrologyTerrainOverlayV2.encode(
+            new HydrologyTerrainOverlayV2.State("initial",Map.of()));
+        var lake=HydrologyLakeSedimentSnapshotV2.encode(base,base,
+            new HydrologyLakeStateV2.State(terrain,Map.of(B,3.0)));
+        var modified=HydrologyCheckpointV2.capture(0,
+            HydrologySedimentCheckpointV2.initialWorld(lake),inbox);
         HydrologyCheckpointStoreV2.save(target,modified);
         var senderBefore=HydrologyCheckpointStoreV2.load(sender);
         assertThrows(IllegalArgumentException.class,()->
