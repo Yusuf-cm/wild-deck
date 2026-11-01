@@ -1820,3 +1820,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. Automatic planetary drainage discovery, multiple spillways, groundwater, physically calibrated seasonal forcing, timed flooding, and large-world endurance/physics validation remain unfinished.
 
 **Safety:** No merge, PR, `main` or other-branch write, production operation, or paid infrastructure change. **Hydrology remains unfinished; keep hydrology as the next priority.**
+
+
+## 2026-11-01 — Durable imported-lake terrain binding and loaded-region lake epoch (CI verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `c5ee3460fb7bbf9adc098818569e5a3123ee1e38`. Starting [Java CI 41313433790](https://github.com/Yusuf-cm/wild-deck/actions/runs/41313433790) passed **888 Maven/JUnit tests**, zero failures/errors/skips. No other branch or production infrastructure was modified.
+
+### Implemented
+
+1. `18cf80ee5fa0b37b795202b40a87b7c1c4c0aa87`: extended `HydrologySedimentCheckpointV2` with opt-in `advanceLakeWithTerrain`. It commits imported sediment receipt consumption, lake-bed terrain elevation, lake geometry and retained water **in the same guarded local checkpoint**. The previous bed must match the authoritative terrain overlay exactly, and unchanged lake ownership/spill topology is enforced by `HydrologyLakeSedimentTerrainBindingV2`. It preserves unrelated terrain overrides, rejects invalid/missing overlays, pending water receipts, silting beyond the known spill, riverbed changes, and unverified sediment export. The existing `advanceLake` behavior remains available.
+2. `96ecb2a194fa70a0c4d1b0adb650cf882d6f92b7`: added **four JUnit tests** for imported sediment + lake water + terrain + receipt persistence across restarts, bed mismatch rollback, full silting and stale-writer rejection, and pending-water/invalid-overlay refusal.
+3. `9bdd89dd9cd0006035f48674e8cc7c996acc77ba`: added opt-in `HydrologySedimentLoadedLakeEpochV2`. It validates the **complete supplied loaded-region network**, stages future/pending sediment on a copy, runs the lake solver and terrain binding **before** any sender acknowledgment, then durably delivers only the target region's receipts and advances that region's lake epoch. Transfers to unloaded destinations remain in sender journals. A crash between delivery and lake advancement can be retried using retained receipt IDs, provided the epoch remains recoverable.
+4. `f23e2272e2309b67fdfae57edc67c9b9205d50ad`: added **six integration tests** for two-sender confluence and unloaded destination conservation, crash-gap replay, fail-closed full silting and terrain mismatch, cross-resolution ownership conflicts, and pending water.
+5. `27805739b7773b3d86181fc801d1b76eca9bfbea`: corrected the pending-water test fixture to initialize its water inbox in the **first** checkpoint rather than attempting a forbidden same-epoch rewrite.
+6. `d591bef65ed5870fb1608e19c557d69d0031c853` and `eefcc330f4764747299774a1d329f8c74278ad44`: added a **post-lake-epoch** audit of actual persisted sender/receiver sediment conservation, distinct from the delivery-only audit, with assertions that sediment transitions from awaiting to delivered exactly once.
+
+### Verified acceptance evidence
+
+- [Terrain implementation and four-test CI 41318447056](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318447056): **PASSED**, **892 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`.
+- [Loaded-lake coordinator implementation CI 41318498219](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318498219): **PASSED**.
+- [Initial six-test CI 41318529650](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318529650): **FAILED** with one test-fixture `IOException: Conflicting checkpoint for same epoch`, not a production-code failure. Corrected by `27805739`.
+- [Corrected six-test CI 41318594875](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318594875): **PASSED**, **898 Maven/JUnit tests**, zero failures/errors/skips; all Java/world experiment/resource replay/browser-save/atlas-export/real-browser steps passed.
+- [Post-epoch audit CI 41318643954](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318643954): **PASSED**. The final source and test state has **898 passing Maven/JUnit tests** (ten new methods compared with the 888-test baseline), zero failures/errors/skips, and all workflow steps passed.
+- The new tests demonstrate imported mass preserved through sender journal, receiver receipt, lake sediment deposition and terrain elevation without counting shared receiving vertices twice; the post-epoch audit reads durable checkpoints rather than trusting a calculated mass alone.
+
+### Explicit remaining hydrology acceptance gaps
+
+1. **Not automatic world integration:** this is an opt-in **single loaded lake-region epoch** coordinator. It is not wired into the authoritative world runner's region load/unload lifecycle, does not automatically discover the complete sender set or all physical ownership, and does not orchestrate all loaded lake regions as one atomic world step.
+2. **Not a distributed transaction:** sender receipt delivery/acknowledgment and the subsequent lake checkpoint are separate durable writes. Preflight can race with another writer; there is no authenticated network transport, interprocess lock or global exactly-once guarantee. Failed lake epochs after delivery retain sediment receipts for retry; missing closed-epoch history still requires trusted rollback/resimulation.
+3. **Riverbed erosion/deposition still preview-only:** this milestone atomically binds **lake beds**, not riverbed incision/deposition. Joint authoritative riverbed/terrain/water/sediment/export checkpoints and verified alternative spherical drainage routes are not implemented.
+4. **No replay-history compaction:** sender and receiver histories remain unbounded without independent durable replay barriers, global watermarks and trusted backup floors.
+5. **Incomplete planetary hydrology:** topology migration of in-flight water/sediment, automatic global drainage discovery, multiple spillways, groundwater, calibrated seasonal forcing/sediment physics, physically timed flooding, and large-world endurance validation remain unfinished.
+
+**Safety:** No merge, PR, write to `main` or another branch, production change or paid infrastructure operation. **Hydrology is NOT complete. Continue these water tasks before other world layers.**
