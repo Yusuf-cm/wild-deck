@@ -93,4 +93,28 @@ class HydrologyRiverbedTerrainPreviewV2Test {
         assertEquals(HydrologyTerrainOverlayV2.encode(one.terrain()),
                      HydrologyTerrainOverlayV2.encode(two.terrain()));
     }
+
+    @Test void transportBudgetCanBeBoundToLocalRiverbedTerrain() {
+        var mass=Map.of(A,0.0,B,1000.0,C,0.0);
+        var capacity=Map.of(A,0.0,B,0.0,C,0.0);
+        var transport=HydrologyRiverSedimentTransportV2.route(
+            drainage(),mass,capacity);
+        var preview=HydrologyRiverbedTerrainPreviewV2.planFromTransport(
+            drainage(),previous(),seed(),transport,
+            Map.of(B,1.0),1000,1.5);
+        assertEquals(1000,preview.depositedMass(),0.0);
+        assertEquals(11.0,preview.terrain().elevations().get(B),0.0);
+    }
+
+    @Test void exportedRiverSedimentCannotBeSilentlyCommittedAsTerrain() {
+        var mass=Map.of(A,0.0,B,1000.0,C,0.0);
+        var capacity=Map.of(A,1000.0,B,1000.0,C,1000.0);
+        var transport=HydrologyRiverSedimentTransportV2.route(
+            drainage(),mass,capacity);
+        assertTrue(transport.budget().terminalExported()>0);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverbedTerrainPreviewV2.planFromTransport(
+                drainage(),previous(),seed(),transport,
+                Map.of(B,1.0),1000,1.5));
+    }
 }
