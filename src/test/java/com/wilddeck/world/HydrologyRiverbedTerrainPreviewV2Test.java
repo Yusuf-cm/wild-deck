@@ -17,7 +17,7 @@ class HydrologyRiverbedTerrainPreviewV2Test {
             new HydrologyFlowGraphV2.Node(C,0,null,true)),List.of());
     }
     private static HydrologyGlobalSlopeRouterV2.Elevations seed() {
-        return at -> at.equals(A)?11:at.equals(B)?10:5;
+        return at -> at.equals(A)?12:at.equals(B)?10:5;
     }
     private static HydrologyTerrainOverlayV2.State previous() {
         return new HydrologyTerrainOverlayV2.State("season-zero",Map.of(at(7,3),42.0));
