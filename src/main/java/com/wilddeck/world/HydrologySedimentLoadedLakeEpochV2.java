@@ -55,7 +55,61 @@ public final class HydrologySedimentLoadedLakeEpochV2 {
             transportCapacity,dryBulkDensity,mode,nextWorld,seed);
     }
 
+    /** Read-only full-network lake and terrain preflight; never writes checkpoints. */
+    public record Preview(long nextEpoch,double importedMass,double depositedMass) {
+        public Preview {
+            if (nextEpoch < 1 || !Double.isFinite(importedMass) ||
+                importedMass < 0 || !Double.isFinite(depositedMass) ||
+                depositedMass < 0)
+                throw new IllegalArgumentException("Invalid lake epoch preview");
+        }
+    }
+
+    public static Preview previewWithTerrain(
+            Map<String,Path> senderFiles,
+            Map<String,HydrologySedimentLoadedRegionsV2.Receiver> loaded,
+            String regionKey,HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(seed);
+        return previewInternal(senderFiles,loaded,regionKey,baseline,water,
+            transportCapacity,dryBulkDensity,mode,nextWorld,seed);
+    }
+
     private static Committed advanceInternal(
+            Map<String,Path> senderFiles,
+            Map<String,HydrologySedimentLoadedRegionsV2.Receiver> loaded,
+            String regionKey,HydrologySphericalLakeBasinsV2.Plan baseline,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed)
+            throws IOException {
+        previewInternal(senderFiles,loaded,regionKey,baseline,water,
+            transportCapacity,dryBulkDensity,mode,nextWorld,seed);
+        Path path = loaded.get(regionKey).checkpoint();
+        // Only the target loaded receiver is mutated. Other loaded regions
+        // are validated above but advanced independently by their own epochs.
+        var delivered = HydrologySedimentLoadedNetworkV2.deliver(
+            senderFiles,Map.of(regionKey,receiver));
+        var current = HydrologyCheckpointStoreV2.load(path);
+        var committed = seed == null
+            ? HydrologySedimentCheckpointV2.advanceLake(path,current,baseline,
+                water,transportCapacity,dryBulkDensity,mode)
+            : HydrologySedimentCheckpointV2.advanceLakeWithTerrain(path,current,
+                baseline,nextWorld,seed,water,transportCapacity,dryBulkDensity,mode);
+        // Re-read durable state AFTER sediment is consumed by the lake epoch,
+        // rather than mistaking the delivery-only audit for final conservation.
+        var afterEpoch = HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+            senderFiles,Map.of(regionKey,path));
+        return new Committed(delivered,committed,afterEpoch);
+    }
+
+    private static Preview previewInternal(
             Map<String,Path> senderFiles,
             Map<String,HydrologySedimentLoadedRegionsV2.Receiver> loaded,
             String regionKey,HydrologySphericalLakeBasinsV2.Plan baseline,
@@ -133,20 +187,7 @@ public final class HydrologySedimentLoadedLakeEpochV2 {
             HydrologyLakeSedimentTerrainBindingV2.updateWorld(nextWorld,seed,
                 restored.plan(),lake.updatedPlan(),restored.water().world());
 
-        // Only the target loaded receiver is mutated. Other loaded regions
-        // are validated above but advanced independently by their own epochs.
-        var delivered = HydrologySedimentLoadedNetworkV2.deliver(
-            senderFiles,Map.of(regionKey,receiver));
-        var current = HydrologyCheckpointStoreV2.load(path);
-        var committed = seed == null
-            ? HydrologySedimentCheckpointV2.advanceLake(path,current,baseline,
-                water,transportCapacity,dryBulkDensity,mode)
-            : HydrologySedimentCheckpointV2.advanceLakeWithTerrain(path,current,
-                baseline,nextWorld,seed,water,transportCapacity,dryBulkDensity,mode);
-        // Re-read durable state AFTER sediment is consumed by the lake epoch,
-        // rather than mistaking the delivery-only audit for final conservation.
-        var afterEpoch = HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
-            senderFiles,Map.of(regionKey,path));
-        return new Committed(delivered,committed,afterEpoch);
+        return new Preview(Math.addExact(previous.epoch(),1),
+            staged.result().imported(),lake.budget().sedimentDeposited());
     }
 }
