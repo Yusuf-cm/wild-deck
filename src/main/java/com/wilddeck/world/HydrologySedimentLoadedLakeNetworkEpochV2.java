@@ -184,4 +184,50 @@ public final class HydrologySedimentLoadedLakeNetworkEpochV2 {
         var audit = HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(senders,paths);
         return new Result(targetEpoch,committed,planned.completed(),audit);
     }
+    /**
+     * Strict recovery mode: every region must supply its ORIGINAL checksummed
+     * pre-epoch checkpoint. Exact lake volumes, terrain, receipt histories,
+     * forcing, sediment capacity and evaporation are recomputed before writes.
+     * Unlike epoch-number-only recovery, altered replay inputs fail closed.
+     */
+    public static Plan planVerified(Map<String,Path> senders,
+            Map<String,RegionStep> steps,
+            Map<String,HydrologyCheckpointV2.Checkpoint> originals,
+            long targetEpoch) throws IOException {
+        Objects.requireNonNull(originals);
+        var ordered = ordered(steps);
+        if (!originals.keySet().equals(ordered.keySet()))
+            throw new IllegalArgumentException("Missing or extra original lake checkpoint");
+        var planned = plan(senders,ordered,targetEpoch);
+        for (var entry : ordered.entrySet()) {
+            var actual = HydrologyCheckpointStoreV2.load(
+                entry.getValue().receiver().checkpoint());
+            var checked = HydrologySedimentLakeReplayVerifierV2.verify(
+                Objects.requireNonNull(originals.get(entry.getKey())),
+                actual,senders,entry.getValue(),targetEpoch);
+            if (checked.completed() != planned.completed().contains(entry.getKey()))
+                throw new IllegalStateException("Lake replay preflight changed");
+        }
+        return planned;
+    }
+
+    /**
+     * Commit only after strict full-network replay preflight. The final
+     * persisted checkpoints are rechecked against the exact original epoch.
+     * Local writes remain individually atomic; callers must hold a complete
+     * external single-writer barrier and retain original sender histories.
+     */
+    public static Result advanceVerified(Map<String,Path> senders,
+            Map<String,RegionStep> steps,
+            Map<String,HydrologyCheckpointV2.Checkpoint> originals,
+            long targetEpoch) throws IOException {
+        planVerified(senders,steps,originals,targetEpoch);
+        var result = advance(senders,steps,targetEpoch);
+        var verified = planVerified(senders,steps,originals,targetEpoch);
+        if (!verified.pending().isEmpty() ||
+            verified.completed().size() != steps.size())
+            throw new IllegalStateException("Lake batch did not reach verified target epoch");
+        return result;
+    }
+
 }
