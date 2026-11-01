@@ -269,6 +269,15 @@ class HydrologyRiverLakeSedimentCouplingV2Test {
         var second=HydrologyRiverLakeSedimentCouplingV2.stepWithIncoming(
             other,state,water(),masses(base,0,0),capacity(base),
             imports,2000,SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
-        assertEquals(first,second);
+        assertEquals(first.result().river(),second.result().river());
+        assertEquals(first.result().budget(),second.result().budget());
+        assertEquals(first.result().lake().budget(),second.result().lake().budget());
+        assertEquals(first.result().lake().water().state(),
+            second.result().lake().water().state());
+        assertArrayEquals(
+            first.result().lake().updatedPlan().lakes().get(0).reservoir().bedElevation(),
+            second.result().lake().updatedPlan().lakes().get(0).reservoir().bedElevation());
+        assertEquals(first.localEroded(),second.localEroded(),1e-12);
+        assertEquals(first.imported(),second.imported(),1e-12);
     }
 }
