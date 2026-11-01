@@ -74,6 +74,70 @@ class HydrologyWorldRunnerRiverbedV2Test {
             Map.of(A,1.0,B,1.0),1000,2,2);
     }
 
+    private static Map<String,HydrologySedimentLoadedRegionsV2.Receiver> owners(
+            Path path,List<GlobalHydrologyAddressV2.Sample> vertices) {
+        return Map.of("local",new HydrologySedimentLoadedRegionsV2.Receiver(
+            path,vertices));
+    }
+
+    private static HydrologyRiverbedCheckpointV2.Planned quiescent(
+            HydrologyWorldRunnerV2 runner,
+            Map<String,HydrologySedimentLoadedRegionsV2.Receiver> loaded)
+            throws IOException {
+        return runner.advanceQuiescentRouteVerifiedRiverbedEpoch(
+            Map.of(),loaded,drainage(),"after",seed(),eroded(),
+            transport(eroded()),Map.of(A,1.0,B,1.0),1000,2,2);
+    }
+
+    @Test void quiescentOwnedNetworkAllowsAtomicRiverbedEpoch() throws IOException {
+        var path=directory.resolve("quiescent.chk");
+        initial(path);
+        var runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        var result=quiescent(runner,owners(path,List.of(A,B,C)));
+        assertEquals(1,result.next().epoch());
+        assertEquals(1,runner.epoch());
+        assertEquals(result.next(),HydrologyCheckpointStoreV2.load(path));
+    }
+
+    @Test void quiescentGateRequiresRunnerCheckpointAndEveryOwnedVertex()
+            throws IOException {
+        var path=directory.resolve("ownership.chk");
+        var first=initial(path);
+        var runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertThrows(IllegalArgumentException.class,()->
+            quiescent(runner,Map.of()));
+        assertThrows(IllegalArgumentException.class,()->
+            quiescent(runner,owners(path,List.of(A,B))));
+        assertEquals(first,HydrologyCheckpointStoreV2.load(path));
+        assertEquals(0,runner.epoch());
+    }
+
+    @Test void quiescentGateRejectsPendingWaterBeforeTerrainMutation()
+            throws IOException {
+        var path=directory.resolve("quiescent-water.chk");
+        initial(path);
+        var runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        runner.receive(new HydrologyTransferLedgerV2.Key(1,A,B),3);
+        var pending=HydrologyCheckpointStoreV2.load(path);
+        assertThrows(IllegalStateException.class,()->
+            quiescent(runner,owners(path,List.of(A,B,C))));
+        assertEquals(pending,HydrologyCheckpointStoreV2.load(path));
+        assertEquals(0,runner.epoch());
+    }
+
+    @Test void quiescentGateRejectsUnknownDurableSedimentReceipts()
+            throws IOException {
+        var path=directory.resolve("quiescent-sediment.chk");
+        var first=initial(path);
+        var receipt=new HydrologySedimentReceiptInboxV2.Receipt(0,1,C,B);
+        var pending=HydrologySedimentCheckpointV2.receive(path,first,receipt,2);
+        var runner=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertThrows(IllegalArgumentException.class,()->
+            quiescent(runner,owners(path,List.of(A,B,C))));
+        assertEquals(pending,HydrologyCheckpointStoreV2.load(path));
+        assertEquals(0,runner.epoch());
+    }
+
     @Test void previewIsReadOnlyAndRunnerPersistsRiverbedWithSedimentEpoch()
             throws IOException {
         var path=directory.resolve("riverbed.chk");
