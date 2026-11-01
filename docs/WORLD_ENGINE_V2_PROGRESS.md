@@ -1793,3 +1793,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 6. Complete automatic planetary drainage discovery, groundwater, calibrated seasonal climate/sediment transport, physically timed flooding and large-world endurance/physical validation.
 
 **Safety:** Only the requested development branch was written. No merges, PRs, writes to `main` or other branches, production operations, or paid infrastructure changes. **Hydrology is NOT complete.**
+
+
+## 2026-11-01 — Read-only topology-change gate for durable water and sediment (CI verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `7081ce0e1d4190168e7250ec90f42a57a1e0fddc`. The previous [Java CI 41308380069](https://github.com/Yusuf-cm/wild-deck/actions/runs/41308380069) passed 882 Maven/JUnit tests before these changes.
+
+### Implementation
+
+- `83477942a096eb187495f86a4322805af42c5c9b`: added `HydrologySedimentTopologyGateV2`. Its read-only `inspect` first invokes the existing complete-network durable preflight, then reads checksummed sender journals and receiver checkpoints to classify sediment as **in transit**, **received but awaiting consumption**, or **consumed**. It also identifies missing sender acknowledgments and pending water receipts in the supplied receiving checkpoints. It counts sediment mass once at the sender and normalizes receiving vertices geographically.
+- The opt-in `requireQuiescent` rejects a proposed drainage-topology change while any inspected sediment is in transit or awaiting consumption, any sender acknowledgment remains outstanding, or any supplied receiver has pending water. It fails closed when a previously acknowledged sediment receipt is missing from a restored receiver checkpoint. This is a **precondition check**, not a terrain mutation or distributed lock.
+- `1acb6273387f34f86958d3e83449c3e6ba8047c7`: added **six JUnit regression methods** covering in-transit to awaiting to consumed progression, unloaded destination retention, receiver restore after acknowledgment, consumed-but-unacknowledged sediment, pending water, and cross-resolution shared-vertex ownership rejection. The read-only preflight test verifies the checkpoints were not changed by inspection.
+
+### Verified tests
+
+- [Implementation CI 41313291910](https://github.com/Yusuf-cm/wild-deck/actions/runs/41313291910): **passed**.
+- [Implementation + six-test CI 41313321590](https://github.com/Yusuf-cm/wild-deck/actions/runs/41313321590): **passed 888 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped**, with `BUILD SUCCESS`. The test job also passed the world experiment, resource replay, browser-save verification, atlas export, and real-browser verification.
+- Exactly **six new JUnit test methods** relative to the 882-test starting baseline. CI is verified for the source and test commit, not yet for this documentation-only commit.
+
+### What this does NOT prove
+
+1. The gate only sees the **complete caller-supplied** sender journals, loaded receiving checkpoints, and water inboxes in those checkpoints. It does not discover all remote water transfers, inspect a globally authoritative water outbox, or prove that new transfers cannot race with inspection.
+2. The caller must quiesce all region writers, preserve the durable sender histories, and supply authoritative receiver ownership. No interprocess lock, authentication, global transaction or world-runner integration has been added. The gate does **not** commit any erosion, deposition, lake or drainage-topology change.
+3. A consumed and acknowledged receipt is still retained for replay recovery. No historical receipt compaction, globally durable replay watermark, trusted backup recovery floor, or closed-epoch disaster rollback is implemented.
+4. Riverbed terrain mutation and in-flight route migration remain blocked until joint water/sediment/lake/terrain checkpoint semantics and independent route validation are implemented.
+5. Automatic planetary drainage discovery, multiple spillways, groundwater, physically calibrated seasonal forcing, timed flooding, and large-world endurance/physics validation remain unfinished.
+
+**Safety:** No merge, PR, `main` or other-branch write, production operation, or paid infrastructure change. **Hydrology remains unfinished; keep hydrology as the next priority.**
