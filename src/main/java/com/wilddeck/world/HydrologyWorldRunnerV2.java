@@ -95,6 +95,31 @@ public final class HydrologyWorldRunnerV2 {
         return routed;
     }
 
+    /**
+     * Atomically advance a verified closed-sphere seasonal river/lake graph
+     * while checkpointing sediment-modified beds, retained water and receipt
+     * delivery together. The baseline must have zero local runoff; seasonal
+     * routes must preserve every geographic edge and source exactly.
+     *
+     * The current checkpoint must already contain a canonical sediment
+     * snapshot bound to the supplied baseline. No topology change or
+     * unverified partial-world lake routing is permitted.
+     */
+    public synchronized HydrologyLakeSedimentNetworkV2.Result
+            advanceClosedSphericalLakeSedimentNetwork(
+            String nextWorld, HydrologySphericalLakeBasinsV2.Plan baseline,
+            Collection<HydrologyFlowGraphV2.Node> seasonalRoutes,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeSedimentNetworkV2.Sediment> sediment,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) throws IOException {
+        var committed = HydrologyLakeSedimentAtomicEpochV2.commit(
+            checkpointPath, last, inbox, nextWorld, baseline, seasonalRoutes,
+            water, sediment, mode);
+        last = committed.checkpoint();
+        inbox = committed.inbox();
+        return committed.result();
+    }
+
     /** Select bounded regions deterministically, then advance one epoch. */
     public synchronized HydrologyFlowGraphV2.Result advanceRegions(
             String nextWorldState,
