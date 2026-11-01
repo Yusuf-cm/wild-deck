@@ -1679,3 +1679,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 6. **Planetary/physical gaps:** automatic global drainage discovery, multiple lake spillways, groundwater, climate-calibrated seasonal forcing, timed flooding, transport/trapping calibration, and large-world endurance benchmarks.
 
 **Safety:** No merge, PR, `main` or other-branch write, production deployment, or paid infrastructure operation. Hydrology is **NOT complete** and remains the next development priority.
+
+
+## 2026-11-01 — Atomic receiver repair from durable sediment sender journals (targeted verification only)
+
+**Scope:** `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `54b2a93c939193e422a844ce64314ece58998982`. Previous documented green baseline: [Actions 41286377681](https://github.com/Yusuf-cm/wild-deck/actions/runs/41286377681), **836 tests passed**. This baseline does **not** verify the commits below. At the start of this run, the GitHub commit workflow lookup and combined-status endpoint returned no new workflow results for the starting HEAD. The same limited queries for the new test commit returned no runs or statuses; the connector only exposes pull-request-triggered workflow runs through this lookup. No push-triggered CI conclusion can be inferred.
+
+### Implemented
+
+- `d40e516dd019ed6055306d4e6702767f1aad2dc9`: added `HydrologySedimentReceiverRecoveryV2.repairBatch`. It reads a complete, caller-supplied map of durable sender journals, checks each sender's physical source/epoch uniqueness across journals, verifies all existing receiver receipts against sender history, validates one explicit geographic owner per receiver vertex, and stages only missing receipts destined for that region. Other destinations remain in transit. It rejects altered mass, duplicate sender records, physical source forks, foreign receiver ownership, missing/corrupt sender files, and arrivals into already-closed receiver epochs. Eligible missing receipts are persisted by **one** existing `HydrologySedimentCheckpointV2.receiveBatch` checkpoint write. It does not alter sender journals or acknowledge transfers.
+- `3c2521c0606a02da499988e5d5ec16347933a1e1`: added **nine JUnit test methods** covering two-sender confluence conservation, deterministic/idempotent retries, foreign destinations, duplicate physical senders, duplicate receiving ownership, closed epochs, mismatched receiver mass, receiver rollback after sender acknowledgment, missing sender files, and 80 seeded transfers. The test methods are committed, **not yet executed against the repository's real Maven/JUnit build**.
+
+### Verification
+
+- **Passed locally:** Java 21 `javac --release 17` compilation of the new recovery implementation against minimal interface-compatible stubs, followed by an executable smoke harness covering multi-sender mass conservation, idempotence, ownership rejection, duplicate senders, closed-epoch rejection, receiver conflict rejection, and no mutation on failure. This is **targeted stub verification only**; it does not establish real repository compatibility or test the actual checkpoint implementation.
+- **Not verified:** full repository Maven/JUnit suite, the nine new repository JUnit methods, push-triggered CI for either new commit, and integration with actual world-runner delivery. The execution environment has Java but no Maven or network-resolvable GitHub checkout; connector workflow lookup returned empty results. [Branch Actions history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) must be checked before this is accepted as a fully verified milestone.
+- **Acceptance boundary:** recovery is opt-in and requires the caller to provide *all relevant* durable sender journals and an authoritative set of receiving vertices. It is a single-writer local checkpoint operation, not an authenticated cross-region network protocol, not a distributed transaction, and not a mechanism for rewriting consumed sediment/water after receiver epoch closure.
+
+### Unfinished hydrology acceptance criteria
+
+1. **Immediate:** run the actual full Maven/JUnit suite and branch Actions for the new commits; repair any failures. No new CI green status is claimed.
+2. Integrate durable sender transmission, receipt recovery, receiver-backed acknowledgments, retry orchestration and verified region ownership into the authoritative world runner. The new method is not automatically invoked.
+3. Implement durable replay barriers/watermarks before compacting sender/receiver receipt histories; historical identities are still retained without bounded growth.
+4. Atomically commit riverbed erosion/deposition, exported sediment, lake geometry, water state, and external receipts to authoritative terrain epochs. Existing lake-only sediment checkpoints reject unverified riverbed changes.
+5. Reconcile in-flight water/sediment across drainage topology changes, including eroded slopes, silting, alternative spherical neighbors and changing spillways.
+6. Finish automatic planetary drainage discovery, multiple lake spillways, groundwater, calibrated climate/seasonal forcing, timed flooding, transfer authentication and large-world endurance/physics calibration.
+
+**Safety:** Only the requested development branch was written. No merge, PR, `main` or other-branch write, production operation, or paid infrastructure change. **Hydrology remains unfinished.**
