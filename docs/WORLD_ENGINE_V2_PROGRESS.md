@@ -1736,3 +1736,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 6. **Planetary physics:** automatic full-world drainage discovery, groundwater, calibrated seasonal climate and sediment transport, physically timed flooding, and large-world endurance/physical validation remain unfinished.
 
 **Safety:** No merges, PRs, writes to `main` or other branches, production changes or paid infrastructure changes. **Hydrology is NOT complete.** Continue hydrology before other world layers.
+
+
+## 2026-11-01 — Deterministic loaded-region sediment delivery (full CI not yet verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `228afd6404912e294274fa019ddfd0eb7212ee2d`. The most recent independently inspected baseline [workflow 41299645953](https://github.com/Yusuf-cm/wild-deck/actions/runs/41299645953) had a successful test job and successful world experiment, resource replay, browser-save, atlas export, and browser verification steps. That workflow predates this section's changes.
+
+### Changes
+
+- `853789c76bac42a5832915a80c4fbbd6fa890759`: introduced opt-in `HydrologySedimentLoadedRegionsV2.deliverLoaded`. One already-persisted sediment sender journal can be routed deterministically to multiple **loaded** neighboring receiver checkpoints. Each receiver supplies authoritative owned physical vertices. Unloaded destinations remain in the sender journal without acknowledgment.
+- The loaded-region coordinator preflights all receiver files before its first write: duplicate receiving files, shared geographic vertices (including cross-resolution aliases), noncanonical vertices, conflicting historical receipt masses, closed receiving epochs, ledger epochs, and aggregate mass/count overflow are rejected. It orders receiver operations by region key, reuses durable receiver-first/acknowledgment-second delivery, and reports per-region and total newly received/acknowledged sediment.
+- `794e5c9024b4db96924732e81e155d58171fab83`: added five JUnit integration methods for two loaded regions plus one unloaded destination, deterministic idempotent retries, cross-resolution shared-vertex rejection, closed-epoch preflight without partial writes, duplicate receiver files, and an empty loaded set.
+
+### Verification and limitations
+
+- The exact committed source and test blobs matched local `git hash-object` SHA values `30501c1901ec6fe2b772e9bdbb7473dbcd2e951a` and `93b778dceb629fb72528eaa7532004769d6b8033`.
+- Java 21 `javac --release 17` compilation **passed against local dependency/JUnit stubs**, and all five new test methods executed successfully against a **simplified in-memory dependency harness**. This is targeted model-level verification only, **not** repository integration verification.
+- **Full Maven/JUnit and new-commit GitHub Actions CI have not been verified.** The available GitHub workflow lookup for push commits does not enumerate their push-triggered runs; no green CI claim is made for these commits. The latest independently verified baseline is [workflow 41299645953](https://github.com/Yusuf-cm/wild-deck/actions/runs/41299645953).
+- Preflight does not create a multi-file atomic transaction. A crash, I/O failure or concurrent writer after preflight can leave a subset of loaded receivers committed; durable receipt IDs support retry convergence. No interprocess lock, authenticated transport, automatic world-runner invocation, or automatic discovery of loaded receiver ownership is provided.
+
+### Next hydrology acceptance gates
+
+1. Execute full repository Maven/JUnit and confirm push CI for the new code; fix any failures before extending it.
+2. Integrate loaded-region delivery into the authoritative world runner, with explicit ownership and unloading lifecycle.
+3. Implement replay-safe receipt history compaction with durable global acknowledgment barriers, then atomic riverbed erosion/deposition with lake/water/sediment terrain checkpoints.
+4. Add safe in-flight water/sediment migration for changed drainage topology; continue planetary drainage discovery, multiple spillways, groundwater, calibrated seasonal forcing, timed flooding, transfer authentication and large-world endurance tests.
+
+**Safety:** No merge, PR, write to `main` or other branches, production operation or paid infrastructure change. **Hydrology remains unfinished.**
