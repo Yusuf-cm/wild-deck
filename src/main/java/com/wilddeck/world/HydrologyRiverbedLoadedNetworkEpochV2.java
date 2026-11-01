@@ -86,6 +86,53 @@ public final class HydrologyRiverbedLoadedNetworkEpochV2 {
         return sorted;
     }
 
+    private record HaloHeight(GlobalHydrologyAddressV2.Sample sample,
+                              double before, double after) {}
+
+    /**
+     * Every overlapping one-ring halo must agree on the physical elevation
+     * both before and after the proposed batch. Independently sampled terrain
+     * or a neighbor's unseen bed edit cannot silently invalidate a route.
+     * Cross-resolution aliases fail closed rather than being interpolated.
+     */
+    private static void verifySharedHalos(
+            Map<String,RegionStep> steps,
+            Map<String,HydrologyRiverbedCheckpointV2.Planned> previews) {
+        var seen = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,HaloHeight>();
+        for (var entry : steps.entrySet()) {
+            var step = entry.getValue();
+            var envelope = HydrologySedimentCheckpointV2.decode(
+                step.expectedPrevious().worldState());
+            var lake = HydrologyLakeSedimentSnapshotV2.decode(
+                step.baseline(),envelope.world());
+            var previous = HydrologyTerrainOverlayV2.decode(lake.water().world());
+            var before = HydrologyTerrainOverlayV2.elevations(step.seed(),previous);
+            var after = HydrologyTerrainOverlayV2.elevations(
+                step.seed(),previews.get(entry.getKey()).riverbed().terrain());
+            var halo = new TreeSet<GlobalHydrologyAddressV2.Sample>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            for (var node : step.baseline().routes()) {
+                halo.add(node.address());
+                halo.addAll(HydrologySphericalTopologyV2.neighbors(node.address()));
+            }
+            for (var sample : halo) {
+                double oldHeight = before.at(sample);
+                double newHeight = after.at(sample);
+                if (!Double.isFinite(oldHeight) || !Double.isFinite(newHeight))
+                    throw new IllegalArgumentException("Nonfinite shared riverbed halo");
+                var current = new HaloHeight(sample,oldHeight,newHeight);
+                var earlier = seen.putIfAbsent(
+                    HydrologyGlobalCatchmentsV2.coordinate(sample),current);
+                if (earlier != null &&
+                    (!earlier.sample().equals(sample) ||
+                     Double.compare(earlier.before(),oldHeight) != 0 ||
+                     Double.compare(earlier.after(),newHeight) != 0))
+                    throw new IllegalArgumentException(
+                        "Inconsistent shared riverbed halo or uncoordinated neighbor edit");
+            }
+        }
+    }
+
     /**
      * Read-only whole-network preflight. No receiver is changed if any region
      * has a bad route, stale checkpoint, overlapping ownership or open receipt.
@@ -103,6 +150,7 @@ public final class HydrologyRiverbedLoadedNetworkEpochV2 {
 
         var pending = new TreeMap<String,HydrologyRiverbedCheckpointV2.Planned>();
         var completed = new TreeSet<String>();
+        var previews = new TreeMap<String,HydrologyRiverbedCheckpointV2.Planned>();
         BigDecimal erodedMass = BigDecimal.ZERO, depositedMass = BigDecimal.ZERO;
         for (var entry : ordered.entrySet()) {
             String name = entry.getKey();
@@ -130,6 +178,7 @@ public final class HydrologyRiverbedLoadedNetworkEpochV2 {
                 step.dryBulkDensity(),step.maximumIncision(),step.maximumRise());
             if (preview.next().epoch() != targetEpoch)
                 throw new IllegalArgumentException("Riverbed preview epoch mismatch");
+            previews.put(name,preview);
             var actual = HydrologyCheckpointStoreV2.load(step.receiver().checkpoint());
             if (actual.equals(step.expectedPrevious())) {
                 pending.put(name,preview);
@@ -141,6 +190,7 @@ public final class HydrologyRiverbedLoadedNetworkEpochV2 {
             erodedMass = erodedMass.add(BigDecimal.valueOf(preview.riverbed().erodedMass()));
             depositedMass = depositedMass.add(BigDecimal.valueOf(preview.riverbed().depositedMass()));
         }
+        verifySharedHalos(ordered,previews);
         if (erodedMass.compareTo(depositedMass) != 0 ||
             !Double.isFinite(erodedMass.doubleValue()) ||
             !Double.isFinite(depositedMass.doubleValue()))
