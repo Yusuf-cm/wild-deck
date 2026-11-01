@@ -173,6 +173,27 @@ class HydrologyRiverLakeSedimentCouplingV2Test {
                 masses(original,1,0),capacity(original)));
     }
 
+    @Test void seededSedimentMassSweepConservesAndReordersExactly() {
+        var base=plan();
+        var reversed=new ArrayList<>(base.routes());
+        Collections.reverse(reversed);
+        var other=new HydrologySphericalLakeBasinsV2.Plan(reversed,base.lakes());
+        var random=new Random(41792);
+        for (int trial=0;trial<200;trial++) {
+            var mass=masses(base,random.nextInt(5000),random.nextInt(1000));
+            var caps=capacity(base);
+            caps.put(FROM,(double)random.nextInt(5000));
+            caps.put(B,(double)random.nextInt(1000));
+            var a=HydrologyRiverSedimentTransportV2.route(base,mass,caps);
+            var b=HydrologyRiverSedimentTransportV2.route(other,mass,caps);
+            assertEquals(a,b,"Sediment routing depends on enumeration at trial "+trial);
+            assertEquals(0,a.budget().residual(),1e-10);
+            assertEquals(a.budget().eroded(),
+                a.budget().riverDeposited()+a.budget().lakeCaptured()+
+                a.budget().terminalExported()+a.budget().pendingExported(),1e-8);
+        }
+    }
+
     @Test void completeLakeSiltingRefusesUnverifiedDrainageAndPreservesInputs() {
         var base=plan();
         var original=new HydrologyLakeStateV2.State("unchanged",Map.of(A,4.0));
