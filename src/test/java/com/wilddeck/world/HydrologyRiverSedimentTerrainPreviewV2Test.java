@@ -65,7 +65,7 @@ class HydrologyRiverSedimentTerrainPreviewV2Test {
             HydrologyRiverSedimentTerrainPreviewV2.preview(
                 new HydrologyTerrainOverlayV2.State("x",Map.of()),
                 seed(),plan(),Map.of(A,0.0,B,0.0,C,1.0),
-                Map.of(A,10.0,B,10.0,C,0.0),area(),2000));
+                Map.of(A,10.0,B,10.0,C,1.0),area(),2000));
     }
 
     @Test void invalidAreaDensityOrSourceCoverageFails() {
