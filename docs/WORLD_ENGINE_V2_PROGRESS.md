@@ -1706,3 +1706,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 6. Finish automatic planetary drainage discovery, multiple lake spillways, groundwater, calibrated climate/seasonal forcing, timed flooding, transfer authentication and large-world endurance/physics calibration.
 
 **Safety:** Only the requested development branch was written. No merge, PR, `main` or other-branch write, production operation, or paid infrastructure change. **Hydrology remains unfinished.**
+
+
+## 2026-11-01 — Durable sediment delivery coordination and crash-gap recovery (CI verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `6e366028e936ecc0b06b8e4a77afe0d8e8316a78`. At the start of this run, the latest push-triggered [Java CI 41295045544](https://github.com/Yusuf-cm/wild-deck/actions/runs/41295045544) was independently inspected and **passed with 856 Maven/JUnit tests, 0 failures/errors/skips**. This supersedes the prior section's unverified status for receiver recovery: those nine methods were included in that green baseline.
+
+### Implementation and commits
+
+- `56650b82c6bb31c4f8503c1d4c6143be85f6ba85`: added opt-in `HydrologySedimentTransferCoordinatorV2`. `deliverAndAcknowledge` reads an already durable sender outbox, selects only receipts owned by the specified physical receiver vertices, checks conflicts and closed epochs before writes, persists a deterministic receiver batch, then records receiver-backed sender acknowledgments. Exact retries do not double-count mass or re-acknowledge receipts. Foreign/unloaded destinations remain in the sender outbox. It detects sender/receiver file aliases.
+- The same class adds `recoverAndAcknowledge`: checks distinct sender journals, uses `HydrologySedimentReceiverRecoveryV2.repairBatch` to reconcile the **complete caller-supplied** sender history in one receiver checkpoint, then acknowledges each sender in deterministic key order. Acknowledgments are independent local writes, so a crash between them requires a retry; the receiver checkpoint is never rolled back by the coordinator.
+- `a026793705989cbc26a63067fe15b1ea51f85824`: added ten JUnit tests for durable delivery, idempotence, unloaded destinations, two-sender confluences, receiver failure rollback, closed epochs, conflicting mass, receiver backup restoration after acknowledgment, physical ownership/file aliases, duplicate sender files and 70 seeded transfers.
+- `1dc907f8a92a051a50586492e8f956f5374e110c`: corrected the cross-resolution physical-vertex test fixture. The earlier [CI 41299432664](https://github.com/Yusuf-cm/wild-deck/actions/runs/41299432664) failed **one** test because the original fixture represented a different geographic vertex, not because of a source compilation failure. The corrected [CI 41299442641](https://github.com/Yusuf-cm/wild-deck/actions/runs/41299442641) **passed all 866 tests**.
+- `51375446692e7d107b3e874f868988bc1425ff23`: added two crash-gap regression tests: receiver checkpoint committed before sender acknowledgment, and partial acknowledgment across multiple senders. Both prove retry convergence without re-receiving sediment.
+
+### Verified acceptance evidence
+
+- [Final implementation CI 41299545494](https://github.com/Yusuf-cm/wild-deck/actions/runs/41299545494) **passed**: **868 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped**. This is **12 new JUnit methods** relative to the 856-test starting baseline. The dedicated `HydrologySedimentTransferCoordinatorV2Test` suite passed all 12 methods. Java build, world experiment, resource replay, browser-save checks, atlas export and real-browser atlas verification completed successfully.
+- Deterministic receiver ownership uses geographic normalization rather than sample-object equality. Incoming sediment is counted once per durable receipt, and mass remains in sender history after acknowledgment for replay recovery. A transfer is acknowledged only after the receiver checkpoint persists the exact mass.
+- Local-file atomicity is **per checkpoint only**. The two files are not committed in one distributed transaction. A crash between receiver and sender writes is recoverable by idempotent replay **provided the receiver epoch remains open for any missing receipt**. The tests exercise the ordinary crash gap, partial sender acknowledgments, and recovery from a restored older receiver checkpoint.
+
+### Remaining hydrology acceptance gaps
+
+1. **Authoritative integration:** the new coordinator is opt-in; the world runner does not automatically dispatch sediment, authenticate senders, discover authoritative receiver ownership, or schedule cross-region delivery/recovery. Sender outbox persistence must be coordinated with the terrain epoch that generated exported sediment.
+2. **Closed-epoch disaster recovery:** if a receiver loses a previously committed receipt and has already advanced past its arrival epoch, replay correctly fails closed. A full checkpoint/epoch rollback and re-simulation protocol, plus trusted durable backups, is not implemented.
+3. **Cross-region security and concurrency:** no authenticated network transport, interprocess locking, global transaction, or cross-region exactly-once guarantee. Caller-supplied complete sender sets and physical ownership are trusted preconditions.
+4. **Replay-safe compaction:** sender/receiver histories remain unbounded until independently durable global replay barriers and watermarks can prove safe truncation.
+5. **Authoritative erosion/topology:** riverbed sediment erosion/deposition is still a guarded preview, not a joint terrain/lake/water/sediment/receipt checkpoint. In-flight water/sediment migration across changed drainage routes and multiple spillways remains unresolved.
+6. **Planetary physics:** automatic full-world drainage discovery, groundwater, calibrated seasonal climate and sediment transport, physically timed flooding, and large-world endurance/physical validation remain unfinished.
+
+**Safety:** No merges, PRs, writes to `main` or other branches, production changes or paid infrastructure changes. **Hydrology is NOT complete.** Continue hydrology before other world layers.
