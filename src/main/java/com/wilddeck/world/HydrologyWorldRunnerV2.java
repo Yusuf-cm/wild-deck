@@ -654,6 +654,63 @@ public final class HydrologyWorldRunnerV2 {
         return committed;
     }
 
+    /**
+     * Stronger opt-in riverbed commit for a caller-declared complete, quiescent
+     * cross-region sediment network. The loaded ownership set must include
+     * this checkpoint exactly once and own every drainage vertex physically.
+     *
+     * The global topology gate audits sender histories, receiver receipts and
+     * parked water before the local riverbed checkpoint is modified. Callers
+     * MUST hold an external single-writer barrier covering all supplied files:
+     * this is not an atomic distributed lock, nor proof that omitted senders
+     * or unloaded regions are quiescent.
+     */
+    public synchronized HydrologyRiverbedCheckpointV2.Planned
+            advanceQuiescentRouteVerifiedRiverbedEpoch(
+            Map<String,Path> senderFiles,
+            Map<String,HydrologySedimentLoadedRegionsV2.Receiver> loaded,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            HydrologyRiverSedimentTransportV2.Result transport,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity,double maximumIncision,double maximumRise)
+            throws IOException {
+        Objects.requireNonNull(senderFiles);
+        Objects.requireNonNull(loaded);
+        Objects.requireNonNull(baseline);
+        ensureFresh();
+        int matching = 0;
+        Set<HydrologyGlobalCatchmentsV2.Coordinate> localOwnership = Set.of();
+        for (var receiver : loaded.values()) {
+            Objects.requireNonNull(receiver);
+            Path candidate = receiver.checkpoint();
+            if (checkpointPath.toAbsolutePath().normalize().equals(
+                    candidate.toAbsolutePath().normalize()) ||
+                Files.exists(checkpointPath) && Files.exists(candidate) &&
+                    Files.isSameFile(checkpointPath,candidate)) {
+                matching++;
+                var owned = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+                for (var address : receiver.ownedVertices())
+                    owned.add(HydrologyGlobalCatchmentsV2.coordinate(address));
+                localOwnership = owned;
+            }
+        }
+        if (matching != 1)
+            throw new IllegalArgumentException(
+                "Runner checkpoint must have exactly one loaded region owner");
+        for (var node : baseline.routes())
+            if (!localOwnership.contains(
+                    HydrologyGlobalCatchmentsV2.coordinate(node.address())))
+                throw new IllegalArgumentException(
+                    "Runner drainage vertex is not owned by its receiver region");
+        HydrologySedimentTopologyGateV2.requireQuiescent(senderFiles,loaded);
+        return advanceRouteVerifiedRiverbedEpoch(
+            baseline,nextWorld,seed,eroded,transport,cellArea,
+            dryBulkDensity,maximumIncision,maximumRise);
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
