@@ -168,6 +168,41 @@ public final class HydrologySedimentCheckpointV2 {
             Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
             double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode)
             throws IOException {
+        return advanceLakeInternal(path,previous,baseline,water,transportCapacity,
+            dryBulkDensity,mode,null,null);
+    }
+
+    /**
+     * Persist imported sediment, lake-bed elevation, lake geometry, retained
+     * water and consumed sediment receipt markers in ONE guarded checkpoint.
+     * The previous lake bed must match the authoritative terrain overlay
+     * exactly. Existing lake ownership/spill topology cannot change.
+     *
+     * This does NOT commit riverbed changes or authenticate sender histories.
+     * Delivery must first be persisted by the durable sediment coordinator.
+     */
+    public static Committed advanceLakeWithTerrain(
+            Path path,HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode)
+            throws IOException {
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(seed);
+        return advanceLakeInternal(path,previous,baseline,water,transportCapacity,
+            dryBulkDensity,mode,nextWorld,seed);
+    }
+
+    private static Committed advanceLakeInternal(
+            Path path,HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed)
+            throws IOException {
         Objects.requireNonNull(path);
         Objects.requireNonNull(previous);
         Objects.requireNonNull(baseline);
@@ -201,8 +236,11 @@ public final class HydrologySedimentCheckpointV2 {
             lake.budget().sedimentExported() != 0)
             throw new IllegalArgumentException(
                 "Sediment leaves verified lake beds: terrain/export transaction required");
+        String world = seed == null ? restored.water().world() :
+            HydrologyLakeSedimentTerrainBindingV2.updateWorld(nextWorld,seed,
+                restored.plan(),lake.updatedPlan(),restored.water().world());
         var retained = new HydrologyLakeStateV2.State(
-            restored.water().world(),lake.water().state().volumes());
+            world,lake.water().state().volumes());
         String lakePayload = HydrologyLakeSedimentSnapshotV2.encode(
             baseline,lake.updatedPlan(),retained);
         var next = new HydrologyCheckpointV2.Checkpoint(epoch,
