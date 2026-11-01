@@ -17,7 +17,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
     }
     private static final GlobalHydrologyAddressV2.Sample
         A=at(0,2), B=at(1,2), C=at(2,2), D=at(3,2),
-        E=at(1,3), F=at(2,3), G=at(3,3);
+        E=at(1,3), F=at(2,3), G=at(3,3), H=at(0,3);
 
     private static HydrologySphericalLakeBasinsV2.Plan baseline(
             GlobalHydrologyAddressV2.Sample anchor,
@@ -105,7 +105,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
     @Test void twoLoadedLakesAndUnloadedDestinationConserveAllSediment()
             throws IOException {
         var west=receipt(0,A,B);
-        var east=receipt(0,D,E);
+        var east=receipt(0,H,E);
         var unloaded=receipt(1,B,C);
         var senders=Map.of(
             "s1",sender("s1",Map.of(west,2000.0,unloaded,3000.0)),
@@ -133,7 +133,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
     @Test void invalidSecondLakeFailsPreflightWithoutCommittingFirst()
             throws IOException {
         var senders=Map.of("s1",sender("bad",Map.of(
-            receipt(0,A,B),1000.0,receipt(0,D,E),1000.0)));
+            receipt(0,A,B),1000.0,receipt(0,H,E),1000.0)));
         var regions=regions(2);
         var beforeWest=HydrologyCheckpointStoreV2.load(
             regions.get("west").receiver().checkpoint());
@@ -152,7 +152,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
     @Test void partialEpochRetrySkipsAlreadyCommittedRegion()
             throws IOException {
         var senders=Map.of("s1",sender("retry",Map.of(
-            receipt(0,A,B),2000.0,receipt(0,D,E),1000.0)));
+            receipt(0,A,B),2000.0,receipt(0,H,E),1000.0)));
         var regions=regions(0);
         var loaded=new TreeMap<String,HydrologySedimentLoadedRegionsV2.Receiver>();
         for (var entry:regions.entrySet())
@@ -178,7 +178,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
     @Test void replaySameTargetEpochDoesNotReapplySedimentOrWater()
             throws IOException {
         var senders=Map.of("s1",sender("replay",Map.of(
-            receipt(0,A,B),2000.0,receipt(0,D,E),1000.0)));
+            receipt(0,A,B),2000.0,receipt(0,H,E),1000.0)));
         var regions=regions(0);
         HydrologySedimentLoadedLakeNetworkEpochV2.advance(senders,regions,1);
         var before=new TreeMap<String,HydrologyCheckpointV2.Checkpoint>();
