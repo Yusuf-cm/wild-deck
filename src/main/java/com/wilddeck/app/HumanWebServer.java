@@ -1,0 +1,194 @@
+package com.wilddeck.app;
+
+import com.wilddeck.engine.*;
+import com.wilddeck.world.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/** Browser-local playtest state. HTTP sessions and opaque saves are managed by BrowserGameServer. */
+public final class HumanWebServer {
+    private final PlayableSession session = PlayableSession.standard(42L,null);
+    private String lastMessage = "Welcome to your kingdom.";
+    private ThreeKingdomScenario scenario;
+    private HistoricalReplay historicalReplay;
+    private KingdomReplayHarness actualReplay;
+    private RndMatchEngine rndMatch;
+    public static void main(String[] args) throws Exception {
+        int port=Integer.parseInt(System.getenv().getOrDefault("PORT","10000"));
+        BrowserGameServer server=new BrowserGameServer(port,MatchSaveCodec.fromEnvironment(),
+            !System.getenv().getOrDefault("WILD_DECK_COOKIE_SECURE","true").equals("false"));
+        server.start();
+        System.out.println("Wild Deck Human Alpha listening on "+server.port());
+    }
+
+    void command(String input){lastMessage=act(input);}
+    RndMatchEngine.Snapshot snapshot(){return rndMatch==null?null:rndMatch.snapshot();}
+    String message(){return lastMessage;}
+    void restore(MatchSaveCodec.Save save){
+        RndMatchEngine restored=RndMatchEngine.restore(save.match());
+        rndMatch=restored;lastMessage=save.message();
+    }
+
+    private String act(String input) {
+        if(input.isBlank()) return "Type an order.";
+        if (input.equalsIgnoreCase("reset sandbox")) {
+            rndMatch=null;
+            scenario=null;
+            historicalReplay=null;
+            actualReplay=null;
+            return "Returned to basic sandbox. Previous match closed; sandbox state retained.";
+        }
+        boolean quick=input.equalsIgnoreCase("new quick game")||input.toLowerCase(Locale.ROOT).startsWith("new quick game ");
+        if (quick || input.equalsIgnoreCase("new four player game") || input.toLowerCase(Locale.ROOT).startsWith("new four player game ")) {
+            long seed=20261010L;
+            String seedText=input.substring((quick?"new quick game":"new four player game").length()).trim();
+            if(!seedText.isEmpty())try{seed=Long.parseLong(seedText);}catch(NumberFormatException ex){return "Seed must be a signed 64-bit integer; current match unchanged.";}
+            rndMatch = quick?RndMatchEngine.startQuick(seed):RndMatchEngine.start(seed);
+            return (quick?"New quick match opened":"New four-player table opened")+" at Round 0. You control Player 1. Seed: "+seed;
+        }
+        if (rndMatch != null) {
+            RndMatchEngine.Result result = rndMatch.command("player",input);
+            if (result.success() && input.trim().matches("(?i)pass|end turn")) {
+                List<String> actions = rndMatch.takeOpponentTurns();
+                return "Turn completed. Active: "+rndMatch.activeSeat()+"; round "+rndMatch.round()+"\nOpponent moves: "+actions+"\n"+rndMatch.winner().map(w->"MATCH WON by "+w).orElse("Match ongoing.");
+            }
+            return result.message();
+        }
+        if (input.equalsIgnoreCase("run rules replay")) {
+            actualReplay = new KingdomReplayHarness();
+            return "Rule-resolved historical replay validated; inspect the reconstructed ledger.";
+        }
+        if (input.equalsIgnoreCase("replay rounds 0-18")) {
+            historicalReplay = new HistoricalReplay();
+            return "Historical replay validated; see audit report below.";
+        }
+        if (input.equalsIgnoreCase("load cycle 18")) {
+            scenario = new ThreeKingdomScenario();
+            return "Loaded Cycle 18 historical scenario. Type hand, cards, draw, deploy, assign, inspect, trade, break treaty, or next round.";
+        }
+        if (scenario != null) return scenario.command(input);
+        GameState state=session.state();
+        String id=session.humanPlayerId();
+        PlayerState player=state.player(id);
+        String lower=input.toLowerCase(Locale.ROOT);
+        if(lower.equals("next round") || lower.equals("end") || lower.equals("pass")) {
+            // Human-only: NPCs do not receive actions in the sandbox.
+            do {session.endTurn();} while(!session.humanTurn());
+            return "Advanced to round "+state.round()+".";
+        }
+        if(lower.equals("world")) {
+            StringBuilder result = new StringBuilder("World locations:\n");
+            for (WorldLocation location : state.world().locations()) {
+                result.append(location.id()).append(" [").append(location.properties())
+                    .append("] -> ").append(state.world().neighbors(location.id())).append("\n");
+            }
+            for (CardInstance card : player.kingdom()) {
+                result.append(card.definition().name()).append(": ")
+                    .append(state.cardLocation(card.id()).orElse("unplaced")).append("\n");
+            }
+            return result.toString();
+        }
+        if(lower.startsWith("move ")) {
+            String[] parts = input.trim().split("\\s+");
+            if(parts.length != 3) return "Usage: move <deployed-card-index> <location-id>";
+            int index;
+            try { index = Integer.parseInt(parts[1]); }
+            catch(NumberFormatException ex) { return "Card index must be a number."; }
+            List<CardInstance> cards = List.copyOf(player.kingdom());
+            if(index < 0 || index >= cards.size()) return "Card index out of range.";
+            new WorldEngine().move(state,id,cards.get(index).id(),parts[2]);
+            return cards.get(index).definition().name() + " moved to " + parts[2];
+        }
+        if(lower.equals("draw") || lower.equals("draw a card")) return session.executor().draw(state,id).message();
+        if(lower.startsWith("deploy ") || lower.startsWith("play ")) {
+            String search=input.substring(input.indexOf(' ')+1).trim();
+            Optional<CardInstance> card=PlayableAlphaCli.findHandCardByName(player.hand(),search);
+            if(card.isEmpty()) return "You do not have that card in hand.";
+            return session.executor().play(state,id,card.get().id(),false).message();
+        }
+        // Management commands print to console; capture for display in browser.
+        synchronized (HumanWebServer.class) {
+        ByteArrayOutputStream buffer=new ByteArrayOutputStream();
+        PrintStream original=System.out;
+        try(PrintStream capture=new PrintStream(buffer,true,StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            if(!session.management().command(input,state,id))
+                return "Unsupported command. Try draw, deploy <card>, explore, assign <unit> to <task>, auto mine on, develop <deposit>, hire <role> for <gold>, or next round.";
+        } finally {System.setOut(original);}
+        String output=buffer.toString(StandardCharsets.UTF_8).trim();
+        return output.isBlank()?"Order completed.":output;
+        }
+    }
+
+    String render(){
+        GameState state=session.state();
+        PlayerState player=state.player(session.humanPlayerId());
+        StringBuilder html=new StringBuilder("""
+            <!doctype html><html lang="en"><head><meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Wild Deck — Human Alpha</title><style>
+            :root{color-scheme:dark}body{margin:0;background:#10151c;color:#e9e5d8;font:16px system-ui, sans-serif}
+            main{max-width:1040px;margin:30px auto;padding:0 18px}
+            h1{font-family:Georgia,serif;font-size:40px;margin-bottom:5px;color:#e1bb71}
+            h2{font-size:19px;margin:12px 0}p,small{color:#b5b5b5}
+            .layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+            .panel{border:1px solid #414349;border-radius:12px;background:#1b222b;padding:18px}
+            .wide{grid-column:1 / -1}.chips{display:flex;gap:12px;flex-wrap:wrap}
+            .chip{background:#293340;padding:12px 16px;border-radius:9px}
+            form{display:flex;gap:10px}input{flex:1;min-width:0;padding:14px;border-radius:8px;background:#111923;color:#fff;border:1px solid #626d7a}
+            button{border:0;background:#d9b16c;color:#171b20;padding:14px 18px;font-weight:bold;border-radius:8px;cursor:pointer}
+            li{margin:8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}
+            @media(max-width:720px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}form{flex-direction:column}}
+            </style></head><body><main><h1>Wild Deck</h1><p>Human-play alpha · World round
+            """);
+        html.append(rndMatch != null ? rndMatch.round() : state.round()).append(" · Private browser session (no accounts)</p>");
+        if (rndMatch != null) {
+            html.append("<section class='panel'><h2>").append(rndMatch.quickMatch()?"Wild Deck — Quick Match":"Wild Deck R&D — Four Player Table").append("</h2>")
+                .append("<form method='POST' action='/action'><input name='command' maxlength='250' required placeholder='Try help, world, deploy <card>, move <card> to C1, pass'><button>Issue order</button></form>")
+                .append("<p>Diplomacy: <b>deals</b> shows offers and promises. Try <b>offer asha peace 3</b> or <b>offer asha give 2 gold for 1 wealth</b>. Use <b>accept D1</b>, <b>reject D1</b>, or <b>cancel D1</b>. Ceasefires are breakable promises: <b>betray asha</b> ends one and records lost trust publicly.</p>")
+                .append("<p>Combined orders: <b>combine &lt;fire-source&gt; with &lt;troop&gt; to flush N1</b>. Requires owned FIRE/IGNITE and deployed adjacent ATTACK support, 1 Wealth, normal source cost, and your main + hostile actions. Defenders get a response turn; water cancels, fireproof units hold, blocked escapes pin. Keep the supporting troop in place. Use <b>interactions</b> for outcomes.</p>")
+                .append("<pre>").append(esc(lastMessage)).append("</pre>")
+                .append("<pre>").append(esc(rndMatch.view("player"))).append("</pre>")
+                .append("<p>Use <b>reset sandbox</b> to close this match and return to the basic sandbox. Use <b>cards</b> for available card effects. Equip with <b>attach &lt;equipment&gt; to &lt;unit&gt;</b>; treat wounds with <b>heal &lt;healer&gt; to &lt;unit&gt;</b> (same location, 1 Wealth or 2 Gold, once per healer per round; add <b>with gold</b> to choose Gold). Use <b>world</b> for region IDs and deployed card locations; <b>help</b> for commands. Move: <b>move &lt;card-name-or-id&gt; to &lt;region-id&gt;</b>. Raids need forces at the target capital. Use fire/water cards on regions. Battles cause persistent wounds and casualties. Use <b>repel &lt;kingdom&gt;</b> to counterattack intruders, or <b>conquer &lt;kingdom&gt;</b> after clearing its capital. Occupation must survive a defender turn; last independent kingdom wins.</p><p>").append(rndMatch.poolSize()).append("-card seeded deck. Other players' hands remain hidden. Quick and full matches autosave in this browser. Keep site data to restore after a server restart. Sandbox and historical replay modes are temporary.</p></section>");
+            return html.append("</main></body></html>").toString();
+        }
+        if (actualReplay != null) {
+            html.append("<section class='panel'><h2>Rules-Engine Regression Replay</h2><pre>")
+                .append(esc(actualReplay.report())).append("</pre></section>");
+            return html.append("</main></body></html>").toString();
+        }
+        if (historicalReplay != null) {
+            html.append("<section class='panel'><h2>Round 0–18 Historical Replay</h2><pre>")
+                .append(esc(historicalReplay.report())).append("</pre></section>");
+            return html.append("</main></body></html>").toString();
+        }
+        if (scenario != null) {
+            html.append("<section class='panel'><h2>Three Kingdoms — Cycle 18 Scenario</h2>")
+                .append("<form method='POST' action='/action'><input name='command' maxlength='250' placeholder='Give an order'><button>Issue order</button></form>")
+                .append("<pre>").append(esc(lastMessage)).append("</pre><pre>").append(esc(scenario.summary()))
+                .append("</pre><h2>Recent events</h2><pre>").append(esc(scenario.visibleHistory()))
+                .append("</pre><p>Provisional scripted card referee. Use reset sandbox to exit.</p></section>");
+            return html.append("</main></body></html>").toString();
+        }
+        html.append("<p>Type <b>new quick game [seed]</b> for the supported-card match, or <b>new four player game [seed]</b> for the full R&D pool. In the basic sandbox, use <b>world</b> and <b>move 0 forest</b> to test geography.</p>");
+        html.append("<p>Type <b>replay rounds 0-18</b> for the audited event replay, <b>run rules replay</b> to execute conserved mechanics, or <b>load cycle 18</b> to play the historical checkpoint.</p>");
+        html.append("<div class='layout'><section class='panel wide'><h2>Kingdom Treasury</h2><div class='chips'>");
+        player.resources().snapshot().forEach((resource,value)->html.append("<div class='chip'>").append(esc(resource.name())).append(": <b>").append(value).append("</b></div>"));
+        html.append("</div></section><section class='panel wide'><h2>Give an order</h2><form method='POST' action='/action'>")
+            .append("<input name='command' maxlength='250' required placeholder='e.g. deploy Beastmaster, explore, auto mine on'>")
+            .append("<button>Issue order</button></form><pre>").append(esc(lastMessage)).append("</pre>")
+            .append("<small>Draw once per round; deploy any cards. Type 'next round' to advance production.</small></section>");
+        html.append("<section class='panel'><h2>Your Hand (").append(player.hand().size()).append(")</h2><ul>");
+        for(CardInstance c:player.hand()) html.append("<li>").append(esc(c.definition().name())).append("</li>");
+        html.append("</ul></section><section class='panel'><h2>Deployed Cards (").append(player.kingdom().size()).append(")</h2><ul>");
+        for(CardInstance c:player.kingdom()) html.append("<li>").append(esc(c.definition().name())).append("</li>");
+        html.append("</ul></section>");
+        html.append("<section class='panel wide'><h2>Kingdom Management</h2><pre>")
+            .append(esc(session.management().dashboard(state,session.humanPlayerId())))
+            .append("</pre></section></div></main></body></html>");
+        return html.toString();
+    }
+    private static String esc(String text) {return text.replace("&","&amp;").replace("<","&lt;")
+        .replace(">","&gt;").replace("\"","&quot;").replace("'","&#39;");}
+}

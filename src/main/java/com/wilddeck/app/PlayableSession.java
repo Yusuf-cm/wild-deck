@@ -2,6 +2,7 @@ package com.wilddeck.app;
 
 import com.wilddeck.ai.*;
 import com.wilddeck.engine.*;
+import com.wilddeck.world.*;
 
 import java.util.*;
 
@@ -14,6 +15,7 @@ public final class PlayableSession {
     private final WarfareEngine warfare = new WarfareEngine();
     private final KingdomWarfareEngine kingdoms = new KingdomWarfareEngine();
     private final PlayableActionExecutor executor = new PlayableActionExecutor();
+    private final KingdomManagement management = new KingdomManagement();
     private final HeuristicOpponentAgent heuristic = new HeuristicOpponentAgent();
     private final WildDeckAiService groqAi;
     private int turnIndex;
@@ -39,6 +41,7 @@ public final class PlayableSession {
                 turnOrder.get(0)
         );
 
+        state.setWorld(new WorldGenerator().generate(seed, turnOrder));
         game.initializeResources(state);
         dealOpeningHands(7);
         game.startRound(state,turnOrder.get(0));
@@ -63,6 +66,7 @@ public final class PlayableSession {
 
     public GameState state() { return state; }
     public PlayableActionExecutor executor() { return executor; }
+    public KingdomManagement management() { return management; }
     public String humanPlayerId() { return humanPlayerId; }
     public String currentPlayerId() { return state.activePlayerId(); }
     public boolean humanTurn() { return humanPlayerId.equals(currentPlayerId()); }
@@ -95,6 +99,7 @@ public final class PlayableSession {
             game.advanceRound(state,next);
             production.collectForRound(state);
             resolveRoundStartMaintenance();
+            management.onRound(state,humanPlayerId);
             state.addEvent(new GameEvent(
                     state.round(),"ROUND_STARTED",null,null,List.of(),
                     "Round " + state.round() + " started.",Set.of()));

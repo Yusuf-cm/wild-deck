@@ -1,9 +1,13 @@
 package com.wilddeck.engine;
 
 import java.util.*;
+import com.wilddeck.world.*;
 
 public final class GameState {
     private final GameRules rules;
+    private WorldMap world;
+    private final Map<String,String> cardLocations = new LinkedHashMap<>();
+    private final Map<String,Integer> lastMovedRound = new HashMap<>();
     private final Map<String,PlayerState> players = new LinkedHashMap<>();
     private final List<Contract> contracts = new ArrayList<>();
     private final Map<String,Occupation> occupations = new LinkedHashMap<>();
@@ -14,6 +18,7 @@ public final class GameState {
     private final Deque<CardInstance> deck = new ArrayDeque<>();
     private String activePlayerId;
     private boolean mainActionUsed;
+    private boolean cardDrawUsed;
     private int round = 1;
 
     public GameState(GameRules rules, Collection<PlayerState> players, Collection<CardInstance> deck, String firstPlayerId) {
@@ -24,9 +29,32 @@ public final class GameState {
     }
 
     public GameRules rules() { return rules; }
+    public boolean hasWorld() { return world != null; }
+    public void setWorld(WorldMap world) {
+        if (this.world != null) throw new IllegalStateException("world already initialized");
+        this.world = Objects.requireNonNull(world);
+    }
+    public WorldMap world() {
+        if (world == null) throw new IllegalStateException("world not initialized");
+        return world;
+    }
+    public Optional<String> cardLocation(String cardId) {
+        return Optional.ofNullable(cardLocations.get(cardId));
+    }
+    public void placeCard(String cardId, String locationId) {
+        if (findCard(cardId).isEmpty()) throw new IllegalArgumentException("unknown card");
+        if (world().location(locationId).isEmpty()) throw new IllegalArgumentException("unknown location");
+        cardLocations.put(cardId, locationId);
+    }
+    public boolean markCardMovedThisRound(String cardId) {
+        if (Objects.equals(lastMovedRound.get(cardId), round)) return false;
+        lastMovedRound.put(cardId, round);
+        return true;
+    }
     public int round() { return round; }
     public String activePlayerId() { return activePlayerId; }
     public boolean mainActionUsed() { return mainActionUsed; }
+    public boolean cardDrawUsed() { return cardDrawUsed; }
     public int deckSize() { return deck.size(); }
     public Collection<PlayerState> players() { return List.copyOf(players.values()); }
     public List<Contract> contracts() { return List.copyOf(contracts); }
@@ -59,11 +87,17 @@ public final class GameState {
     public void beginTurn(String playerId) {
         activePlayerId = playerId;
         mainActionUsed = false;
+        cardDrawUsed = false;
     }
 
     public void consumeMainAction() {
         if (mainActionUsed) throw new IllegalStateException("main action already used");
         mainActionUsed = true;
+    }
+
+    public void markCardDrawUsed() {
+        if (cardDrawUsed) throw new IllegalStateException("already drew a card this turn");
+        cardDrawUsed = true;
     }
 
     public void nextRound() { round++; }

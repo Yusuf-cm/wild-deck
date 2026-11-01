@@ -2,7 +2,7 @@ name: Java CI
 
 on:
   push:
-    branches: [ main, warfare-engine-v1 ]
+    branches: [ main, warfare-engine-v1, feature/live-world-playtest, feature/diplomacy-v1, feature/world-engine-v2 ]
   pull_request:
     branches: [ main ]
 
@@ -18,3 +18,29 @@ jobs:
           cache: maven
       - name: Run tests
         run: mvn --batch-mode test
+      - name: Run the smallest world experiment
+        run: java -cp target/classes com.wilddeck.world.WorldSandboxDemo
+      - name: Verify finite resource extraction and replay
+        run: java -cp target/classes com.wilddeck.world.ResourceExtractionDemo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify browser save controls
+        run: node --test src/test/js/browser-save.test.cjs
+      - name: Export portable Java-generated planet maps
+        run: java -cp target/classes com.wilddeck.world.PlanetAtlasExporter target/planet-atlas
+      - name: Install atlas browser test tools
+        run: |
+          npm install --prefix /tmp/wild-deck-browser --no-save --package-lock=false playwright@1.62.1
+          node /tmp/wild-deck-browser/node_modules/playwright/cli.js install chromium --with-deps
+      - name: Verify the atlas in a real browser
+        env:
+          NODE_PATH: /tmp/wild-deck-browser/node_modules
+        run: node src/test/js/planet-atlas-browser.cjs
+      - name: Keep atlas previews and browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planet-atlas
+          path: target/planet-atlas/
+          retention-days: 14

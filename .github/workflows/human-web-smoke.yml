@@ -1,0 +1,52 @@
+name: Human Web Smoke Test
+on:
+  push:
+    branches: [feature/freeform-card-play-v1]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build
+        run: mvn -q -DskipTests package dependency:copy-dependencies -DincludeScope=runtime
+      - name: Exercise browser match through HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          export WILD_DECK_SAVE_KEY="$(head -c 32 /dev/urandom | base64 -w0)"
+          export WILD_DECK_COOKIE_SECURE=false
+          PORT=18080 java -cp 'target/classes:target/dependency/*' com.wilddeck.app.HumanWebServer > /tmp/wild-deck-server.log 2>&1 &
+          server_pid=$!
+          trap 'cat /tmp/wild-deck-server.log; kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:18080/health | grep -q ok; then ready=true; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then echo "Server failed readiness"; exit 1; fi
+          curl -fsS -c /tmp/wild-deck-cookies http://127.0.0.1:18080/state -o /tmp/state.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/state.json') as f: state=json.load(f)
+          assert 'revision' in state
+          with open('/tmp/action.json','w') as f:
+              json.dump({'revision':state['revision'],'command':'new quick game 42'},f)
+          PY
+          curl -fsS -b /tmp/wild-deck-cookies -c /tmp/wild-deck-cookies \
+            -H 'X-Wild-Deck: 1' -H 'Content-Type: application/json' \
+            --data-binary @/tmp/action.json http://127.0.0.1:18080/action -o /tmp/result.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/result.json') as f: result=json.load(f)
+          assert result.get('save','').startswith('wd1.'), result
+          assert result['revision'] > 0, result
+          PY
+          echo "Browser match smoke passed"

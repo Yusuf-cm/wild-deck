@@ -1,5 +1,7 @@
 package com.wilddeck.engine;
 
+import com.wilddeck.world.*;
+
 public final class GameEngine {
 
     public void initializeResources(GameState state) {
@@ -25,34 +27,28 @@ public final class GameEngine {
 
     public CardInstance draw(GameState state, String playerId) {
         requireActive(state, playerId);
-        if (state.mainActionUsed()) throw new IllegalStateException("main action already used");
+        if (state.cardDrawUsed()) throw new IllegalStateException("already drew a card this turn");
         CardInstance card = state.drawTop();
         state.player(playerId).addToHand(card);
-        state.consumeMainAction();
+        state.markCardDrawUsed();
         return card;
     }
 
     public CardInstance playFromHand(GameState state, String playerId, String cardId, boolean hidden) {
         requireActive(state, playerId);
-        if (state.mainActionUsed()) throw new IllegalStateException("main action already used");
-
         PlayerState player = state.player(playerId);
         CardInstance card = player.removeFromHand(cardId);
         if (card == null) throw new IllegalArgumentException("card is not in hand");
 
-        if (!player.resources().canAfford(card.definition().cost())) {
-            player.addToHand(card);
-            throw new IllegalStateException("cannot afford card");
-        }
-
-        player.resources().spend(card.definition().cost());
         player.deploy(card, hidden);
+        if (!state.hasWorld()) state.setWorld(new WorldGenerator().generate(0L,
+                state.players().stream().map(PlayerState::id).toList()));
+        new WorldEngine().deployAtHome(state, card);
 
         if (!hidden) {
             for (PlayerState observer : state.players()) observer.reveal(card.id());
         }
 
-        state.consumeMainAction();
         return card;
     }
 

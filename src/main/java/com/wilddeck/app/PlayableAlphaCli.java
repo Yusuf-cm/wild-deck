@@ -9,7 +9,8 @@ public final class PlayableAlphaCli {
 
     public static void main(String[] args) {
         long seed = parseSeed(args);
-        WildDeckAiService groq = buildGroqIfConfigured();
+        boolean humanOnly = Arrays.asList(args).contains("--human-only");
+        WildDeckAiService groq = humanOnly ? null : buildGroqIfConfigured();
         PlayableSession session = PlayableSession.standard(seed,groq);
 
         System.out.println("Wild Deck Playable Alpha");
@@ -19,9 +20,14 @@ public final class PlayableAlphaCli {
                 : "AI: Groq enabled");
         System.out.println("Play naturally: type a card number/name, 'draw', or describe an action. Type 'help' for advanced commands.\n");
 
+        if (humanOnly) System.out.println("Human-only sandbox: other players do not act.\n");
         Scanner scanner = new Scanner(System.in);
 
         while (session.state().winner().isEmpty()) {
+            if (!session.humanTurn() && humanOnly) {
+                session.endTurn();
+                continue;
+            }
             if (!session.humanTurn()) {
                 PlayerState ai = session.state().player(session.currentPlayerId());
                 System.out.println("\n--- " + ai.name() + "'s turn ---");
@@ -43,7 +49,7 @@ public final class PlayableAlphaCli {
                 if (!scanner.hasNextLine()) return;
                 String line = scanner.nextLine().trim();
                 if (line.isBlank()) {
-                    if (session.state().mainActionUsed()) {
+                    if (session.state().cardDrawUsed()) {
                         print(session.endTurn());
                         end = true;
                     } else {
@@ -69,6 +75,7 @@ public final class PlayableAlphaCli {
             String line,
             WildDeckAiService groq
     ) {
+        if (session.management().command(line,session.state(),session.humanPlayerId())) return false;
         String[] parts = line.split("\\s+");
         String command = parts[0].toLowerCase(Locale.ROOT);
         PlayerState human = session.state().player(session.humanPlayerId());
@@ -87,6 +94,21 @@ public final class PlayableAlphaCli {
                     session.executor().play(
                             session.state(),human.id(),namedCard.get().id(),false),
                     session.state());
+            return false;
+        }
+
+        if (line.equalsIgnoreCase("draw a card") || line.equalsIgnoreCase("draw new card")) {
+            print(session.executor().draw(session.state(),human.id()));
+            return false;
+        }
+        if (line.toLowerCase(Locale.ROOT).startsWith("deploy ")) {
+            String requested = line.substring(7).trim();
+            Optional<CardInstance> deployment = findHandCardByName(human.hand(),requested);
+            if (deployment.isEmpty()) {
+                System.out.println("No matching card in your hand: " + requested);
+            } else {
+                print(session.executor().play(session.state(),human.id(),deployment.get().id(),false));
+            }
             return false;
         }
 
@@ -202,9 +224,9 @@ public final class PlayableAlphaCli {
     private static void printTurnDashboard(GameState state,PlayerState human) {
         System.out.println("Resources " + human.resources().snapshot()
                 + " | Deck " + state.deckSize()
-                + (state.mainActionUsed() ? " | MAIN ACTION USED" : ""));
+                + (state.cardDrawUsed() ? " | DRAW USED" : ""));
         printCards("YOUR HAND",human.hand());
-        System.out.println("Tip: type a number or card name. Example: 3 or Mana Shrine.");
+        System.out.println("Tip: type a number/card name, 'dashboard', 'assign Hydra to patrol', or 'explore'.");
     }
 
     static Optional<CardInstance> findHandCardByName(
@@ -230,8 +252,8 @@ public final class PlayableAlphaCli {
 
     private static void printWithTurnHint(ActionExecutionResult result,GameState state) {
         print(result);
-        if (result.success() && state.mainActionUsed()) {
-            System.out.println("Main action used. Press Enter or type 'end' when you are ready.");
+        if (result.success() && state.cardDrawUsed()) {
+            System.out.println("Draw used for this turn; you may still deploy cards and manage your kingdom.");
         }
     }
 
@@ -240,9 +262,14 @@ public final class PlayableAlphaCli {
             EASY PLAY
               <number>                  play that card from your hand
               <card name>               play that card by name
-              <natural language>        Groq translates what you mean
-              draw                      draw instead of playing
-              <Enter>                   end turn after your main action
+              dashboard / kingdom       kingdom resources, mines, standing orders\n              assign <card> to <order>  persistent orders for deployed cards\n              explore                   run exploration surveys each new round\n              develop <deposit>         spend Wealth to establish a resource mine\n              auto mine on / off        develop discoveries whenever affordable
+              hire <role> for <gold>    recruit a specialist for Gold
+              open market              activate local market
+              list <resource> for <gold> list commodity at sale price
+              sell <qty> <resource>    sell stock to local market
+              establish trade caravan activate caravan service\n              <natural language>        Groq translates other ideas when configured
+              draw                      draw once per turn (can still play cards)
+              <Enter>                   end turn after drawing
               end / done                end turn
 
             INSPECTION
@@ -301,7 +328,7 @@ public final class PlayableAlphaCli {
             CardInstance c = cards.get(i);
             System.out.printf(
                     "  [%d] %s | cost %s | STR %s | dmg %d | %s | %s%n",
-                    i,c.definition().name(),formatCost(c.definition().cost()),
+                    i,c.definition().name(),"free",
                     c.definition().strength() == null ? "-" : c.definition().strength(),
                     c.damage(),c.definition().capabilities(),c.states());
         }
