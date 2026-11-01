@@ -89,7 +89,7 @@ class HydrologyRiverbedMassBalanceV2Test {
     }
 
     @Test void sharedPhysicalVertexAndLakeCellEditsFailClosed() {
-        var alias=new GlobalHydrologyAddressV2.Sample(2,4,4,8);
+        var alias=new GlobalHydrologyAddressV2.Sample(2,4,4,4);
         var duplicate=new HydrologySphericalLakeBasinsV2.Plan(List.of(
             new HydrologyFlowGraphV2.Node(A,0,B,false),
             new HydrologyFlowGraphV2.Node(B,0,C,false),
