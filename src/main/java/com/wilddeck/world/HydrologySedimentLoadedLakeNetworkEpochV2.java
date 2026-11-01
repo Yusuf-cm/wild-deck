@@ -199,6 +199,10 @@ public final class HydrologySedimentLoadedLakeNetworkEpochV2 {
         if (!originals.keySet().equals(ordered.keySet()))
             throw new IllegalArgumentException("Missing or extra original lake checkpoint");
         var planned = plan(senders,ordered,targetEpoch);
+        // Reject forked or cross-resolution duplicated water receipts too.
+        HydrologyLoadedWaterAuditV2.requireSettled(
+            ordered.entrySet().stream().collect(java.util.stream.Collectors.toMap(
+                Map.Entry::getKey,entry -> entry.getValue().receiver())));
         for (var entry : ordered.entrySet()) {
             var actual = HydrologyCheckpointStoreV2.load(
                 entry.getValue().receiver().checkpoint());
