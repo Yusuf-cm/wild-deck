@@ -106,6 +106,9 @@ class HydrologySedimentLoadedLakeEpochV2Test {
         var committed=advance(senders,loaded(target),"season-one");
         assertEquals(2,committed.delivery().newlyReceived());
         assertEquals(2000,committed.lake().result().imported(),0.0);
+        assertEquals(2000,committed.afterEpoch().deliveredMass(),0.0);
+        assertEquals(3000,committed.afterEpoch().inTransitMass(),0.0);
+        assertEquals(0,committed.afterEpoch().awaitingMass(),0.0);
         assertEquals(1,committed.lake().checkpoint().epoch());
         assertEquals(Set.of(west),outbox(first).acknowledged());
         assertEquals(Set.of(north),outbox(second).acknowledged());
@@ -139,6 +142,8 @@ class HydrologySedimentLoadedLakeEpochV2Test {
         assertEquals(0,next.lake().result().imported(),0.0);
         assertEquals(0,next.delivery().newlyReceived());
         assertEquals(2,next.lake().checkpoint().epoch());
+        assertEquals(2000,next.afterEpoch().deliveredMass(),0.0);
+        assertEquals(0,next.afterEpoch().awaitingMass(),0.0);
         var persisted=HydrologySedimentCheckpointV2.decode(
             HydrologyCheckpointStoreV2.load(target).worldState());
         assertEquals(1,persisted.sediment().delivered().size());
