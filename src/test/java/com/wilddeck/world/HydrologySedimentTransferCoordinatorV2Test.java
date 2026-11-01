@@ -210,6 +210,50 @@ class HydrologySedimentTransferCoordinatorV2Test {
         assertEquals(before, HydrologyCheckpointStoreV2.load(target));
     }
 
+
+    @Test void crashAfterReceiverCommitBeforeAcknowledgmentCanRetry()
+            throws IOException {
+        var transfer = r(0);
+        Path source = sender("crash-gap", Map.of(transfer, 8.0));
+        Path target = receiver("crash-gap", 0);
+        var before = HydrologyCheckpointStoreV2.load(target);
+        var received = HydrologySedimentCheckpointV2.receiveBatch(
+            target, before, Map.of(transfer, 8.0));
+        assertTrue(outbox(source).acknowledged().isEmpty());
+
+        var retry = HydrologySedimentTransferCoordinatorV2.deliverAndAcknowledge(
+            source, target, List.of(B));
+        assertEquals(0, retry.newlyReceived());
+        assertEquals(1, retry.newlyAcknowledged());
+        assertEquals(0.0, retry.newlyReceivedMass(), 0.0);
+        assertEquals(received, retry.receiver());
+        assertEquals(Set.of(transfer), outbox(source).acknowledged());
+    }
+
+    @Test void partiallyAcknowledgedMultiSenderRecoveryFinishesIdempotently()
+            throws IOException {
+        var west = r(0);
+        var north = receipt(0, 1, D, B);
+        Path sourceWest = sender("partial-west", Map.of(west, 2.0));
+        Path sourceNorth = sender("partial-north", Map.of(north, 3.0));
+        Path target = receiver("partial", 0);
+        var initial = HydrologyCheckpointStoreV2.load(target);
+        HydrologySedimentCheckpointV2.receiveBatch(
+            target, initial, Map.of(west, 2.0, north, 3.0));
+        var senderBefore = HydrologyCheckpointStoreV2.load(sourceWest);
+        HydrologySedimentSenderOutboxV2.acknowledgeBatchDurable(
+            sourceWest, senderBefore, List.of(west), target);
+        assertTrue(outbox(sourceNorth).acknowledged().isEmpty());
+
+        var result = HydrologySedimentTransferCoordinatorV2.recoverAndAcknowledge(
+            target, Map.of("west", sourceWest, "north", sourceNorth), List.of(B));
+        assertEquals(0, result.newlyReceived());
+        assertEquals(0.0, result.newlyReceivedMass(), 0.0);
+        assertEquals(Set.of(west), outbox(sourceWest).acknowledged());
+        assertEquals(Set.of(north), outbox(sourceNorth).acknowledged());
+        assertEquals(2, inbox(target).receipts().size());
+    }
+
     @Test void seededDeliveryConservesAllReceiptsAcrossRetries() throws IOException {
         var random = new Random(1942);
         var receipts = new HashMap<HydrologySedimentReceiptInboxV2.Receipt, Double>();
