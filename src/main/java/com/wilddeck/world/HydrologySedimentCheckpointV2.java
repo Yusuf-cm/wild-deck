@@ -86,6 +86,53 @@ public final class HydrologySedimentCheckpointV2 {
      * checks the exact expected checkpoint and permits only monotonic receipt
      * additions; delivered markers, water inbox and world state cannot change.
      */
+    /**
+     * Atomically append a deterministic batch of future sediment arrivals.
+     * Every receipt is validated and staged before the ONE checkpoint write;
+     * an invalid late item, physical-source fork, stale writer, or I/O error
+     * cannot persist an earlier subset. Exact replays remain idempotent.
+     * This is single-writer local-file atomicity, not sender acknowledgment.
+     */
+    public static HydrologyCheckpointV2.Checkpoint receiveBatch(
+            Path path, HydrologyCheckpointV2.Checkpoint expected,
+            Map<HydrologySedimentReceiptInboxV2.Receipt,Double> incoming)
+            throws IOException {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(expected);
+        Objects.requireNonNull(incoming);
+        var before = decode(expected.worldState());
+        var order = Comparator
+            .comparingLong(HydrologySedimentReceiptInboxV2.Receipt::arrivalEpoch)
+            .thenComparingLong(HydrologySedimentReceiptInboxV2.Receipt::sourceEpoch)
+            .thenComparing(HydrologySedimentReceiptInboxV2.Receipt::from,
+                HydrologyFlowGraphV2.ADDRESS_ORDER)
+            .thenComparing(HydrologySedimentReceiptInboxV2.Receipt::to,
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+        var sorted = new TreeMap<HydrologySedimentReceiptInboxV2.Receipt,Double>(order);
+        for (var entry : incoming.entrySet())
+            sorted.put(Objects.requireNonNull(entry.getKey()),
+                Objects.requireNonNull(entry.getValue()));
+        var staged = before.sediment();
+        for (var entry : sorted.entrySet()) {
+            var receipt = entry.getKey();
+            // Existing exact replays are legal even after the arrival epoch.
+            if (!staged.receipts().containsKey(receipt) &&
+                receipt.arrivalEpoch() <= expected.epoch())
+                throw new IllegalArgumentException("Cannot append sediment to a committed epoch");
+            staged = HydrologySedimentReceiptInboxV2.receive(
+                staged,receipt,entry.getValue());
+        }
+        if (staged == before.sediment()) {
+            if (!HydrologyCheckpointStoreV2.load(path).equals(expected))
+                throw new IOException("Stale sediment batch writer");
+            return expected;
+        }
+        var next = new HydrologyCheckpointV2.Checkpoint(expected.epoch(),
+            encode(before.world(),staged),expected.inboxState());
+        HydrologyCheckpointStoreV2.saveSedimentIncoming(path,expected,next);
+        return next;
+    }
+
     public static HydrologyCheckpointV2.Checkpoint receive(
             Path path,HydrologyCheckpointV2.Checkpoint expected,
             HydrologySedimentReceiptInboxV2.Receipt receipt,double mass)
