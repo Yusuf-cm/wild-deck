@@ -160,4 +160,50 @@ class HydrologySedimentSenderOutboxV2Test {
         assertEquals(restored,HydrologySedimentSenderOutboxV2.decode(
             HydrologySedimentSenderOutboxV2.encode(restored)));
     }
+    @Test void persistedSendersAndReceiverReconcileWithoutCountingConfluenceTwice()
+            throws IOException {
+        Path west=directory.resolve("west.chk");
+        Path north=directory.resolve("north.chk");
+        Path receiverPath=directory.resolve("confluence.chk");
+        var a=r(0);
+        var d=receipt(0,1,D,B);
+        var westInitial=HydrologySedimentSenderOutboxV2.initialize(west);
+        var northInitial=HydrologySedimentSenderOutboxV2.initialize(north);
+        HydrologySedimentSenderOutboxV2.appendDurable(
+            west,westInitial,outgoing(Map.of(a,2.0)));
+        HydrologySedimentSenderOutboxV2.appendDurable(
+            north,northInitial,outgoing(Map.of(d,3.0)));
+        var receiverInitial=receiver(receiverPath);
+        var senders=Map.of("west",west,"north",north);
+        var empty=HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+            senders,Map.of("receiver",receiverPath));
+        assertEquals(5.0,empty.inTransitMass(),0.0);
+        assertEquals(2,empty.inTransitCount());
+        HydrologySedimentCheckpointV2.receiveBatch(receiverPath,receiverInitial,
+            Map.of(a,2.0,d,3.0));
+        var accepted=HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+            senders,Map.of("receiver",receiverPath));
+        assertEquals(5.0,accepted.sentMass(),0.0);
+        assertEquals(5.0,accepted.awaitingMass(),0.0);
+        assertEquals(0.0,accepted.inTransitMass(),0.0);
+        assertEquals(2,accepted.awaitingCount());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+                Map.of("west",west),Map.of("receiver",receiverPath)));
+    }
+
+    @Test void missingDurableSenderOrReceiverFailsClosed() throws IOException {
+        Path sender=directory.resolve("present.chk");
+        var initial=HydrologySedimentSenderOutboxV2.initialize(sender);
+        HydrologySedimentSenderOutboxV2.appendDurable(
+            sender,initial,outgoing(Map.of(r(0),1.0)));
+        Path missing=directory.resolve("missing.chk");
+        assertThrows(IOException.class,()->
+            HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+                Map.of("west",missing),Map.of()));
+        assertThrows(IOException.class,()->
+            HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+                Map.of("west",sender),Map.of("receiver",missing)));
+    }
+
 }
