@@ -19,10 +19,12 @@ public final class HydrologySedimentLoadedLakeEpochV2 {
     private HydrologySedimentLoadedLakeEpochV2() {}
 
     public record Committed(HydrologySedimentLoadedNetworkV2.Result delivery,
-                            HydrologySedimentCheckpointV2.Committed lake) {
+                            HydrologySedimentCheckpointV2.Committed lake,
+                            HydrologySedimentCrossRegionAuditV2.Report afterEpoch) {
         public Committed {
             Objects.requireNonNull(delivery);
             Objects.requireNonNull(lake);
+            Objects.requireNonNull(afterEpoch);
         }
     }
 
@@ -141,6 +143,10 @@ public final class HydrologySedimentLoadedLakeEpochV2 {
                 water,transportCapacity,dryBulkDensity,mode)
             : HydrologySedimentCheckpointV2.advanceLakeWithTerrain(path,current,
                 baseline,nextWorld,seed,water,transportCapacity,dryBulkDensity,mode);
-        return new Committed(delivered,committed);
+        // Re-read durable state AFTER sediment is consumed by the lake epoch,
+        // rather than mistaking the delivery-only audit for final conservation.
+        var afterEpoch = HydrologySedimentCrossRegionAuditV2.reconcileAllDurable(
+            senderFiles,Map.of(regionKey,path));
+        return new Committed(delivered,committed,afterEpoch);
     }
 }
