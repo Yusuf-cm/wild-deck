@@ -131,7 +131,6 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
         var paths = new ArrayList<Path>();
         var sources = new HashMap<Origin,HydrologyMixedResolutionEpochV2.Receipt>();
         var outboxes = new HashMap<HydrologyMixedResolutionEpochV2.Receipt,Double>();
-        var senderByReceipt = new HashMap<HydrologyMixedResolutionEpochV2.Receipt,String>();
         var snapshots = new TreeMap<String,HydrologyMixedResolutionCheckpointStoreV2.Checkpoint>();
 
         for (var entry : senders.entrySet()) {
@@ -146,7 +145,6 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
                 var origin = new Origin(key.epoch(),coordinate(key.from()));
                 if (sources.putIfAbsent(origin,key) != null)
                     throw new IllegalArgumentException("Forked physical water source");
-                senderByReceipt.put(key,entry.getKey());
             }
         }
 
@@ -187,11 +185,9 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
                 count = Math.addExact(count,1);
                 var region = owners.get(coordinate(key.to()));
                 if (region == null) {
-                    // An acknowledged transfer must still have a known durable
-                    // destination in this complete loaded receiver inventory.
-                    // Unloaded destinations may remain queued, never acknowledged.
-                    if (sender.getValue().acknowledged().contains(key))
-                        throw new IOException("Acknowledged water has no loaded receiver");
+                    // Previously acknowledged destinations may now be unloaded.
+                    // Their receiver state cannot be reverified until reloaded;
+                    // the sender history remains durable and is not pruned.
                     unloaded = unloaded.add(amount);
                     unloadedCount = Math.addExact(unloadedCount,1);
                     continue;
