@@ -167,4 +167,24 @@ class HydrologySedimentCheckpointV2Test {
         assertThrows(IOException.class,()->advance(path,updated));
         assertEquals(1,HydrologyCheckpointStoreV2.load(path).epoch());
     }
+    @Test void sameEpochStoreRejectsWorldRewriteAndClosedArrival() throws IOException {
+        Path path=directory.resolve("forgery.chk");
+        var expected=start(path,1);
+        var original=HydrologySedimentCheckpointV2.decode(expected.worldState());
+        var rewritten=new HydrologyCheckpointV2.Checkpoint(expected.epoch(),
+            HydrologySedimentCheckpointV2.encode("forged world",original.sediment()),
+            expected.inboxState());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyCheckpointStoreV2.saveSedimentIncoming(path,expected,rewritten));
+        var oldReceipt=new HydrologySedimentReceiptInboxV2.Receipt(0,0,A,B);
+        var withPast=HydrologySedimentReceiptInboxV2.receive(
+            original.sediment(),oldReceipt,1);
+        var invalid=new HydrologyCheckpointV2.Checkpoint(expected.epoch(),
+            HydrologySedimentCheckpointV2.encode(original.world(),withPast),
+            expected.inboxState());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyCheckpointStoreV2.saveSedimentIncoming(path,expected,invalid));
+        assertEquals(expected,HydrologyCheckpointStoreV2.load(path));
+    }
+
 }
