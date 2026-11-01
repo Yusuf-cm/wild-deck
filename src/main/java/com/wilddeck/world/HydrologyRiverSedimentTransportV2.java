@@ -39,12 +39,51 @@ public final class HydrologyRiverSedimentTransportV2 {
         }
     }
 
+    /**
+     * Local erosion only. Imported sediment is deliberately absent from this
+     * legacy entry point so existing single-region budgets are unchanged.
+     */
     public static Result route(HydrologySphericalLakeBasinsV2.Plan plan,
             Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
             Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity) {
+        return routeInternal(plan,eroded,transportCapacity,Map.of());
+    }
+
+    /**
+     * Route externally delivered sediment at owned receiving vertices.
+     * The caller must deduplicate/authenticate receipt identities before
+     * passing this map: mass totals alone cannot prevent replay.
+     * The returned source budget includes local erosion AND imported mass.
+     */
+    public static Imported routeWithIncoming(
+            HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            Map<GlobalHydrologyAddressV2.Sample,Double> imported) {
+        var result=routeInternal(plan,eroded,transportCapacity,imported);
+        BigDecimal local=BigDecimal.ZERO, external=BigDecimal.ZERO;
+        for (var value:eroded.values()) local=local.add(mass(value));
+        for (var value:imported.values()) external=external.add(mass(value));
+        return new Imported(result,finite(local),finite(external));
+    }
+
+    public record Imported(Result result,double localEroded,double imported) {
+        public Imported {
+            Objects.requireNonNull(result);
+            if (!Double.isFinite(localEroded) || localEroded < 0 ||
+                !Double.isFinite(imported) || imported < 0)
+                throw new IllegalArgumentException("Invalid imported sediment budget");
+        }
+    }
+
+    private static Result routeInternal(HydrologySphericalLakeBasinsV2.Plan plan,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            Map<GlobalHydrologyAddressV2.Sample,Double> external) {
         Objects.requireNonNull(plan);
         Objects.requireNonNull(eroded);
         Objects.requireNonNull(transportCapacity);
+        Objects.requireNonNull(external);
         // This validates global ownership, single resolution, adjacent edges,
         // and acyclicity even when the caller has only loaded a finite window.
         HydrologyFlowGraphV2.solve(plan.routes());
@@ -82,6 +121,13 @@ public final class HydrologyRiverSedimentTransportV2 {
             mass(transportCapacity.get(node.address()));
             total = total.add(mass);
         }
+        // Imports are already counted by the sender's separate epoch budget.
+        // Within this receiving solve they enter once at the addressed node.
+        for (var entry : external.entrySet()) {
+            if (!nodes.containsKey(Objects.requireNonNull(entry.getKey())))
+                throw new IllegalArgumentException("Unknown sediment receiving vertex");
+            total = total.add(mass(entry.getValue()));
+        }
         for (var node : nodes.values())
             if (node.downstream() != null && nodes.containsKey(node.downstream()))
                 indegree.merge(node.downstream(),1,Integer::sum);
@@ -104,7 +150,9 @@ public final class HydrologyRiverSedimentTransportV2 {
             visited++;
             var node = nodes.get(address);
             BigDecimal available = incoming.getOrDefault(address,BigDecimal.ZERO)
-                .add(mass(eroded.get(address)));
+                .add(mass(eroded.get(address)))
+                .add(external.containsKey(address)
+                    ? mass(external.get(address)) : BigDecimal.ZERO);
             BigDecimal passing;
             var lake = membership.get(address);
             if (lake != null) {
