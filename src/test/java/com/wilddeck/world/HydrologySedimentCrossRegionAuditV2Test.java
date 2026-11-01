@@ -133,7 +133,8 @@ class HydrologySedimentCrossRegionAuditV2Test {
             var a=edge(i,i+1,A,B);
             var d=edge(i,i+1,D,B);
             var sent=Map.of("source",new HydrologySedimentFrontierTransfersV2.Outgoing(
-                Map.of(a,left,d,right),java.math.BigDecimal.valueOf(left)\n                    .add(java.math.BigDecimal.valueOf(right)).doubleValue()));
+                Map.of(a,left,d,right),java.math.BigDecimal.valueOf(left)
+                    .add(java.math.BigDecimal.valueOf(right)).doubleValue()));
             var parked=receive(HydrologySedimentReceiptInboxV2.empty(),a,left);
             parked=receive(parked,d,right);
             var waiting=HydrologySedimentReceiptInboxV2.claimAvailable(
