@@ -1,6 +1,9 @@
 package com.wilddeck.world;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -95,6 +98,30 @@ class HydrologyLakeSedimentSnapshotV2Test {
             SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
         assertEquals(two.snapshot(), noOp.snapshot());
         assertTrue(noOp.steps().isEmpty());
+    }
+
+    @Test void checkpointRestartRetainsInfilledGeometryAndStorage(
+            @TempDir Path directory) throws IOException {
+        var base = baseline();
+        var initial = new HydrologyLakeStateV2.State("world", Map.of(A, 4.0));
+        var initialSnapshot = HydrologyLakeSedimentSnapshotV2.encode(base, base, initial);
+        var path = directory.resolve("lake-sediment.chk");
+        var runner = HydrologyWorldRunnerV2.open(path, 0, initialSnapshot);
+        var season = new HydrologyLakeSedimentSeasonsV2.Season(
+            Map.of(), Map.of(A, new HydrologyLakeNetworkStepV2.Forcing(0, 0, 1)),
+            Map.of(A, new HydrologyLakeSedimentNetworkV2.Sediment(4000, 2000)));
+        var next = HydrologyLakeSedimentSeasonsV2.resume(
+            base, runner.worldState(), List.of(season),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        runner.advance(next.snapshot(), List.of(List.of(
+            new HydrologyFlowGraphV2.Node(D, 0, null, true))));
+        var reopened = HydrologyWorldRunnerV2.open(path, 0, "ignored");
+        assertEquals(1, reopened.epoch());
+        assertEquals(next.snapshot(), reopened.worldState());
+        var restored = HydrologyLakeSedimentSnapshotV2.decode(
+            base, reopened.worldState());
+        assertEquals(3, restored.plan().lakes().get(0).reservoir().capacity(), 1e-12);
+        assertEquals(3, restored.water().volumes().get(A), 1e-12);
     }
 
     @Test void canonicalAcrossRouteEnumerationOrder() {
