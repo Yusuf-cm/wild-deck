@@ -225,4 +225,32 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
             .acknowledged().isEmpty());
     }
 
+
+    @Test void completedEpochRejectsChangedWorldOrBaselineOnReplay()
+            throws IOException {
+        var senders=Map.of("s1",sender("completed-world",
+            Map.of(receipt(0,A,B),1000.0)));
+        var regions=regions(0);
+        HydrologySedimentLoadedLakeNetworkEpochV2.advance(senders,regions,1);
+        var west=regions.get("west");
+        var checkpoint=west.receiver().checkpoint();
+        var before=HydrologyCheckpointStoreV2.load(checkpoint);
+
+        var wrongWorld=new HashMap<>(regions);
+        wrongWorld.put("west",new HydrologySedimentLoadedLakeNetworkEpochV2.RegionStep(
+            west.receiver(),west.baseline(),"different-world",west.seed(),
+            west.water(),west.capacity(),west.dryBulkDensity(),west.mode()));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentLoadedLakeNetworkEpochV2.advance(
+                senders,wrongWorld,1));
+
+        var wrongBaseline=new HashMap<>(regions);
+        wrongBaseline.put("west",new HydrologySedimentLoadedLakeNetworkEpochV2.RegionStep(
+            west.receiver(),baseline(B,D,C),west.nextWorld(),west.seed(),
+            west.water(),west.capacity(),west.dryBulkDensity(),west.mode()));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentLoadedLakeNetworkEpochV2.plan(
+                senders,wrongBaseline,1));
+        assertEquals(before,HydrologyCheckpointStoreV2.load(checkpoint));
+    }
 }
