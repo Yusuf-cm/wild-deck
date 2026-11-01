@@ -1763,3 +1763,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. Add safe in-flight water/sediment migration for changed drainage topology; continue planetary drainage discovery, multiple spillways, groundwater, calibrated seasonal forcing, timed flooding, transfer authentication and large-world endurance tests.
 
 **Safety:** No merge, PR, write to `main` or other branches, production operation or paid infrastructure change. **Hydrology remains unfinished.**
+
+
+## 2026-11-01 — Multi-sender loaded-region sediment routing (CI verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `36e4bdb0ca893f86ec7063754667228973ef15cb`. The starting [Java CI run 41303999385](https://github.com/Yusuf-cm/wild-deck/actions/runs/41303999385) was checked at the beginning of this run and **passed 873 Maven/JUnit tests, 0 failures/errors/skips**. This supersedes the previous section's unverified CI status for the single-sender loaded-region coordinator.
+
+### Implemented and committed
+
+- `fd3c500a0d039cb3e6a4d4b64caa43f2f8812056`: added opt-in `HydrologySedimentLoadedNetworkV2`. Its read-only `plan` preflights a **complete caller-supplied set of durable sender journals** and all currently loaded receiving checkpoints. It checks sender file aliases, cross-journal duplicate transfers and physical-source forks, receiver file aliases, cross-resolution shared-vertex ownership, unknown or altered receiver history, closed arrival epochs, finite mass/count budgets, and the existing cross-region conservation audit **before any write**. The plan reports pending receipt/acknowledgment counts, pending mass, and the before-state conservation report.
+- The same component's `deliver` processes loaded receivers in sorted region-key order, calls the existing multi-sender `recoverAndAcknowledge` for each receiver, and returns an independently persisted sender/receiver conservation audit. Each receiver's missing receipts are committed in one local batch before sender acknowledgments. Unloaded destinations remain in durable sender journals and are not acknowledged. Exact retries and recovery from an older receiver checkpoint converge without double-counting, provided missing arrivals are not in closed epochs.
+- `7e60c33198ad2a49258e26543865e6c0fe2ea96e`: added **nine JUnit integration tests** for two senders/two loaded regions plus an unloaded destination, read-only preflight, deterministic retry, cross-resolution shared-vertex rejection, duplicate sender files/source forks, closed-epoch all-region preflight, unproven receiver history, receiver restoration after acknowledgment, interrupted receiver/acknowledgment delivery, seeded 120-transfer conservation, and an empty loaded set. Some tests cover multiple scenarios within one JUnit method.
+- The exact source and test Git blobs match the locally compiled Java 17-targeted files (`68939c16bc5eea53863705ea77ad99a645adf3be` and `c9fe16fc43657713a50716eb0e7ddfe926b00322`). The local compilation used dependency/JUnit stubs and is **not** counted as repository integration verification.
+
+### Verified CI and acceptance boundary
+
+- [Source implementation CI 41308152975](https://github.com/Yusuf-cm/wild-deck/actions/runs/41308152975): **passed**.
+- [Source + nine-test CI 41308180746](https://github.com/Yusuf-cm/wild-deck/actions/runs/41308180746): **passed 882 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped**, with **BUILD SUCCESS**. The Java CI job's world experiment, resource replay, browser-save verification, atlas export, and real-browser atlas verification steps also passed.
+- **Not a distributed transaction:** the preflight and each receiver/sender checkpoint are separate operations. An I/O failure, process crash or concurrent writer after preflight can leave a partial multi-region delivery. Retry relies on preserved sender histories, durable receiver receipt IDs, and a single-writer/quiescent caller. There is no network authentication, interprocess lock, or automatic world-runner scheduling. The caller must provide the COMPLETE relevant sender set and authoritative loaded-vertex ownership; incomplete histories are not accepted as proof of global completeness.
+- **Not physical sediment completion:** this milestone advances durable routing/reconciliation, not erosion/deposition feedback into authoritative terrain or calibrated transport physics.
+
+### Remaining hydrology acceptance gaps
+
+1. Integrate durable sediment transfer scheduling with authoritative world-region load/unload and epoch lifecycle, without allowing the general world runner to overwrite the sediment envelope or race with delivery.
+2. Add authenticated sender/receiver identity and interprocess concurrency controls. No multi-file transaction or global exactly-once guarantee exists.
+3. Establish independently durable global replay barriers and watermarks before compacting unbounded sender/receiver history. **No compaction is implemented.**
+4. Atomically commit riverbed erosion/deposition, exported sediment, lake geometry, water and receipt state to authoritative terrain epochs. Terrain previews alone are insufficient.
+5. Reconcile water/sediment already in transit across changed drainage topology, closed-epoch disaster restores, alternative spherical routes and multiple lake spillways.
+6. Complete automatic planetary drainage discovery, groundwater, calibrated seasonal climate/sediment transport, physically timed flooding and large-world endurance/physical validation.
+
+**Safety:** Only the requested development branch was written. No merges, PRs, writes to `main` or other branches, production operations, or paid infrastructure changes. **Hydrology is NOT complete.**
