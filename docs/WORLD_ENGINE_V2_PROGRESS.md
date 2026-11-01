@@ -1984,3 +1984,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. Automatic planet-wide drainage and stable basin discovery, authoritative mixed-LOD region ownership, multiple lake spillways, groundwater, calibrated seasonal climate, timed flooding, erosion physics calibration and planetary-scale endurance tests remain incomplete.
 
 **Safety:** No merge, PR, write to `main` or another branch, production operation or paid infrastructure change. Continue hydrology before other world layers.
+
+## 2026-11-01 — Durable riverbed world-runner integration and quiescent sediment gate (new CI pending)
+
+**Scope:** `Yusuf-cm/wild-deck`, `feature/world-engine-v2` only. Starting HEAD `9e39364761bf6c8a8e51bd6923c5c57b81b9d5ed`. [Baseline CI 41343607614](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343607614) was inspected through its completed GitHub Actions test job: **949 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, plus successful atlas browser checks. This result belongs to the **starting** commit, not the additions below.
+
+### Changes committed
+
+1. `aa29afc959b34229192753f13084648bd79f64c4`: `HydrologyWorldRunnerV2` now exposes `planRouteVerifiedRiverbedEpoch` (read-only preflight) and `advanceRouteVerifiedRiverbedEpoch` (guarded single-file commit). They reuse the existing mass-conserving incision/deposition plan and strict spherical one-ring route guard, then update the runner's in-memory checkpoint **only after** the durable write succeeds. Stale runners are rejected before planning or writing; the water inbox is preserved.
+2. `7b337a3e3792d939da77310f17e85bca96fb056f`: six `HydrologyWorldRunnerRiverbedV2Test` JUnit integration tests cover preview immutability, persisted terrain and sediment epoch after restart, a subsequent zero-mass epoch without replaying erosion, unloaded-halo reroute rejection, parked-water and parked-sediment rejection, and stale runner rejection.
+3. `bf89a879de6be562669794ec1f49100297223415`: opt-in `advanceQuiescentRouteVerifiedRiverbedEpoch` checks that the caller-declared receiver set contains this checkpoint **exactly once**, that its ownership covers every routed vertex, and that `HydrologySedimentTopologyGateV2.requireQuiescent` finds no unsettled cross-region sediment or parked water before permitting the guarded local riverbed epoch.
+4. `db6d124d1716f2668487fb9d5acd8c54eb5b171c`: four further JUnit tests exercise the quiescent happy path, missing/partial receiver ownership, parked water, and unproven sediment receipt histories.
+
+### Exact verification and limits
+
+- **Verified baseline only:** [GitHub Actions run 41343607614](https://github.com/Yusuf-cm/wild-deck/actions/runs/41343607614), **949 passing Maven/JUnit tests**. The test job's completion and summary were read directly.
+- **New tests added:** 10 JUnit test methods in one new test file. **NOT yet independently executed against the full repository**. No Maven installation or networked Git checkout is available in the execution container. GitHub's commit workflow lookup (which only returns PR-triggered runs) and combined-status endpoint returned **no result** for the new HEAD `db6d124d1716f2668487fb9d5acd8c54eb5b171c`; that is **not evidence of a pass or failure**. [Branch CI history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2).
+- New API remains **opt-in**. The quiescent gate is only as complete as the **caller-supplied** sender histories, loaded receiver ownership and external single-writer barrier. It cannot prevent a new concurrent sender write between preflight and local commit. No distributed atomic transaction or authenticated transport was added.
+- The riverbed epoch requires a **closed local sediment mass budget**, a persisted terrain/lake/sediment checkpoint and stable spherical steepest-descent routes. It intentionally rejects unsettled receipts, lake spillway edits, exports, imports and topology changes instead of silently migrating water/sediment.
+
+### Still unfinished (hydrology remains the priority)
+
+1. **First verify the new ten JUnit tests in full GitHub Actions CI, fix any compile/test failures, and record the exact resulting run URL, test totals and commit.** Do not treat the baseline as verification of these additions.
+2. Automatic scheduling of region loads, cross-region water and sediment delivery/acknowledgments, lake advances, and riverbed epochs within the authoritative world loop. The new runner entrypoints are caller-driven.
+3. Globally coordinated multi-region water/sediment/terrain commits, durable replay-safe receipt compaction, authenticated transfers, external concurrency barriers and crash-safe rerouting of material already in transit.
+4. Authoritative planetary drainage and stable basin discovery, mixed-LOD ownership, multiple spillways, groundwater, calibrated seasonal water balance, physically timed floods, sediment-capacity calibration and planetary-scale endurance testing.
+
+**Safety:** Changes were made only on `feature/world-engine-v2`; no merge, PR, push to `main`, other-branch edit, production action or paid infrastructure modification.
