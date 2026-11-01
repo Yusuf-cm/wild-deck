@@ -604,6 +604,56 @@ public final class HydrologyWorldRunnerV2 {
             level,divisions,radius,maximumRegions,provider);
     }
 
+    /**
+     * Preview a strictly route-verified, closed-budget riverbed epoch without
+     * modifying the checkpoint or consuming incoming water/sediment.
+     *
+     * The checkpoint must already hold a terrain-bound lake/sediment world.
+     * This does not settle external sender journals or change drainage topology.
+     */
+    public synchronized HydrologyRiverbedCheckpointV2.Planned
+            planRouteVerifiedRiverbedEpoch(
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            HydrologyRiverSedimentTransportV2.Result transport,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity,double maximumIncision,double maximumRise)
+            throws IOException {
+        ensureFresh();
+        return HydrologyRiverbedCheckpointV2.planRouteVerified(
+            last,baseline,nextWorld,seed,eroded,transport,cellArea,
+            dryBulkDensity,maximumIncision,maximumRise);
+    }
+
+    /**
+     * Commit one strictly route-verified riverbed epoch through the same
+     * guarded checkpoint used by this runner. All sediment, terrain and
+     * unchanged water inbox state are persisted together before last changes.
+     *
+     * The budget must be local and closed. Cross-region sediment settlement,
+     * lake-spillway migration and concurrent multi-region writes remain
+     * separate responsibilities; this API never acknowledges senders.
+     */
+    public synchronized HydrologyRiverbedCheckpointV2.Planned
+            advanceRouteVerifiedRiverbedEpoch(
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            HydrologyRiverSedimentTransportV2.Result transport,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity,double maximumIncision,double maximumRise)
+            throws IOException {
+        ensureFresh();
+        var committed = HydrologyRiverbedCheckpointV2.commitRouteVerified(
+            checkpointPath,last,baseline,nextWorld,seed,eroded,transport,
+            cellArea,dryBulkDensity,maximumIncision,maximumRise);
+        last=committed.next();
+        return committed;
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
