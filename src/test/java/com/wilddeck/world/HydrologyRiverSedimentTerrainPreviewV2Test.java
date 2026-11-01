@@ -96,4 +96,15 @@ class HydrologyRiverSedimentTerrainPreviewV2Test {
             state,seed(),reordered,other,capacity(),area(),2000);
         assertEquals(a,b);
     }
+
+    @Test void grossErosionAndDepositionCountEvenWhenNetBedChangeIsZero() {
+        var state=new HydrologyTerrainOverlayV2.State("x",Map.of());
+        var result=HydrologyRiverSedimentTerrainPreviewV2.preview(
+            state,seed(),plan(),Map.of(A,3.0,B,0.0,C,0.0),
+            Map.of(A,0.0,B,100.0,C,100.0),area(),2000);
+        assertEquals(3,result.erodedMass(),1e-12);
+        assertEquals(3,result.depositedMass(),1e-12);
+        assertEquals(state,result.candidate());
+        assertEquals(0,result.sediment().budget().residual(),1e-12);
+    }
 }

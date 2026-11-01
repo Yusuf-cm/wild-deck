@@ -82,6 +82,10 @@ public final class HydrologyRiverSedimentTerrainPreviewV2 {
                         "Lake bed changes belong to the lake sediment model");
                 continue;
             }
+            // Gross erosion and deposition remain real mass transfers even
+            // when they cancel to zero net elevation change in this cell.
+            removed+=cut;
+            deposited+=fill;
             double netMass=fill-cut;
             if (netMass==0) continue;
             if (node.terminal() || node.downstream()==null ||
@@ -95,8 +99,6 @@ public final class HydrologyRiverSedimentTerrainPreviewV2 {
                 !Double.isFinite(next) || Double.compare(next,old)==0)
                 throw new IllegalArgumentException("Unrepresentable terrain change");
             changed.put(address,next);
-            removed+=cut;
-            deposited+=fill;
         }
         if (!Double.isFinite(removed) || !Double.isFinite(deposited))
             throw new IllegalArgumentException("River sediment terrain mass overflow");
