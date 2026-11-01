@@ -569,6 +569,41 @@ public final class HydrologyWorldRunnerV2 {
         last = next;
     }
 
+    /**
+     * Read-only joint spherical loading plan for this runner's parked water
+     * and durable sediment journals. Does NOT advance the world or consume
+     * sediment: the sediment lake-epoch coordinator must commit that material
+     * separately. Stale runner instances are rejected before planning.
+     */
+    public synchronized HydrologyCoupledRegionLoadingV2.Plan
+            planPendingWaterAndSedimentRegions(
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            Map<String,Path> sedimentSenders,
+            Collection<GlobalHydrologyAddressV2.Sample> alreadyLoaded,
+            int level,int divisions,int radius,int maximumRegions) throws IOException {
+        ensureFresh();
+        return HydrologyCoupledRegionLoadingV2.plan(
+            focus,inbox.snapshot(),sedimentSenders,alreadyLoaded,
+            level,divisions,radius,maximumRegions);
+    }
+
+    /**
+     * Load the complete bounded water/sediment hint union without committing
+     * an epoch. A provider is never invoked on a failed preflight.
+     */
+    public synchronized List<Collection<HydrologyFlowGraphV2.Node>>
+            loadPendingWaterAndSedimentRegions(
+            Collection<HydrologyRegionSchedulerV2.Region> focus,
+            Map<String,Path> sedimentSenders,
+            Collection<GlobalHydrologyAddressV2.Sample> alreadyLoaded,
+            int level,int divisions,int radius,int maximumRegions,
+            HydrologyRegionSchedulerV2.Provider provider) throws IOException {
+        ensureFresh();
+        return HydrologyCoupledRegionLoadingV2.load(
+            focus,inbox.snapshot(),sedimentSenders,alreadyLoaded,
+            level,divisions,radius,maximumRegions,provider);
+    }
+
     /** Return deterministic region hints for receipts still awaiting delivery. */
     public synchronized List<HydrologyRegionSchedulerV2.Region> pendingWaterRegions(){
         return HydrologyRegionSchedulerV2.pendingRegions(inbox.snapshot());
