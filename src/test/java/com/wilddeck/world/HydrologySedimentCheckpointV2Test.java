@@ -187,4 +187,112 @@ class HydrologySedimentCheckpointV2Test {
         assertEquals(expected,HydrologyCheckpointStoreV2.load(path));
     }
 
+
+    private HydrologyCheckpointV2.Checkpoint startTerrain(Path path,double volume,
+            Map<GlobalHydrologyAddressV2.Sample,Double> overrides) throws IOException {
+        var base = baseline();
+        var terrain = HydrologyTerrainOverlayV2.encode(
+            new HydrologyTerrainOverlayV2.State("initial",overrides));
+        var lake = HydrologyLakeSedimentSnapshotV2.encode(base,base,
+            new HydrologyLakeStateV2.State(terrain,Map.of(B,volume)));
+        var checkpoint = HydrologyCheckpointV2.capture(0,
+            HydrologySedimentCheckpointV2.initialWorld(lake),
+            new HydrologyEpochInboxV2());
+        HydrologyCheckpointStoreV2.save(path,checkpoint);
+        return checkpoint;
+    }
+
+    private static HydrologySedimentCheckpointV2.Committed advanceTerrain(
+            Path path,HydrologyCheckpointV2.Checkpoint previous,String world)
+            throws IOException {
+        return HydrologySedimentCheckpointV2.advanceLakeWithTerrain(
+            path,previous,baseline(),world,address -> 0.0,
+            Map.of(B,new HydrologyLakeNetworkStepV2.Forcing(0,0,1)),
+            capacity(),2000,SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+    }
+
+    @Test void importedSedimentLakeTerrainAndReceiptCommitInOneCheckpoint()
+            throws IOException {
+        Path path=directory.resolve("terrain-coupled.chk");
+        var unrelated=at(7,3);
+        var first=startTerrain(path,3,Map.of(unrelated,7.0));
+        var pending=HydrologySedimentCheckpointV2.receive(
+            path,first,receipt(0,1),2000);
+        var committed=advanceTerrain(path,pending,"season-one");
+        assertEquals(1,committed.checkpoint().epoch());
+        assertTrue(committed.sediment().delivered().contains(receipt(0,1)));
+        var persisted=HydrologySedimentCheckpointV2.decode(
+            HydrologyCheckpointStoreV2.load(path).worldState());
+        var lake=HydrologyLakeSedimentSnapshotV2.decode(baseline(),persisted.world());
+        var terrain=HydrologyTerrainOverlayV2.decode(lake.water().world());
+        assertEquals("season-one",terrain.world());
+        assertEquals(1.0,terrain.elevations().get(B),0.0);
+        assertEquals(7.0,terrain.elevations().get(unrelated),0.0);
+        assertEquals(4.0,lake.plan().lakes().get(0).reservoir().capacity(),1e-12);
+        assertEquals(3.0,lake.water().volumes().get(B),1e-12);
+        assertEquals(2000,committed.result().imported(),1e-12);
+        var second=advanceTerrain(path,committed.checkpoint(),"season-two");
+        var next=HydrologyLakeSedimentSnapshotV2.decode(baseline(),
+            HydrologySedimentCheckpointV2.decode(second.checkpoint().worldState()).world());
+        assertEquals(1.0,HydrologyTerrainOverlayV2.decode(next.water().world())
+            .elevations().get(B),0.0);
+        assertEquals(0,second.result().imported(),0.0);
+        assertEquals(4.0,next.plan().lakes().get(0).reservoir().capacity(),1e-12);
+    }
+
+    @Test void lakeTerrainMismatchRejectsWithoutConsumingSediment() throws IOException {
+        Path path=directory.resolve("terrain-mismatch.chk");
+        var initial=startTerrain(path,3,Map.of(B,2.0));
+        var pending=HydrologySedimentCheckpointV2.receive(
+            path,initial,receipt(0,1),2000);
+        assertThrows(IllegalArgumentException.class,()->
+            advanceTerrain(path,pending,"should-not-commit"));
+        assertEquals(pending,HydrologyCheckpointStoreV2.load(path));
+        assertFalse(HydrologySedimentCheckpointV2.decode(pending.worldState())
+            .sediment().delivered().contains(receipt(0,1)));
+    }
+
+    @Test void terrainModeRejectsSiltingAndStaleCheckpointWithoutPartialWrites()
+            throws IOException {
+        Path full=directory.resolve("terrain-full.chk");
+        var initial=startTerrain(full,3,Map.of());
+        var pending=HydrologySedimentCheckpointV2.receive(
+            full,initial,receipt(0,1),10000);
+        assertThrows(IllegalArgumentException.class,()->
+            advanceTerrain(full,pending,"silting"));
+        assertEquals(pending,HydrologyCheckpointStoreV2.load(full));
+
+        Path stale=directory.resolve("terrain-stale.chk");
+        var original=startTerrain(stale,3,Map.of());
+        var received=HydrologySedimentCheckpointV2.receive(
+            stale,original,receipt(0,1),2000);
+        var committed=advanceTerrain(stale,received,"season-one");
+        assertThrows(IOException.class,()->advanceTerrain(stale,received,"stale"));
+        assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(stale));
+    }
+
+    @Test void terrainModeRequiresCanonicalOverlayAndPreservesWaterInbox()
+            throws IOException {
+        Path path=directory.resolve("terrain-invalid.chk");
+        var previous=start(path,3);
+        assertThrows(IllegalArgumentException.class,()->
+            advanceTerrain(path,previous,"invalid"));
+        assertEquals(previous,HydrologyCheckpointStoreV2.load(path));
+
+        Path waterPath=directory.resolve("terrain-water.chk");
+        var base=baseline();
+        var terrain=HydrologyTerrainOverlayV2.encode(
+            new HydrologyTerrainOverlayV2.State("world",Map.of()));
+        var snapshot=HydrologyLakeSedimentSnapshotV2.encode(base,base,
+            new HydrologyLakeStateV2.State(terrain,Map.of(B,3.0)));
+        var water=new HydrologyEpochInboxV2();
+        water.receive(new HydrologyTransferLedgerV2.Key(1,A,B),2);
+        var checkpoint=HydrologyCheckpointV2.capture(0,
+            HydrologySedimentCheckpointV2.initialWorld(snapshot),water);
+        HydrologyCheckpointStoreV2.save(waterPath,checkpoint);
+        assertThrows(IllegalArgumentException.class,()->
+            advanceTerrain(waterPath,checkpoint,"invalid-water"));
+        assertEquals(checkpoint,HydrologyCheckpointStoreV2.load(waterPath));
+    }
+
 }
