@@ -44,7 +44,10 @@ public final class HydrologyRiverbedTerrainPreviewV2 {
             double dryBulkDensity, double maximumRise) {
         Objects.requireNonNull(sediment);
         var budget = sediment.budget();
-        if (budget.pendingExported() != 0 || budget.terminalExported() != 0 ||
+        if (!Double.isFinite(budget.eroded()) ||
+            !Double.isFinite(budget.riverDeposited()) ||
+            budget.eroded() < 0 || budget.riverDeposited() < 0 ||
+            budget.pendingExported() != 0 || budget.terminalExported() != 0 ||
             budget.lakeCaptured() != 0 || budget.residual() != 0)
             throw new IllegalArgumentException(
                 "Riverbed preview requires all sediment retained locally");
