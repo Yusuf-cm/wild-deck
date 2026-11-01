@@ -206,4 +206,46 @@ class HydrologySedimentSenderOutboxV2Test {
                 Map.of("west",sender),Map.of("receiver",missing)));
     }
 
+    @Test void batchAcknowledgmentIsAtomicAndOrderIndependent() throws IOException {
+        Path sender=directory.resolve("batch-sender.chk");
+        Path receiverPath=directory.resolve("batch-receiver.chk");
+        var first=r(0);
+        var second=receipt(0,1,D,B);
+        var initial=HydrologySedimentSenderOutboxV2.initialize(sender);
+        var pending=HydrologySedimentSenderOutboxV2.appendDurable(sender,initial,
+            outgoing(Map.of(first,2.0,second,3.0)));
+        var receiverInitial=receiver(receiverPath);
+        HydrologySedimentCheckpointV2.receive(receiverPath,receiverInitial,first,2.0);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentSenderOutboxV2.acknowledgeBatchDurable(
+                sender,pending,List.of(first,second),receiverPath));
+        assertEquals(pending,HydrologyCheckpointStoreV2.load(sender));
+        var loaded=HydrologyCheckpointStoreV2.load(receiverPath);
+        HydrologySedimentCheckpointV2.receive(receiverPath,loaded,second,3.0);
+        var committed=HydrologySedimentSenderOutboxV2.acknowledgeBatchDurable(
+            sender,pending,List.of(second,first),receiverPath);
+        assertEquals(Set.of(first,second),
+            HydrologySedimentSenderOutboxV2.restore(committed).acknowledged());
+        assertEquals(committed,HydrologySedimentSenderOutboxV2.acknowledgeBatchDurable(
+            sender,committed,List.of(first,second),receiverPath));
+    }
+
+    @Test void durableReplayDetectsMissingReceiverHistoryWithoutDeletingSender()
+            throws IOException {
+        Path sender=directory.resolve("durable-replay-sender.chk");
+        Path receiverPath=directory.resolve("durable-replay-receiver.chk");
+        Path oldBackup=directory.resolve("durable-replay-old-backup.chk");
+        var initial=HydrologySedimentSenderOutboxV2.initialize(sender);
+        var pending=HydrologySedimentSenderOutboxV2.appendDurable(sender,initial,
+            outgoing(Map.of(r(0),5.0)));
+        var empty=receiver(receiverPath);
+        HydrologyCheckpointStoreV2.save(oldBackup,empty);
+        HydrologySedimentCheckpointV2.receive(receiverPath,empty,r(0),5.0);
+        HydrologySedimentSenderOutboxV2.acknowledgeDurable(sender,pending,r(0),receiverPath);
+        assertTrue(HydrologySedimentSenderOutboxV2.replayMissingDurable(
+            sender,receiverPath).isEmpty());
+        assertEquals(Map.of(r(0),5.0),
+            HydrologySedimentSenderOutboxV2.replayMissingDurable(sender,oldBackup));
+    }
+
 }
