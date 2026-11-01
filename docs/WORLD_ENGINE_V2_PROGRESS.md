@@ -2011,3 +2011,34 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. Authoritative planetary drainage and stable basin discovery, mixed-LOD ownership, multiple spillways, groundwater, calibrated seasonal water balance, physically timed floods, sediment-capacity calibration and planetary-scale endurance testing.
 
 **Safety:** Changes were made only on `feature/world-engine-v2`; no merge, PR, push to `main`, other-branch edit, production action or paid infrastructure modification.
+
+
+## 2026-11-02 — Deterministic multi-region riverbed epochs and shared-halo preflight (source CI verified)
+
+**Scope:** `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2` only. Starting HEAD `88a4cde5e841fc9690e7ed0f68f7c7eb4f4b4f6b`. [Starting CI 41348639699](https://github.com/Yusuf-cm/wild-deck/actions/runs/41348639699) completed successfully with **959 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped**, `BUILD SUCCESS`, and successful browser/atlas checks. This also independently verifies the previous run's ten riverbed-runner tests, which had been marked pending.
+
+### Implemented
+
+1. `HydrologyRiverbedLoadedNetworkEpochV2` (`7a1c7ca3789d91e18c93975528f83e5db3eafcf3`) coordinates a caller-supplied complete, quiescent network of independently durable **closed-budget** riverbed epochs. It checks sender/receiver checkpoint histories, physical ownership, all region budgets and strictly route-verified local erosion/deposition **before the first write**, then commits in deterministic sorted region order. This is opt-in, not an automatic world-loop scheduler.
+2. Recovery requires each region's **original checksummed checkpoint** and identical inputs. A region already at the exact expected committed checkpoint is skipped, while a changed world, different terrain result, stale checkpoint, altered sediment ledger or unexpected epoch is rejected. This permits safe retries after one region commits and another fails, without treating an epoch number alone as proof of idempotence. Each region remains a separate atomic local-file write.
+3. Cross-region edits must be owned by exactly one physical receiver, including shared geographic vertices represented at different resolutions. The batch sums local erosion/deposition budgets with decimal arithmetic and rejects unbalanced, open, exported, imported or lake-captured sediment budgets through the existing mass-balance/receipt gates.
+4. Shared spherical one-ring halo validation (`8bf34ad1249222ad85749b545d4ad5f0bc1e57a1`) compares each overlapping physical sample's **before and after** elevation across all region plans. It rejects inconsistent seeded elevations, mismatched cross-LOD aliases and neighbor edits invisible to another region's routing guard. This is a conservative safety restriction, **not** global drainage re-solving.
+
+### Tests and verified CI
+
+- `HydrologyRiverbedLoadedNetworkEpochV2Test` (`1fae1ad00d714e48f9fe80076dec47c8c10d034c`) adds **seven** integration tests for sorted preflight, exact conservation and durable terrain changes, complete replay, interrupted-batch recovery, invalid later-region rollback, duplicate/unowned physical vertices, altered replay parameters and parked water.
+- `641536a64db9b36872b731a8de59ba73e80d69fc` adds **one** test for inconsistent adjacent spherical halos; `bc64a5321ae968d8e8e56c88936e305561df30fd` adds **one** test rejecting unproven parked sediment.
+- [Initial batch test CI 41354166474](https://github.com/Yusuf-cm/wild-deck/actions/runs/41354166474): **966 Maven/JUnit tests passed**, 0 failures/errors/skips, `BUILD SUCCESS`.
+- [Shared-halo integration CI 41354233521](https://github.com/Yusuf-cm/wild-deck/actions/runs/41354233521): **967 Maven/JUnit tests passed**, 0 failures/errors/skips, `BUILD SUCCESS`.
+- [Final source/test CI 41354289769](https://github.com/Yusuf-cm/wild-deck/actions/runs/41354289769): **968 Maven/JUnit tests passed**, 0 failures/errors/skips, `BUILD SUCCESS`. The real-browser atlas verification also passed. This source run precedes the present documentation commit; the documentation commit's CI must be checked separately.
+- Five implementation/test commits between the starting HEAD and the final source commit changed only the new hydrology coordinator and its test file. No CI failures required correction in this run.
+
+### Explicit remaining hydrology acceptance gaps
+
+1. **Not a globally atomic batch:** a crash after the first local checkpoint can leave some regions at the new epoch and others at the old one. Exact-state replay repairs this only when all original checkpoint baselines and complete sender histories are retained, and no concurrent writer has intervened. The caller must hold an external single-writer barrier. No authenticated transport or durable global replay/compaction watermark exists.
+2. **No cross-region river sediment imports/exports in the riverbed epoch:** every individual riverbed budget must be local and closed. Pending/unloaded destinations, lake capture, multi-region mass transfers, changed catchment topology and displaced in-transit water/sediment still need a coupled transaction and verified routing migration.
+3. **No automatic combined world epoch:** region loading, durable water discharge delivery, sediment sender acknowledgment, lake advancement and riverbed commits are still caller-driven rather than one authoritative scheduled lifecycle.
+4. **Global physics still incomplete:** globally authoritative ocean outlets/catchment discovery, mixed-resolution region directory, multiple lake spillways, groundwater, calibrated seasonal water balance, physically timed flooding, erosion/sediment capacity calibration and planetary-scale endurance testing are unfinished.
+5. Shared-halo checks are a conservative **one-ring consistency gate**, not proof of globally stable drainage, lake spillways or watershed identities. All region plans must use consistent authoritative elevation data. Tests do not establish planetary-scale performance or distributed fault tolerance.
+
+**Safety:** No merge, PR, write to `main` or any other branch, production operation or paid infrastructure change. **Hydrology remains unfinished and is the priority for subsequent runs.**
