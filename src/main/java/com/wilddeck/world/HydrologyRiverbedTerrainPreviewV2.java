@@ -29,6 +29,34 @@ public final class HydrologyRiverbedTerrainPreviewV2 {
         }
     }
 
+    /**
+     * Bridge the actual conservative river transport result to terrain.
+     * Until lake infill and exported sediment have an atomic companion
+     * transaction, accept only entirely local riverbed deposition. This
+     * prevents a caller from persisting a partial mass budget as terrain.
+     */
+    public static Preview planFromTransport(
+            HydrologySphericalLakeBasinsV2.Plan drainage,
+            HydrologyTerrainOverlayV2.State previous,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            HydrologyRiverSedimentTransportV2.Result sediment,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity, double maximumRise) {
+        Objects.requireNonNull(sediment);
+        var budget = sediment.budget();
+        if (budget.pendingExported() != 0 || budget.terminalExported() != 0 ||
+            budget.lakeCaptured() != 0 || budget.residual() != 0)
+            throw new IllegalArgumentException(
+                "Riverbed preview requires all sediment retained locally");
+        var preview = plan(drainage,previous,seed,sediment.riverDeposited(),
+            cellArea,dryBulkDensity,maximumRise);
+        double tolerance = Math.max(1e-8,Math.abs(budget.riverDeposited())*1e-10);
+        if (Math.abs(preview.depositedMass()-budget.riverDeposited()) > tolerance ||
+            Math.abs(budget.eroded()-budget.riverDeposited()) > tolerance)
+            throw new IllegalArgumentException("Riverbed transport budget mismatch");
+        return preview;
+    }
+
     public static Preview plan(
             HydrologySphericalLakeBasinsV2.Plan drainage,
             HydrologyTerrainOverlayV2.State previous,
