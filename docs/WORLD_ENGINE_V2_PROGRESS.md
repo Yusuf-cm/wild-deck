@@ -1853,3 +1853,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. **Incomplete planetary hydrology:** topology migration of in-flight water/sediment, automatic global drainage discovery, multiple spillways, groundwater, calibrated seasonal forcing/sediment physics, physically timed flooding, and large-world endurance validation remain unfinished.
 
 **Safety:** No merge, PR, write to `main` or another branch, production change or paid infrastructure operation. **Hydrology is NOT complete. Continue these water tasks before other world layers.**
+
+
+## 2026-11-01 — Deterministic multi-lake epoch scheduling and sediment-driven region load hints (CI verified)
+
+**Scope:** `Yusuf-cm/wild-deck`, exclusively `feature/world-engine-v2`. Starting HEAD `514831bca8d2d3661db814fc2a26b26a8e51260b`; [baseline CI 41318776853](https://github.com/Yusuf-cm/wild-deck/actions/runs/41318776853) passed **898 Maven/JUnit tests**. No `main` or other-branch changes.
+
+### Implemented and committed
+
+1. `80c379a7` extracted a **read-only** `previewWithTerrain` preflight from `HydrologySedimentLoadedLakeEpochV2`. The existing single-lake advance now uses the same preview validation before sender acknowledgments, avoiding divergence between preview and commit rules. `b8148f8c` corrected a missing local receiver binding introduced by the extraction.
+2. `81e739ae` added opt-in `HydrologySedimentLoadedLakeNetworkEpochV2`: caller-supplied complete loaded-region and sender sets, deterministic sorted region commits, **all-region lake/terrain simulation preflight before any writes**, and target-epoch-aware retry that skips already committed regions instead of applying the same season twice. Every local receiver still commits separately; this is NOT a global transaction.
+3. `3aab8cb0` tightened preflight so each lake bed and water forcing belongs to its declared loaded receiver, even when full-planet routing graphs are shared. This prevents two regional lake checkpoints from independently evolving one physical lake.
+4. `b0f36ae3` and `e7754f37` added **six JUnit tests** for two loaded lake regions plus an unloaded sediment destination, conservation and sender acknowledgment, predictable second-lake failure before any write, crash-gap recovery with an already completed region, idempotent same-target replay, epoch mismatch, and lake-bed ownership. `9514b9a3` corrected a nonadjacent spherical test transfer edge.
+5. `68f10cdd` added opt-in `HydrologySedimentRegionLoadHintsV2`: reads persisted sender journals, identifies unacknowledged destinations outside supplied loaded vertices, deduplicates and orders bounded region-load hints, respects cross-resolution geographic ownership, rejects duplicate/forked sender histories, and fails closed for mixed unloaded destination resolutions. Acknowledged receipts stay in durable history for explicit disaster recovery.
+6. `9c7b8a3a` added **six JUnit tests** for deterministic load order, shared destination deduplication, cross-resolution already-loaded suppression, mixed-resolution refusal before invoking a provider, duplicate sender rejection, and load-budget fail-fast.
+
+### Verification evidence
+
+- [Initial multi-lake source/test CI 41323109711](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323109711): **FAILED** because the extracted method referenced an unbound local `receiver`. Corrected by `b8148f8c`.
+- [Multi-lake ownership test CI 41323155118](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323155118): **FAILED**, four new test fixtures used nonadjacent `D -> E` spherical transfers. Corrected to adjacent `H -> E` by `9514b9a3`.
+- [Corrected multi-lake CI 41323183229](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323183229): **PASSED**, **904 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`, plus world experiment, resource replay, browser-save, atlas export and real-browser checks.
+- [Sediment load-hint implementation CI 41323262474](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323262474): **PASSED**.
+- [Final source + 12 new tests CI 41323294512](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323294512): **PASSED**, **910 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser-save, atlas export and real-browser checks also passed. These 910 tests cover all source/test changes in this milestone. The documentation-only commit itself may trigger a separate CI run.
+
+### Unfinished acceptance criteria and safety limits
+
+1. **No automatic authoritative runner integration:** the multi-lake scheduler and sediment-driven load hints are opt-in. The runtime must still discover complete sender/receiver ownership, integrate actual region loading/unloading, and schedule water and sediment jointly. A hint is not an authenticated transfer or a verified downstream route.
+2. **No distributed atomicity or concurrency barrier:** each receiver's receipt delivery, sender acknowledgment and lake/terrain epoch are separate local checkpoint writes. A crash can leave a partial multi-region epoch; same-target retries are supported only while durable sender histories and open/recoverable epochs remain intact. Concurrent writers require external serialization.
+3. **No mixed-resolution unloaded region directory:** load hints fail closed for pending destinations at incompatible resolutions; they do not invent a region ownership mapping. Acknowledged transfers lost from a restored receiver still need explicit recovery.
+4. **Riverbed erosion/deposition still not atomically committed:** existing sediment routing previews river deposits and terminal export, but authoritative riverbed terrain, water, sediment and export must be bound and audited together before enabling terrain changes.
+5. **Replay-history compaction and topology migration remain unfinished:** no globally durable replay watermark/backup floor, no safe transfer rerouting across changed drainage, and no closed-epoch rollback/resimulation protocol.
+6. **Broader hydrology remains incomplete:** automatic planetary catchment discovery, multiple lake spillways, groundwater, calibrated seasonal forcing, physically timed flooding, authenticated interprocess transport, and large-world endurance/physics tests are not complete.
+
+**Safety:** No merges, PRs, writes to `main` or other branches, production changes, or paid infrastructure operations. Hydrology remains the priority before other world layers.
