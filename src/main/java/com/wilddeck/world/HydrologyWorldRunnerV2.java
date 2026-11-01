@@ -120,6 +120,29 @@ public final class HydrologyWorldRunnerV2 {
         return committed.result();
     }
 
+    /**
+     * Like the atomic lake/sediment epoch, but also persist lake-bed
+     * elevations in the terrain overlay embedded in the SAME checkpoint.
+     * Existing lake cells must match the previously committed terrain;
+     * unverified geometry or seed mismatches abort before receipt delivery.
+     * The initial sediment snapshot's world must be a terrain overlay.
+     */
+    public synchronized HydrologyLakeSedimentNetworkV2.Result
+            advanceClosedSphericalLakeSedimentNetworkWithTerrain(
+            String nextWorld, HydrologySphericalLakeBasinsV2.Plan baseline,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Collection<HydrologyFlowGraphV2.Node> seasonalRoutes,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeSedimentNetworkV2.Sediment> sediment,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) throws IOException {
+        var committed = HydrologyLakeSedimentAtomicEpochV2.commitWithTerrain(
+            checkpointPath, last, inbox, nextWorld, baseline, seed,
+            seasonalRoutes, water, sediment, mode);
+        last = committed.checkpoint();
+        inbox = committed.inbox();
+        return committed.result();
+    }
+
     /** Select bounded regions deterministically, then advance one epoch. */
     public synchronized HydrologyFlowGraphV2.Result advanceRegions(
             String nextWorldState,

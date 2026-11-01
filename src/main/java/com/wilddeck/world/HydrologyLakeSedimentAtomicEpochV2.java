@@ -38,6 +38,34 @@ public final class HydrologyLakeSedimentAtomicEpochV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
             Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeSedimentNetworkV2.Sediment> sediment,
             SeasonalLakeEvolutionV2.EvaporationMode mode) throws IOException {
+        return commitInternal(checkpointPath,previous,inbox,nextWorld,baseline,
+            seasonalRoutes,water,sediment,mode,null);
+    }
+
+    /** Persist lake sediment, water and an authoritative terrain overlay together. */
+    public static Committed commitWithTerrain(
+            Path checkpointPath, HydrologyCheckpointV2.Checkpoint previous,
+            HydrologyEpochInboxV2 inbox, String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Collection<HydrologyFlowGraphV2.Node> seasonalRoutes,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeSedimentNetworkV2.Sediment> sediment,
+            SeasonalLakeEvolutionV2.EvaporationMode mode) throws IOException {
+        Objects.requireNonNull(seed);
+        return commitInternal(checkpointPath,previous,inbox,nextWorld,baseline,
+            seasonalRoutes,water,sediment,mode,seed);
+    }
+
+    private static Committed commitInternal(
+            Path checkpointPath, HydrologyCheckpointV2.Checkpoint previous,
+            HydrologyEpochInboxV2 inbox, String nextWorld,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            Collection<HydrologyFlowGraphV2.Node> seasonalRoutes,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeSedimentNetworkV2.Sediment> sediment,
+            SeasonalLakeEvolutionV2.EvaporationMode mode,
+            HydrologyGlobalSlopeRouterV2.Elevations seed) throws IOException {
         Objects.requireNonNull(checkpointPath);
         Objects.requireNonNull(previous);
         Objects.requireNonNull(inbox);
@@ -92,8 +120,12 @@ public final class HydrologyLakeSedimentAtomicEpochV2 {
         var advanced = HydrologyLakeSedimentNetworkV2.step(
             new HydrologySphericalLakeBasinsV2.Plan(enriched,
                 restored.plan().lakes()), restored.water(), water, sediment, mode);
+        String committedWorld = seed == null ? nextWorld :
+            HydrologyLakeSedimentTerrainBindingV2.updateWorld(
+                nextWorld, seed, restored.plan(), advanced.updatedPlan(),
+                restored.water().world());
         var nextWater = new HydrologyLakeStateV2.State(
-            nextWorld, advanced.water().state().volumes());
+            committedWorld, advanced.water().state().volumes());
         var payload = HydrologyLakeSedimentSnapshotV2.encode(
             baseline, advanced.updatedPlan(), nextWater);
         var checkpoint = HydrologyCheckpointV2.capture(next, payload, staged);

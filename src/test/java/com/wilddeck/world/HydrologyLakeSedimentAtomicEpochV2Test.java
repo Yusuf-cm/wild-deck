@@ -190,4 +190,86 @@ class HydrologyLakeSedimentAtomicEpochV2Test {
                     changed,base.lakes()),runoff(0),water(),sediment(0),
                 SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP));
     }
+    private static HydrologyWorldRunnerV2 openWithTerrain(Path path,double initial,
+            Map<GlobalHydrologyAddressV2.Sample,Double> overrides)
+            throws IOException {
+        var base=baseline();
+        String terrain=HydrologyTerrainOverlayV2.encode(
+            new HydrologyTerrainOverlayV2.State("initial",overrides));
+        return HydrologyWorldRunnerV2.open(path,0,
+            HydrologyLakeSedimentSnapshotV2.encode(base,base,
+                new HydrologyLakeStateV2.State(terrain,Map.of(A,initial))));
+    }
+    private static HydrologyLakeSedimentNetworkV2.Result terrainAdvance(
+            HydrologyWorldRunnerV2 runner,double rainfall,double mass,
+            HydrologyGlobalSlopeRouterV2.Elevations seed) throws IOException {
+        return runner.advanceClosedSphericalLakeSedimentNetworkWithTerrain(
+            "terrain-season-"+(runner.epoch()+1),baseline(),seed,
+            runoff(rainfall),water(),sediment(mass),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+    }
+
+    @Test void sedimentTerrainWaterAndReceiptPersistInOneCheckpoint() throws IOException {
+        var path=directory.resolve("terrain.chk");
+        var unrelated=at(7,3);
+        var runner=openWithTerrain(path,4,Map.of(unrelated,7.0));
+        var receipt=new HydrologyTransferLedgerV2.Key(1,FROM,A);
+        runner.receive(receipt,2);
+        HydrologyGlobalSlopeRouterV2.Elevations seed=address->0.0;
+        var first=terrainAdvance(runner,1,4000,seed);
+        assertEquals(4,first.budget().terminalOutflow(),1e-12);
+        var reopened=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertTrue(reopened.inboxSnapshot().delivered().contains(receipt));
+        var restored=HydrologyLakeSedimentSnapshotV2.decode(
+            baseline(),reopened.worldState());
+        var terrain=HydrologyTerrainOverlayV2.decode(restored.water().world());
+        assertEquals("terrain-season-1",terrain.world());
+        assertEquals(2,terrain.elevations().get(A),1e-12);
+        assertEquals(7,terrain.elevations().get(unrelated),1e-12);
+        assertEquals(3,restored.water().volumes().get(A),1e-12);
+
+        var second=terrainAdvance(reopened,0,1000,seed);
+        assertEquals(0.5,second.displaced().get(A),1e-12);
+        assertEquals(0.5,second.budget().terminalOutflow(),1e-12);
+        var after=HydrologyLakeSedimentSnapshotV2.decode(
+            baseline(),HydrologyWorldRunnerV2.open(path,0,"ignored").worldState());
+        assertEquals(2.5,HydrologyTerrainOverlayV2.decode(
+            after.water().world()).elevations().get(A),1e-12);
+        assertEquals(2.5,after.water().volumes().get(A),1e-12);
+    }
+
+    @Test void mismatchedSeedOrStoredTerrainRejectsWithoutConsumingReceipt()
+            throws IOException {
+        var path=directory.resolve("bad-terrain.chk");
+        var runner=openWithTerrain(path,4,Map.of());
+        var receipt=new HydrologyTransferLedgerV2.Key(1,FROM,A);
+        runner.receive(receipt,2);
+        String before=runner.worldState();
+        assertThrows(IllegalArgumentException.class,()->
+            terrainAdvance(runner,0,4000,address->address.equals(A)?1.0:0.0));
+        assertEquals(0,runner.epoch());
+        assertEquals(before,runner.worldState());
+        assertFalse(runner.inboxSnapshot().delivered().contains(receipt));
+        assertEquals(before,HydrologyWorldRunnerV2.open(path,0,"ignored").worldState());
+        terrainAdvance(runner,0,4000,address->0.0);
+        assertTrue(runner.inboxSnapshot().delivered().contains(receipt));
+
+        var wrong=openWithTerrain(directory.resolve("wrong-overlay.chk"),0,
+            Map.of(A,1.0));
+        assertThrows(IllegalArgumentException.class,()->
+            terrainAdvance(wrong,0,0,address->0.0));
+        assertEquals(0,wrong.epoch());
+    }
+
+    @Test void terrainModeRejectsNonTerrainWorldAndKeepsCheckpoint()
+            throws IOException {
+        var path=directory.resolve("not-terrain.chk");
+        var runner=open(path,0);
+        var old=runner.worldState();
+        assertThrows(IllegalArgumentException.class,()->
+            terrainAdvance(runner,0,0,address->0.0));
+        assertEquals(old,runner.worldState());
+        assertEquals(0,runner.epoch());
+    }
+
 }
