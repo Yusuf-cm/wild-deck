@@ -1914,3 +1914,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. **Planetary hydrology remains incomplete:** automatic global basin discovery, multiple lake spillways, groundwater, calibrated seasonal forcing, physically timed flooding, large-world endurance and conservation/physics validation are still required.
 
 **Safety:** No merge, PR, write to `main` or another branch, production change or paid infrastructure operation. **Do not mark hydrology complete; continue water work first.**
+
+
+## 2026-11-01 — Riverbed deposition preflight and completed lake replay validation (CI pending)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `c6828258e3d677ac762b09adb703d23e253ba883`. Its [CI run 41328188551](https://github.com/Yusuf-cm/wild-deck/actions/runs/41328188551) was independently checked: the test job succeeded, with **919 Maven/JUnit tests, zero failures/errors/skips and BUILD SUCCESS**, plus successful world, resource, browser-save and atlas verification steps.
+
+### Implemented this run
+
+1. `HydrologyRiverbedTerrainPreviewV2` computes a **read-only** sediment-mass-to-riverbed-height preview using caller-supplied positive cell areas, dry bulk density and maximum rise. It preserves existing terrain overrides and world identity; checks canonical global geographic ownership across resolutions, forbids double-owned vertices and lake-cell/terminal/unloaded-route deposits, rejects invalid mass/area/overflow, and checks that every touched known non-lake directed edge remains strictly downhill, including incoming edges. This is a conservative local slope check, **not** a full planetary drainage re-solve or authoritative commit.
+2. `planFromTransport` binds that preview to the existing `HydrologyRiverSedimentTransportV2.Result` conservation budget. It refuses pending/terminal exports, lake-captured mass, nonzero residuals, and nonfinite/negative budgets because those require additional durable water/sediment/terrain transactions. It verifies that the entire source budget is represented by riverbed deposition. This is a fail-closed bridge to future atomic riverbed persistence, not permission to discard exports.
+3. `HydrologySedimentLoadedLakeNetworkEpochV2.plan` now checks **already-completed** epochs against the supplied baseline's checksummed lake geometry, the requested next-world identity, owned lake cells and committed terrain bed elevations before treating a replay as idempotent. A retry with a changed world or lake baseline now rejects instead of silently accepting a different requested result.
+
+### Tests and exact verification limits
+
+- **Ten JUnit regression test methods added**: nine in `HydrologyRiverbedTerrainPreviewV2Test` covering conservative bed rise, uphill inversion, unloaded/terminal routes, lake ownership, mixed-resolution duplicate physical vertices, invalid geometry, deterministic map ordering, transport mass binding and unpersisted terminal export; one in `HydrologySedimentLoadedLakeNetworkEpochV2Test` covering completed-epoch replay with a changed world/baseline.
+- A Java 17 isolated compile and **seven executable smoke assertions** of the new riverbed preview and transport budget bridge passed against minimal dependency stubs. This is **not** a repository Maven/JUnit run and does not verify integration with the actual production dependencies.
+- The GitHub connector returned **no commit-associated workflow runs** and **no combined statuses** for the new HEAD. Its commit-workflow lookup filters to PR-triggered runs, so this is **not evidence of CI success or failure**. Full Maven/JUnit and post-commit Actions status for these new changes remain **unverified**. Do not report 929 passing tests unless actual new-commit CI logs confirm it.
+- The branch compare showed eight commits beyond the starting HEAD, affecting only the two hydrology implementation files and their two test files before this documentation update.
+
+### Outstanding hydrology acceptance gaps
+
+1. **CI verification is first priority:** run full repository Maven/JUnit, inspect new-commit Actions jobs and repair any failures. The isolated smoke harness is insufficient for release acceptance.
+2. Riverbed deposition is still **preview-only**. Authoritative commit must reverify all competing downhill neighbors and spillway topology, persist riverbed elevations alongside lake geometry, retained water, sediment receipts and any exports in one guarded checkpoint, and ensure no mass is lost or replayed.
+3. The world runner still only **plans/loads** coupled pending-water and sediment regions. It does not automatically coordinate complete sender histories, delivery/acknowledgment, water receipts, lake advancement and epochs.
+4. Multi-region checkpoints remain separately durable, without distributed atomicity, authenticated transport, replay-safe global history-compaction watermarks or complete topology-change migration for in-transit water/sediment.
+5. Automatic planetary basin discovery, authoritative cross-resolution region directory, multiple lake spillways, groundwater, calibrated seasonal climate, physically timed flooding and large-world endurance/physics benchmarks remain incomplete.
+
+**Safety:** No merges, PRs, writes to `main` or any other branch, production changes or paid infrastructure operations. **Hydrology is not complete. Continue water/hydrology work first.**
