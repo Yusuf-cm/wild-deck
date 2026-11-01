@@ -1886,3 +1886,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 6. **Broader hydrology remains incomplete:** automatic planetary catchment discovery, multiple lake spillways, groundwater, calibrated seasonal forcing, physically timed flooding, authenticated interprocess transport, and large-world endurance/physics tests are not complete.
 
 **Safety:** No merges, PRs, writes to `main` or other branches, production changes, or paid infrastructure operations. Hydrology remains the priority before other world layers.
+
+
+## 2026-11-01 — Joint spherical water/sediment loading preflight (CI verified)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `be6e867c5b1a37ff9b7f11bc518d17e117e1ebfe`, [baseline CI 41323466014](https://github.com/Yusuf-cm/wild-deck/actions/runs/41323466014) passed **910** Maven/JUnit tests.
+
+### Implemented
+
+1. Commit `92421b6959b2de807a404ccac8379201c3a227b2` adds `HydrologyCoupledRegionLoadingV2`, a **read-only, deterministic, bounded** spherical region plan combining parked water receipts, unacknowledged durable sediment sender journals and explicit focus regions. It validates exact level/divisions, canonical spherical endpoints, duplicate sender checkpoint paths, repeated sediment receipts, physical source forks and loaded-vertex aliases. It uses the spherical scheduler's dateline wrap, pole clamp and full expanded region budget **before invoking any external provider**. It never consumes water or sediment, advances an epoch, acknowledges a sender, or invents an unknown route.
+2. Commit `8f0f03a79b4be2d94dd54eb682a5bf3caf7a2e3c` exposes `planPendingWaterAndSedimentRegions` and `loadPendingWaterAndSedimentRegions` on `HydrologyWorldRunnerV2`. Both verify the runner's durable checkpoint freshness and **only plan/load**, deliberately leaving sediment delivery and lake/terrain epochs to the existing durable sediment coordinators. This is a safe opt-in bridge into the authoritative runner's loading lifecycle, **not** automatic coupled epoch advancement.
+3. Commit `13a0c2c3e4cb78ad3740a9f87226a26d87a18ec7` adds **nine JUnit tests** for combined pending-water/sediment/focus order, seam/pole neighborhoods, cross-resolution loaded-vertex suppression, incompatible sediment/water resolution rejection before provider invocation, duplicate sender paths and physical forks, budget rollback, read-only runner loading, and stale-runner rejection.
+
+### Verified acceptance evidence
+
+- [Source CI 41327998912](https://github.com/Yusuf-cm/wild-deck/actions/runs/41327998912): **PASSED**.
+- [Runner adapter CI 41328013242](https://github.com/Yusuf-cm/wild-deck/actions/runs/41328013242): **PASSED**.
+- [Full source and nine-test CI 41328044741](https://github.com/Yusuf-cm/wild-deck/actions/runs/41328044741): **PASSED**, **919 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser-save, atlas export and real-browser checks also completed successfully.
+- The loader's preflight is read-only and ensures invalid resolution, sender identity or region budgets fail before a provider call. Tests demonstrate no receipt consumption or checkpoint mutation during the new runner operations.
+
+### Remaining water/hydrology acceptance gaps
+
+1. **No automatic combined world epoch:** the new runner APIs load region graph nodes but do not automatically invoke durable sediment delivery, sender acknowledgment, lake simulation, or authoritative water/sediment epoch commits. The caller must supply complete sender histories, verified region ownership and the correct sequencing.
+2. **No global distributed transaction:** sender/receiver checkpoints are separate durable writes; a crash or concurrent writer can leave partial multi-region progress. Recovery depends on retained histories, open epochs and external single-writer coordination. No authenticated transfer transport or replay-safe global compaction watermark exists.
+3. **No automatic mixed-LOD region directory:** unloaded destinations at the wrong level/divisions fail closed; loaded physical vertex aliases can suppress redundant sediment hints but do not provide cross-resolution interpolation.
+4. **Riverbed erosion/deposition remain preview-only** in authoritative persistence; lake-bed terrain binding exists but riverbed terrain, sediment export and water must still be committed and audited together. Drainage-topology migration must reconcile in-flight water and sediment.
+5. **Planetary hydrology remains incomplete:** automatic global basin discovery, multiple lake spillways, groundwater, calibrated seasonal forcing, physically timed flooding, large-world endurance and conservation/physics validation are still required.
+
+**Safety:** No merge, PR, write to `main` or another branch, production change or paid infrastructure operation. **Do not mark hydrology complete; continue water work first.**
