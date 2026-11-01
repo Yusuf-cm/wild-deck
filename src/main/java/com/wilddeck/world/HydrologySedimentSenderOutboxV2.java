@@ -218,12 +218,39 @@ public final class HydrologySedimentSenderOutboxV2 {
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologySedimentReceiptInboxV2.Receipt receipt,Path receiverFile)
             throws IOException {
+        return acknowledgeBatchDurable(senderFile,expected,List.of(receipt),receiverFile);
+    }
+
+    /**
+     * Validate every acknowledgment against one durable receiver checkpoint,
+     * then persist the whole sender acknowledgment set in a single epoch.
+     * Invalid batches never partially mark a sender journal.
+     */
+    public static HydrologyCheckpointV2.Checkpoint acknowledgeBatchDurable(Path senderFile,
+            HydrologyCheckpointV2.Checkpoint expected,
+            Collection<HydrologySedimentReceiptInboxV2.Receipt> receipts,
+            Path receiverFile) throws IOException {
+        Objects.requireNonNull(receipts);
         var receiver = HydrologyCheckpointStoreV2.load(receiverFile);
         var inbox = HydrologySedimentCheckpointV2.decode(receiver.worldState()).sediment();
         if (inbox.lastClaimedEpoch() > receiver.epoch())
             throw new IllegalArgumentException("Receiver ledger ahead of durable checkpoint");
-        var next = acknowledge(restore(expected),receipt,inbox);
+        var sorted = new TreeSet<HydrologySedimentReceiptInboxV2.Receipt>(ORDER);
+        for (var receipt : receipts) sorted.add(Objects.requireNonNull(receipt));
+        var next = restore(expected);
+        for (var receipt : sorted) next = acknowledge(next,receipt,inbox);
         return persist(senderFile,expected,next);
+    }
+
+    /** Recheck persisted receiver state even for previously acknowledged mass. */
+    public static Map<HydrologySedimentReceiptInboxV2.Receipt,Double> replayMissingDurable(
+            Path senderFile,Path receiverFile) throws IOException {
+        var sender = restore(HydrologyCheckpointStoreV2.load(senderFile));
+        var receiver = HydrologyCheckpointStoreV2.load(receiverFile);
+        var inbox = HydrologySedimentCheckpointV2.decode(receiver.worldState()).sediment();
+        if (inbox.lastClaimedEpoch() > receiver.epoch())
+            throw new IllegalArgumentException("Receiver ledger ahead of durable checkpoint");
+        return replayMissing(sender,inbox);
     }
 
     private static HydrologyCheckpointV2.Checkpoint persist(Path senderFile,
