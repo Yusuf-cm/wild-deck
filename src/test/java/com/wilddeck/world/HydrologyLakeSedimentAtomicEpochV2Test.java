@@ -272,4 +272,41 @@ class HydrologyLakeSedimentAtomicEpochV2Test {
         assertEquals(0,runner.epoch());
     }
 
+    @Test void hundredSeasonRestartAndDeferredReceiptConservation()
+            throws IOException {
+        var continuous=open(directory.resolve("continuous.chk"),2);
+        var path=directory.resolve("restarted.chk");
+        var restarted=open(path,2);
+        var receipts=new ArrayList<HydrologyTransferLedgerV2.Key>();
+        for (int epoch=10;epoch<=90;epoch+=10) {
+            var key=new HydrologyTransferLedgerV2.Key(epoch,FROM,A);
+            receipts.add(key);
+            continuous.receive(key,1.25);
+            restarted.receive(key,1.25);
+        }
+        double input=2, output=0;
+        for (int epoch=1;epoch<=100;epoch++) {
+            if (epoch%7==0)
+                restarted=HydrologyWorldRunnerV2.open(path,0,"ignored");
+            double rainfall=(epoch%5)*0.5;
+            var one=advance(continuous,rainfall,1);
+            var two=advance(restarted,rainfall,1);
+            assertEquals(one.budget(),two.budget(),
+                "Seasonal budget diverged at epoch "+epoch);
+            assertEquals(continuous.worldState(),restarted.worldState(),
+                "Snapshot diverged at epoch "+epoch);
+            input+=one.budget().sourceWater()+one.budget().externalInflow();
+            output+=one.budget().terminalOutflow()+one.budget().evaporation();
+        }
+        var finalState=HydrologyLakeSedimentSnapshotV2.decode(
+            baseline(),restarted.worldState());
+        double retained=finalState.water().volumes().get(A);
+        assertEquals(input,output+retained,1e-7);
+        assertEquals(100,restarted.epoch());
+        assertTrue(restarted.inboxSnapshot().delivered().containsAll(receipts));
+        assertEquals(receipts.size(),restarted.inboxSnapshot().delivered().size());
+        assertEquals(continuous.worldState(),
+            HydrologyWorldRunnerV2.open(path,0,"ignored").worldState());
+    }
+
 }
