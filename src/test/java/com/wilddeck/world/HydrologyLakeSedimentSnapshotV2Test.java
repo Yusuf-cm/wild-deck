@@ -66,6 +66,37 @@ class HydrologyLakeSedimentSnapshotV2Test {
         assertEquals(0, resumed.budget().waterResidual(), 1e-12);
     }
 
+    @Test void splitSeasonRestartMatchesUninterruptedSedimentAndWater() {
+        var base = baseline();
+        var initial = new HydrologyLakeStateV2.State("world", Map.of(A, 4.0));
+        var initialSnapshot = HydrologyLakeSedimentSnapshotV2.encode(base, base, initial);
+        var first = new HydrologyLakeSedimentSeasonsV2.Season(
+            Map.of(), Map.of(A, new HydrologyLakeNetworkStepV2.Forcing(0, 0, 1)),
+            Map.of(A, new HydrologyLakeSedimentNetworkV2.Sediment(4000, 2000)));
+        var second = new HydrologyLakeSedimentSeasonsV2.Season(
+            Map.of(A, 10.0), Map.of(A, new HydrologyLakeNetworkStepV2.Forcing(0, 0, 1)),
+            Map.of(A, new HydrologyLakeSedimentNetworkV2.Sediment(0, 2000)));
+        var uninterrupted = HydrologyLakeSedimentSeasonsV2.simulate(
+            base, initial, List.of(first, second),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        var one = HydrologyLakeSedimentSeasonsV2.resume(
+            base, initialSnapshot, List.of(first),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        var two = HydrologyLakeSedimentSeasonsV2.resume(
+            base, one.snapshot(), List.of(second),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        assertEquals(uninterrupted.get(1).water().state(), two.steps().get(0).water().state());
+        assertEquals(uninterrupted.get(1).budget(), two.steps().get(0).budget());
+        assertEquals(HydrologyLakeSedimentSnapshotV2.encode(
+            base, uninterrupted.get(1).updatedPlan(),
+            uninterrupted.get(1).water().state()), two.snapshot());
+        var noOp = HydrologyLakeSedimentSeasonsV2.resume(
+            base, two.snapshot(), List.of(),
+            SeasonalLakeEvolutionV2.EvaporationMode.START_OF_STEP);
+        assertEquals(two.snapshot(), noOp.snapshot());
+        assertTrue(noOp.steps().isEmpty());
+    }
+
     @Test void canonicalAcrossRouteEnumerationOrder() {
         var base = baseline();
         var changed = infill(base);
