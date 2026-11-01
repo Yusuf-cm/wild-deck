@@ -246,7 +246,7 @@ class HydrologySedimentLoadedLakeNetworkEpochV2Test {
 
         var wrongBaseline=new HashMap<>(regions);
         wrongBaseline.put("west",new HydrologySedimentLoadedLakeNetworkEpochV2.RegionStep(
-            west.receiver(),baseline(B,D,C),west.nextWorld(),west.seed(),
+            west.receiver(),baseline(B,C,D),west.nextWorld(),west.seed(),
             west.water(),west.capacity(),west.dryBulkDensity(),west.mode()));
         assertThrows(IllegalArgumentException.class,()->
             HydrologySedimentLoadedLakeNetworkEpochV2.plan(
