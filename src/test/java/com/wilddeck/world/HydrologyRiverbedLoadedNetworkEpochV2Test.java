@@ -170,6 +170,27 @@ class HydrologyRiverbedLoadedNetworkEpochV2Test {
             steps.get("a").receiver().checkpoint()).epoch());
     }
 
+    @Test void adjacentRegionHalosMustAgreeOnSeededElevationBeforeWrites()
+            throws IOException {
+        var steps=new HashMap<>(steps());
+        var neighbor=directory.resolve("neighbor.chk");
+        var initialNeighbor=initial(neighbor,4);
+        var candidate=step(neighbor,4,initialNeighbor,"neighbor-next",2,owned(4));
+        // Each local route and mass budget is valid on its own. Their
+        // independently sampled one-ring halos disagree at row 3/4 vertices.
+        assertDoesNotThrow(()->HydrologyRiverbedCheckpointV2.planRouteVerified(
+            candidate.expectedPrevious(),candidate.baseline(),candidate.nextWorld(),
+            candidate.seed(),candidate.eroded(),candidate.transport(),
+            candidate.cellArea(),candidate.dryBulkDensity(),
+            candidate.maximumIncision(),candidate.maximumRise()));
+        steps.put("z",candidate);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyRiverbedLoadedNetworkEpochV2.advance(Map.of(),steps,1));
+        assertEquals(0,HydrologyCheckpointStoreV2.load(
+            steps.get("a").receiver().checkpoint()).epoch());
+        assertEquals(initialNeighbor,HydrologyCheckpointStoreV2.load(neighbor));
+    }
+
     @Test void changedCompletedReplayParametersCannotBeAccepted()
             throws IOException {
         var steps=new HashMap<>(steps());
