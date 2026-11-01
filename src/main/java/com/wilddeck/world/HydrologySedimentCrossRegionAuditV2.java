@@ -141,4 +141,25 @@ public final class HydrologySedimentCrossRegionAuditV2 {
         }
         return reconcile(outboxes, inboxes);
     }
+    /**
+     * Audit actual sender AND receiver checkpoints. Unlike reconcileDurable,
+     * this does not trust caller-supplied outbox maps. All relevant sender
+     * files must be supplied; missing or corrupted files fail closed.
+     */
+    public static Report reconcileAllDurable(
+            Map<String, Path> sendingCheckpoints,
+            Map<String, Path> receivingCheckpoints) throws IOException {
+        Objects.requireNonNull(sendingCheckpoints);
+        Objects.requireNonNull(receivingCheckpoints);
+        var outboxes = new TreeMap<String,HydrologySedimentFrontierTransfersV2.Outgoing>();
+        for (var entry : sendingCheckpoints.entrySet()) {
+            String region = Objects.requireNonNull(entry.getKey());
+            var checkpoint = HydrologyCheckpointStoreV2.load(
+                Objects.requireNonNull(entry.getValue()));
+            var snapshot = HydrologySedimentSenderOutboxV2.restore(checkpoint);
+            outboxes.put(region,HydrologySedimentSenderOutboxV2.outgoing(snapshot));
+        }
+        return reconcileDurable(outboxes,receivingCheckpoints);
+    }
+
 }
