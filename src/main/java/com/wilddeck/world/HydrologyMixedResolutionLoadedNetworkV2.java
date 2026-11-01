@@ -43,19 +43,23 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
     }
 
     public record Report(BigDecimal exported, BigDecimal loaded, BigDecimal unloaded,
-            BigDecimal accepted, BigDecimal acknowledged,
-            int transferCount, int pendingLoadedCount, int unloadedCount) {
+            BigDecimal accepted, BigDecimal delivered, BigDecimal parked,
+            BigDecimal acknowledged, int transferCount, int pendingLoadedCount, int unloadedCount) {
         public Report {
             Objects.requireNonNull(exported);
             Objects.requireNonNull(loaded);
             Objects.requireNonNull(unloaded);
             Objects.requireNonNull(accepted);
+            Objects.requireNonNull(delivered);
+            Objects.requireNonNull(parked);
             Objects.requireNonNull(acknowledged);
             if (exported.signum() < 0 || loaded.signum() < 0 ||
                 unloaded.signum() < 0 || accepted.signum() < 0 ||
+                delivered.signum() < 0 || parked.signum() < 0 ||
                 acknowledged.signum() < 0 ||
                 exported.compareTo(loaded.add(unloaded)) != 0 ||
                 accepted.compareTo(loaded) > 0 ||
+                accepted.compareTo(delivered.add(parked)) != 0 ||
                 acknowledged.compareTo(accepted) > 0 ||
                 transferCount < 0 || pendingLoadedCount < 0 ||
                 unloadedCount < 0 ||
@@ -121,8 +125,8 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
 
     /**
      * Validate every supplied sender and loaded receiver before writing.
-     * A sender/receiver checkpoint may not be listed twice, even under a
-     * symlink. Unloaded destinations are intentionally not fabricated.
+     * A sender may also be a receiver under the same region key and file.
+     * All other file aliases are rejected. Unloaded destinations are not fabricated.
      */
     public static Plan plan(Map<String,Path> senderFiles,
                             Map<String,Receiver> loaded) throws IOException {
@@ -150,10 +154,18 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
 
         var owners = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,String>();
         var inboxes = new TreeMap<String,HydrologyMixedResolutionCheckpointStoreV2.Checkpoint>();
+        var receiverPaths = new ArrayList<Path>();
         for (var entry : receivers.entrySet()) {
             var receiver = entry.getValue();
-            distinct(receiver.checkpoint(),paths);
-            paths.add(receiver.checkpoint());
+            distinct(receiver.checkpoint(),receiverPaths);
+            receiverPaths.add(receiver.checkpoint());
+            // A loaded region may also be a sender under the SAME region key.
+            // Cross-name file aliases are not separate authoritative owners.
+            for (var sender : senders.entrySet())
+                if (sameFile(sender.getValue(),receiver.checkpoint()) &&
+                    !sender.getKey().equals(entry.getKey()))
+                    throw new IllegalArgumentException("Aliased sender and receiver region");
+
             for (var vertex : receiver.ownedVertices()) {
                 if (!HydrologySphericalTopologyV2.isCanonical(vertex))
                     throw new IllegalArgumentException("Noncanonical water receiver owner");
@@ -174,7 +186,11 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
 
         BigDecimal exported = BigDecimal.ZERO, assigned = BigDecimal.ZERO,
             unloaded = BigDecimal.ZERO, accepted = BigDecimal.ZERO,
-            acknowledged = BigDecimal.ZERO;
+            delivered = BigDecimal.ZERO, acknowledged = BigDecimal.ZERO;
+        for (var entry : inboxes.entrySet())
+            for (var receipt : entry.getValue().inbox().receipts().entrySet())
+                if (entry.getValue().inbox().delivered().contains(receipt.getKey()))
+                    delivered = delivered.add(BigDecimal.valueOf(receipt.getValue()));
         int count = 0, unloadedCount = 0;
         var pending = new ArrayList<Transfer>();
         for (var sender : snapshots.entrySet()) {
@@ -193,6 +209,13 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
                     continue;
                 }
                 assigned = assigned.add(amount);
+                var sourceOwner = owners.get(coordinate(key.from()));
+                if (region.equals(sourceOwner))
+                    throw new IllegalArgumentException("Local water edge exported as remote receipt");
+                if (sourceOwner != null &&
+                    !sameFile(senders.get(sender.getKey()),
+                        receivers.get(sourceOwner).checkpoint()))
+                    throw new IllegalArgumentException("Loaded water source has conflicting sender owner");
                 var receiver = inboxes.get(region);
                 var received = receiver.inbox().receipts().get(key);
                 if (received != null) {
@@ -211,7 +234,8 @@ public final class HydrologyMixedResolutionLoadedNetworkV2 {
         }
         pending.sort(ORDER);
         return new Plan(pending,new Report(exported,assigned,unloaded,
-            accepted,acknowledged,count,pending.size(),unloadedCount));
+            accepted,delivered,accepted.subtract(delivered),acknowledged,
+            count,pending.size(),unloadedCount));
     }
 
     /**
