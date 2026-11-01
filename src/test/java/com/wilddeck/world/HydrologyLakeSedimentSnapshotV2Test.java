@@ -18,7 +18,7 @@ class HydrologyLakeSedimentSnapshotV2Test {
             new HydrologyFlowGraphV2.Node(C, 0, D, false),
             new HydrologyFlowGraphV2.Node(D, 0, null, true)));
         for (long y = 0; y <= 4; y++)
-            for (long x = 0; x <= 8; x++) {
+            for (long x = 0; x < (y == 0 || y == 4 ? 1 : 8); x++) {
                 var sample = at(x, y);
                 if (!Set.of(A, B, C, D).contains(sample))
                     routes.add(new HydrologyFlowGraphV2.Node(sample, 0, null, true));
