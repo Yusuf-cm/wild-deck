@@ -195,6 +195,35 @@ public final class HydrologySedimentCheckpointV2 {
             dryBulkDensity,mode,nextWorld,seed);
     }
 
+    /** Exact, read-only next checkpoint for a staged, already verified sediment inbox. */
+    public record Planned(HydrologyCheckpointV2.Checkpoint next,
+                          HydrologySedimentReceiptInboxV2.Snapshot sediment,
+                          HydrologyRiverLakeSedimentCouplingV2.ImportedResult result) {
+        public Planned {
+            Objects.requireNonNull(next);
+            Objects.requireNonNull(sediment);
+            Objects.requireNonNull(result);
+        }
+    }
+
+    /**
+     * Recompute the exact next lake/water/sediment/terrain checkpoint without
+     * writing or acknowledging any transfer. Used to reject altered replay
+     * inputs when recovering an interrupted multi-region lake epoch.
+     */
+    public static Planned planLakeWithTerrain(
+            HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode) {
+        Objects.requireNonNull(nextWorld);
+        Objects.requireNonNull(seed);
+        return planLakeInternal(previous,baseline,water,transportCapacity,
+            dryBulkDensity,mode,nextWorld,seed);
+    }
+
     private static Committed advanceLakeInternal(
             Path path,HydrologyCheckpointV2.Checkpoint previous,
             HydrologySphericalLakeBasinsV2.Plan baseline,
@@ -204,6 +233,20 @@ public final class HydrologySedimentCheckpointV2 {
             String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed)
             throws IOException {
         Objects.requireNonNull(path);
+        var planned = planLakeInternal(previous,baseline,water,transportCapacity,
+            dryBulkDensity,mode,nextWorld,seed);
+        HydrologyCheckpointStoreV2.saveNext(path,previous,planned.next());
+        return new Committed(planned.next(),planned.sediment(),planned.result());
+    }
+
+    private static Planned planLakeInternal(
+            HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologyLakeNetworkStepV2.Forcing> water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> transportCapacity,
+            double dryBulkDensity,SeasonalLakeEvolutionV2.EvaporationMode mode,
+            String nextWorld,HydrologyGlobalSlopeRouterV2.Elevations seed)
+            throws IOException {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(baseline);
         Objects.requireNonNull(water);
@@ -245,8 +288,7 @@ public final class HydrologySedimentCheckpointV2 {
             baseline,lake.updatedPlan(),retained);
         var next = new HydrologyCheckpointV2.Checkpoint(epoch,
             encode(lakePayload,staged.snapshot()),previous.inboxState());
-        HydrologyCheckpointStoreV2.saveNext(path,previous,next);
-        return new Committed(next,staged.snapshot(),staged.result());
+        return new Planned(next,staged.snapshot(),staged.result());
     }
 
     private static String digest(String body) {
