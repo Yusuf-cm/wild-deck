@@ -109,4 +109,49 @@ public final class HydrologyRiverbedCheckpointV2 {
         HydrologyCheckpointStoreV2.saveNext(path,previous,planned.next());
         return planned;
     }
+
+    /**
+     * Strict opt-in checkpoint plan: in addition to local sediment mass and
+     * existing edge conservation, require every changed river vertex and its
+     * one-ring loaded/unloaded spherical halo to retain steepest-descent
+     * routing. Priority-flood/lake spillway migrations fail closed.
+     *
+     * This does not settle external receipts or serialize other writers.
+     */
+    public static Planned planRouteVerified(
+            HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,
+            String nextWorld,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            HydrologyRiverSedimentTransportV2.Result transport,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity, double maximumIncision, double maximumRise) {
+        var planned = plan(previous,baseline,nextWorld,seed,eroded,transport,
+            cellArea,dryBulkDensity,maximumIncision,maximumRise);
+        var envelope = HydrologySedimentCheckpointV2.decode(previous.worldState());
+        var restored = HydrologyLakeSedimentSnapshotV2.decode(
+            baseline,envelope.world());
+        var before = HydrologyTerrainOverlayV2.decode(restored.water().world());
+        HydrologyRiverbedRouteGuardV2.verify(
+            restored.plan(),before,planned.riverbed().terrain(),seed);
+        return planned;
+    }
+
+    /** Save the strictly route-verified epoch in one guarded local checkpoint. */
+    public static Planned commitRouteVerified(
+            Path path,HydrologyCheckpointV2.Checkpoint previous,
+            HydrologySphericalLakeBasinsV2.Plan baseline,String nextWorld,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,Double> eroded,
+            HydrologyRiverSedimentTransportV2.Result transport,
+            Map<GlobalHydrologyAddressV2.Sample,Double> cellArea,
+            double dryBulkDensity,double maximumIncision,double maximumRise)
+            throws IOException {
+        Objects.requireNonNull(path);
+        var planned = planRouteVerified(previous,baseline,nextWorld,seed,
+            eroded,transport,cellArea,dryBulkDensity,maximumIncision,maximumRise);
+        HydrologyCheckpointStoreV2.saveNext(path,previous,planned.next());
+        return planned;
+    }
 }
