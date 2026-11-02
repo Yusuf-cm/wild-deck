@@ -168,8 +168,9 @@ public final class HydrologySeasonalOutletSettlementV2 {
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         totals.putAll(previous.dischargedM3());
         for (var entry:routed.verifiedOutletM3().entrySet()) {
-            double next=totals.getOrDefault(entry.getKey(),0.0)+entry.getValue();
-            if (!Double.isFinite(next))
+            double prior=totals.getOrDefault(entry.getKey(),0.0);
+            double next=prior+entry.getValue();
+            if (!Double.isFinite(next) || (entry.getValue()>0 && next==prior))
                 throw new IllegalArgumentException("Cumulative outlet discharge overflow");
             totals.put(entry.getKey(),next);
         }
