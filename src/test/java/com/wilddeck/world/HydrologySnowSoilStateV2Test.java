@@ -121,4 +121,33 @@ class HydrologySnowSoilStateV2Test {
         assertThrows(IllegalArgumentException.class,()->
             new HydrologySnowSoilStateV2.Forcing(1,0,0,1,1,1,0));
     }
+
+    @Test void rejectsCrossResolutionSnowStorageAndWeatherDoubleOwnership() {
+        var low=at(1,2);
+        var high=new GlobalHydrologyAddressV2.Sample(2,4,4,8);
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(low),
+                     HydrologyGlobalCatchmentsV2.coordinate(high));
+        var cell=new HydrologySnowSoilStateV2.Cell(1,0);
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologySnowSoilStateV2.State("world",Map.of(low,cell,high,cell)));
+        var dry=new HydrologySnowSoilStateV2.Forcing(1,10,0,0,1,0,10);
+        var fresh=new HydrologySnowSoilStateV2.State("world",Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySnowSoilStateV2.advance(fresh,Map.of(low,dry,high,dry)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySnowSoilStateV2.advanceAudited(fresh,Map.of(low,dry,high,dry)));
+        assertEquals(10,HydrologySnowSoilStateV2.advance(
+            fresh,Map.of(low,dry)).precipitationVolume(),1e-10);
+    }
+
+    @Test void rejectsLegacyCodecWithTwoOwnersForOnePhysicalVertex() {
+        var low=at(1,2);
+        var initial=new HydrologySnowSoilStateV2.State(
+            "world",Map.of(low,new HydrologySnowSoilStateV2.Cell(1,0)));
+        var parts=HydrologySnowSoilStateV2.encode(initial).split("\\n",-1);
+        var alias="2,4,4,8,0x1.0p0,0x0.0p0";
+        var corrupted=String.join("\n",parts[0],parts[1],"2",parts[3],alias,"");
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySnowSoilStateV2.decode(corrupted));
+    }
 }
