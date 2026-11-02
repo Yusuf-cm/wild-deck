@@ -236,4 +236,32 @@ class HydrologySeasonalLaggedLakeNetworkV2Test {
             HydrologySeasonalLaggedLakeNetworkV2.advanceScheduled(
                 before,Map.of(),Map.of()));
     }
+    @Test void auditedSeasonalRegionBridgePreservesRunoffAndPendingSpill() {
+        var forcing=HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+            B,1000,0.3,5,0.01,0.15,3,0.02);
+        var seasonal=HydrologySeasonalRegionBudgetV2.advance(
+            new HydrologySnowSoilStateV2.State("world",Map.of()),
+            Map.of("upstream",Map.of(B,forcing)),1000);
+        var routes=new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        routes.put(B,null);
+        var lakes=Map.of(B,lake(1,0,0,SPILL,1));
+        var explicit=HydrologySeasonalLaggedLakeNetworkV2.advanceUniform(
+            seasonal.routeKnownNetwork(routes,Set.of()),lakes,4);
+        var convenience=seasonal.routeKnownNetworkWithLaggedLakes(
+            routes,Set.of(),lakes,4);
+        assertEquals(explicit,convenience);
+        assertEquals(seasonal.season().runoffVolume(),
+            convenience.seasonalRunoffM3(),1e-7);
+        assertEquals(0,convenience.residualM3(),1e-7);
+        double runoff=seasonal.season().runoffVolume();
+        var intervals=Map.of(B,List.of(
+            new HydrologySeasonalLakeIntegratorV2.Interval(runoff/2,0),
+            new HydrologySeasonalLakeIntegratorV2.Interval(runoff-runoff/2,0)));
+        assertEquals(HydrologySeasonalLaggedLakeNetworkV2.advanceScheduled(
+            seasonal.routeKnownNetwork(routes,Set.of()),lakes,intervals),
+            seasonal.routeKnownNetworkWithScheduledLaggedLakes(
+                routes,Set.of(),lakes,intervals));
+    }
+
 }
