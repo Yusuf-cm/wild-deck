@@ -178,4 +178,27 @@ class HydrologySeasonalGlobalRoutingV2Test {
         assertEquals(0,result.budget().input(),0);
         assertEquals(0,result.outletM3PerSecond().get(EAST),0);
     }
+    @Test void regionalConvenienceRouteUsesIdenticalAuditedGlobalGraph() {
+        var seasonal = season();
+        assertEquals(HydrologySeasonalGlobalRoutingV2.route(
+            seasonal,complete(),Set.of(POLE,OUT)),
+            seasonal.routeKnownNetwork(complete(),Set.of(POLE,OUT)));
+    }
+
+    @Test void noVerifiedMouthNeverInventsOceanDischarge() {
+        var routes = new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        routes.put(POLE,null);
+        routes.put(WEST,EAST);
+        routes.put(EAST,null);
+        var result = season().routeKnownNetwork(routes,Set.of());
+        assertTrue(result.drainage().terminalOutflow().isEmpty());
+        assertTrue(result.catchments().isEmpty());
+        assertEquals(result.budget().input(),result.budget().frontier(),1e-8);
+        assertThrows(UnsupportedOperationException.class,() ->
+            result.catchments().put(WEST,
+                new HydrologyGlobalCatchmentsV2.CatchmentId(
+                    HydrologyGlobalCatchmentsV2.coordinate(EAST))));
+    }
+
 }
