@@ -288,4 +288,44 @@ class HydrologySeasonalTopologyEpochV2Test {
                 atlas,Map.of(B,1.0),Set.of(B),0));
     }
 
+    @Test void bindingRejectsPreviouslyConsumedEmptyReceiptEpoch() {
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.claim(0);
+        var old=HydrologyCheckpointV2.capture(0,fresh().worldState(),inbox);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.bindFresh(old,atlas()));
+    }
+
+    @Test void boundLakeStoresWaterAndRejectsSpillContradictingAtlas() {
+        var atlas=atlas();
+        var old=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "world",0,Map.of(B,0.0),Map.of())),
+            new HydrologyEpochInboxV2());
+        var first=HydrologySeasonalTopologyEpochV2.bindFresh(old,atlas);
+        var nodes=List.of(new HydrologyFlowGraphV2.Node(B,2,null,false));
+        var flow=HydrologyFlowGraphV2.solve(nodes);
+        var runoff=new HydrologySeasonalGlobalRoutingV2.Result(
+            flow,HydrologyConservationV2.verify(nodes,flow),
+            Map.of(),Map.of(),Map.of(),Map.of(B,2.0/86400.0),86400);
+        var basin=new LakeReservoirV2.Basin(new double[]{0},new double[]{1},2);
+        var authentic=atlas.routeAt(B).downstream();
+        assertNotNull(authentic);
+        var lake=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            basin,0,0,authentic,1);
+        var good=HydrologySeasonalTopologyEpochV2.prepareUniform(
+            first,atlas,runoff,Map.of(B,lake),2,
+            edges(atlas),Set.of(B),Set.of(M));
+        assertEquals(2.0,good.water().state().lakes().lakeStorageM3().get(B),1e-12);
+        assertTrue(good.water().state().lakes().pendingM3().isEmpty());
+        var fake=authentic.equals(at(2,2))?at(4,2):at(2,2);
+        var altered=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            basin,0,0,fake,1);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.prepareUniform(
+                first,atlas,runoff,Map.of(B,altered),2,
+                edges(atlas),Set.of(B),Set.of(M)));
+    }
+
 }
