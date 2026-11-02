@@ -1,6 +1,7 @@
 package com.wilddeck.world;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -149,4 +150,80 @@ public final class HydrologyCoupledLoadedTransfersV2 {
             throw new IOException("Coupled loaded delivery did not settle");
         return new Result(before,water,sediment,after);
     }
+    /**
+     * Deterministic physical destinations of still-unacknowledged water and
+     * sediment for unloaded vertices. Cross-LOD aliases share one hint, but
+     * amounts remain in separate units. A caller must resolve the coordinate
+     * through its authoritative region directory; this does NOT guess an LOD,
+     * discard already acknowledged history, or load a tile.
+     */
+    public record UnloadedFrontier(HydrologyGlobalCatchmentsV2.Coordinate coordinate,
+            BigDecimal waterVolume, BigDecimal sedimentMass,
+            int waterReceipts, int sedimentReceipts) {
+        public UnloadedFrontier {
+            Objects.requireNonNull(coordinate);
+            Objects.requireNonNull(waterVolume);
+            Objects.requireNonNull(sedimentMass);
+            if (waterVolume.signum() < 0 || sedimentMass.signum() < 0 ||
+                waterReceipts < 0 || sedimentReceipts < 0)
+                throw new IllegalArgumentException("Invalid unloaded frontier budget");
+        }
+    }
+
+    private static final class PendingFrontier {
+        final HydrologyGlobalCatchmentsV2.Coordinate coordinate;
+        BigDecimal water = BigDecimal.ZERO, sediment = BigDecimal.ZERO;
+        int waterCount, sedimentCount;
+        PendingFrontier(HydrologyGlobalCatchmentsV2.Coordinate coordinate) {
+            this.coordinate = coordinate;
+        }
+        UnloadedFrontier snapshot() {
+            return new UnloadedFrontier(coordinate,water,sediment,
+                waterCount,sedimentCount);
+        }
+    }
+
+    public static List<UnloadedFrontier> pendingUnloaded(
+            Map<String,Path> waterSenderFiles,
+            Map<String,Path> sedimentSenderFiles,
+            Map<String,Region> loaded) throws IOException {
+        var inventories = validate(waterSenderFiles,sedimentSenderFiles,loaded);
+        // Fail closed on forked sources, missing provenance and aliases before
+        // generating hints from durable sender histories.
+        plan(waterSenderFiles,sedimentSenderFiles,loaded);
+        var owned = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        for (var receiver : inventories.water().values())
+            for (var vertex : receiver.ownedVertices())
+                owned.add(HydrologyGlobalCatchmentsV2.coordinate(vertex));
+        var pending = new TreeMap<String,PendingFrontier>();
+        for (var path : inventories.waterSenders().values()) {
+            var checkpoint = HydrologyMixedResolutionCheckpointStoreV2.load(path);
+            for (var entry : checkpoint.outbox().entrySet()) {
+                if (checkpoint.acknowledged().contains(entry.getKey())) continue;
+                var coordinate = HydrologyGlobalCatchmentsV2.coordinate(entry.getKey().to());
+                if (owned.contains(coordinate)) continue;
+                var item = pending.computeIfAbsent(coordinate.stableKey(),
+                    ignored -> new PendingFrontier(coordinate));
+                item.water = item.water.add(BigDecimal.valueOf(entry.getValue()));
+                item.waterCount = Math.addExact(item.waterCount,1);
+            }
+        }
+        for (var path : inventories.sedimentSenders().values()) {
+            var checkpoint = HydrologySedimentSenderOutboxV2.restore(
+                HydrologyCheckpointStoreV2.load(path));
+            for (var entry : checkpoint.receipts().entrySet()) {
+                if (checkpoint.acknowledged().contains(entry.getKey())) continue;
+                var coordinate = HydrologyGlobalCatchmentsV2.coordinate(entry.getKey().to());
+                if (owned.contains(coordinate)) continue;
+                var item = pending.computeIfAbsent(coordinate.stableKey(),
+                    ignored -> new PendingFrontier(coordinate));
+                item.sediment = item.sediment.add(BigDecimal.valueOf(entry.getValue()));
+                item.sedimentCount = Math.addExact(item.sedimentCount,1);
+            }
+        }
+        var result = new ArrayList<UnloadedFrontier>();
+        for (var item : pending.values()) result.add(item.snapshot());
+        return List.copyOf(result);
+    }
+
 }
