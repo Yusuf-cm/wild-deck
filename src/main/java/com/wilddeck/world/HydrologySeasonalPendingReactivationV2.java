@@ -47,9 +47,6 @@ public final class HydrologySeasonalPendingReactivationV2 {
             if (verifiedMouths.contains(from) && to!=null)
                 throw new IllegalArgumentException("Verified mouth has downstream");
         }
-        for (var inlet:lakeInlets)
-            if (!loaded.contains(inlet))
-                throw new IllegalArgumentException("Lake inlet must be loaded to reactivate");
         var input=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         input.putAll(pending);
