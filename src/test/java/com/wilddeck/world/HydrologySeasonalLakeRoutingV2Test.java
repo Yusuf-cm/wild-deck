@@ -151,4 +151,57 @@ class HydrologySeasonalLakeRoutingV2Test {
             result.pendingM3().get(SPILL),1e-8);
         assertEquals(0,result.residualM3(),1e-8);
     }
+    @Test void regionalConvenienceMatchesExplicitLakeAdvancement() {
+        var forcing = HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+            B,1000,0.3,5,0.01,0.15,3,0.02);
+        var season = HydrologySeasonalRegionBudgetV2.advance(
+            new HydrologySnowSoilStateV2.State("world",Map.of()),
+            Map.of("region",Map.of(B,forcing)),1000);
+        var routes = new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        routes.put(B,null);
+        var lakes = Map.of(B,lake(1,0,0,SPILL));
+        assertEquals(HydrologySeasonalLakeRoutingV2.advance(
+            season.routeKnownNetwork(routes,Set.of()),lakes),
+            season.routeKnownNetworkWithLakes(routes,Set.of(),lakes));
+    }
+
+    @Test void overlappingPendingAndVerifiedOutletsAreRejected() {
+        var original = routed();
+        var forgedFlow = new HydrologyFlowGraphV2.Result(
+            original.drainage().discharge(),
+            Map.of(B,5.0,OUT,2.0),
+            original.drainage().pendingOutflow(),
+            original.drainage().resolvedCatchments());
+        var forged = new HydrologySeasonalGlobalRoutingV2.Result(
+            forgedFlow,new HydrologyConservationV2.Budget(16,7,9,0),
+            Map.of(),Map.of(),Map.of(),Map.of(),86400);
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advance(forged,Map.of()));
+    }
+
+    @Test void noLakeInventoryPreservesPendingWaterWithoutCreatingOutlets() {
+        var before = routed();
+        var after = HydrologySeasonalLakeRoutingV2.advance(before,Map.of());
+        assertEquals(before.drainage().pendingOutflow(),after.pendingM3());
+        assertEquals(0,after.previousLakeStorageM3(),0);
+        assertEquals(0,after.finalLakeStorageM3(),0);
+        assertEquals(0,after.lakeEvaporationM3(),0);
+        assertEquals(0,after.residualM3(),1e-8);
+    }
+
+    @Test void invalidPriorStorageAndSpillIntoKnownMouthAreRejected() {
+        assertThrows(IllegalArgumentException.class,() ->
+            lake(1,2,0,SPILL));
+        var nodes = List.of(
+            new HydrologyFlowGraphV2.Node(B,5,null,false),
+            new HydrologyFlowGraphV2.Node(SPILL,0,null,true));
+        var flow = HydrologyFlowGraphV2.solve(nodes);
+        var budget = HydrologyConservationV2.verify(nodes,flow);
+        var routed = new HydrologySeasonalGlobalRoutingV2.Result(
+            flow,budget,Map.of(),Map.of(),Map.of(),Map.of(),86400);
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advance(routed,
+                Map.of(B,lake(1,0,0,SPILL))));
+    }
 }
