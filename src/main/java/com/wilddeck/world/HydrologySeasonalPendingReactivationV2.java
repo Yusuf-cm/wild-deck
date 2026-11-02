@@ -79,6 +79,9 @@ public final class HydrologySeasonalPendingReactivationV2 {
         }
         BigDecimal after=BigDecimal.ZERO;
         for (double value:output.values()) after=after.add(BigDecimal.valueOf(value));
+        if (!Double.isFinite(before.doubleValue()) ||
+            !Double.isFinite(after.doubleValue()))
+            throw new IllegalArgumentException("Reactivation total water overflow");
         double delta=before.subtract(after).abs().doubleValue();
         if (!Double.isFinite(delta) ||
             delta>Math.max(1e-8,1e-10*before.doubleValue()))
