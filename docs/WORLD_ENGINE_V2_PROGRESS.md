@@ -2684,3 +2684,6 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. No planet-scale multi-season conservation/endurance/fault-injection acceptance or safe ledger compaction. Existing finite-double precision limits remain.
 
 **Safety:** Only the feature branch was modified. No merge, PR, main/other-branch changes, production operations or paid infrastructure changes. Hydrology remains the sole priority.
+
+
+**Verified follow-up (same 2026-11-02 streaming work):** `dafe8be64c403c89955d2e5f4a8046486ab5ec4c` corrected the remaining two test fixtures (strict-mode accidentally given an extra loaded owner; streaming restart omitted a persisted unloaded cell's weather). **[GitHub Actions run 41523172441](https://github.com/Yusuf-cm/wild-deck/actions/runs/41523172441) PASSED**: **1,219 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including all **14/14** tests in `HydrologySeasonalSnowSoilWaterEpochV2Test` (six new). The world experiment, resource replay, browser-save, atlas export and real-browser verification steps also passed. The documentation-only follow-up commit requires its own workflow conclusion before claiming the final documentation HEAD green. The water subsystem is **not** complete for the explicit acceptance gaps above.
