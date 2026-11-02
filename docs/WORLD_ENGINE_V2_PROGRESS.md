@@ -2205,3 +2205,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. Calibrated precipitation/temperature/evaporation/melt parameters, physically timed floods, lake/soil/snow integration, erosion-capacity calibration, large-world endurance and distributed fault injection.
 
 **Safety:** Only development-branch commits; no PR, merge, main/other branch write, production operation or paid infrastructure change. Continue hydrology before other world layers.
+
+
+## 2026-11-02 — Sediment sender epoch fencing and independently audited seasonal runoff
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `2bedd9d1749c9e420b1d70819c1f7cf44e99888f`. The previously unverified snow/soil and sender-fence commits are now **verified** by [Java CI 41385380189](https://github.com/Yusuf-cm/wild-deck/actions/runs/41385380189): **1,042 Maven/JUnit tests passed**, zero failures/errors/skips, `BUILD SUCCESS`, and atlas browser checks passed.
+
+### Implemented and verified
+
+1. **Stronger sender checkpoint fencing:** `HydrologyCoupledSenderFenceV2` now captures sediment sender checkpoint epochs in addition to immutable receipt histories and acknowledged receipt sets. During a coupled drain, sediment epoch movement must be explained by growth in acknowledged receipts, bounded by the number of newly acknowledged receipts. A silent epoch advance with an unchanged sediment journal is rejected. Duplicate normalized sender file paths (including two names for the same water or sediment checkpoint) are rejected during capture, preventing a single physical sender from being treated as multiple independent senders. Commits `768b47ef` and `e8bf728f`.
+2. **Independent SI-volume seasonal checkpoint audit:** New `HydrologySeasonalBudgetAuditV2` compares the canonical depth-based `HydrologySnowSoilStateV2` transition against the separate `HydrologySeasonalSnowSoilV2` volume bucket for each globally canonical cell. It verifies snow/soil storage, per-cell river runoff sources, source uniqueness, precipitation, evaporation, total runoff and overall conservation. It rejects mismatched areas, forged stored water, altered runoff and accidental precipitation reinjection. `HydrologySnowSoilStateV2.advanceAudited` exposes an **opt-in** audited transition; the original `advance` behavior remains unchanged. Commits `8df82b81`, `1be699b5`, `3ff0e196`, `116ccfb6`.
+3. **Eight new JUnit regression tests:** Three sender-fence tests cover silent sediment epoch drift during directory preflight, direct fence verification and duplicate checkpoint aliases. Five seasonal audit tests cover two seasons, tampered runoff, tampered storage/double-counting, area drift/duplicate source, and deterministic audited advancement.
+
+### Exact CI evidence
+
+- [Sender implementation CI 41390830093](https://github.com/Yusuf-cm/wild-deck/actions/runs/41390830093): passed; 1,042 Maven/JUnit tests.
+- [Sender regression CI 41390840495](https://github.com/Yusuf-cm/wild-deck/actions/runs/41390840495): passed.
+- [Independent seasonal audit CI 41390887336](https://github.com/Yusuf-cm/wild-deck/actions/runs/41390887336): passed; 1,049 Maven/JUnit tests, zero failures/errors/skips.
+- [Final source/test CI 41390921211](https://github.com/Yusuf-cm/wild-deck/actions/runs/41390921211) at `116ccfb6236bae9075a189cea71332505f75fc9e`: **passed**, **1,050 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser save, atlas export and real-browser atlas checks passed. This is the acceptance run for all source and test changes above.
+- This documentation-only commit triggers its own workflow; verify that separately. Do not treat a previous commit's green CI as proof of a later source change.
+
+### Outstanding acceptance gaps: hydrology NOT finished
+
+1. **Authoritative lifecycle:** Automatic region loading, coupled water/sediment delivery, seasonal forcing, lake advancement, riverbed epochs and restart recovery still need one coordinated runtime. The independent seasonal audit is opt-in; it does not automatically force weather into the authoritative world.
+2. **Cross-region erosion:** Sediment imports/exports must participate in authoritative riverbed terrain commits, with safe drainage rerouting and migration of already-in-transit water/sediment after topology changes.
+3. **Distributed safety:** Sender epoch checks and file alias validation are cooperative preflight checks, **not** a distributed lock, authenticated provenance, or globally atomic transaction. Replay history still cannot be safely compacted without a durable global watermark and receiver proof. The epoch rule does not prove that a remote sender has not been maliciously rewritten.
+4. **Physical calibration:** Cell areas must be independently authoritative and physically nonoverlapping. The degree-day snow/soil model remains approximate and caller-forced; it does not supply groundwater, calibrated precipitation/temperature/evaporation, timed floods or multiple lake spillways. Planetary catchments, ocean boundaries and large-world fault-injection/endurance tests remain incomplete.
+
+**Safety:** No merge, PR, write to `main` or other branches, production operation or paid infrastructure modification. Continue water/hydrology before other world layers.
