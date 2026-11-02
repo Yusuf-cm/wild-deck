@@ -2591,3 +2591,37 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Scale and crash safety:** No distributed writer CAS, sender-acknowledgement transaction, planet-scale long-horizon conservation/fault injection, or safe receipt/ledger compaction. Cumulative water uses finite doubles and some very small increments can be rejected rather than represented.
 
 **Safety:** Only the requested feature branch was changed. No merge, PR, main/other-branch change, production operation or paid infrastructure. Hydrology remains the sole development priority.
+
+
+## 2026-11-02 — Atlas-bound seasonal water, unloaded routing and lake capture
+
+**Branch:** `Yusuf-cm/wild-deck` / `feature/world-engine-v2` only. Started at `87be7f3bf73a2b2a5b3f1c5f40fa3d49f9e0b0ca`. Starting [CI 41495355478](https://github.com/Yusuf-cm/wild-deck/actions/runs/41495355478) **passed 1,187 Maven/JUnit tests** and the complete Java/world/browser workflow; no baseline CI failures needed fixing.
+
+### Implemented (new opt-in `HydrologySeasonalTopologyEpochV2`)
+
+1. **Drainage-revision fencing:** A versioned canonical checkpoint envelope persists the SHA-256 identity from `HydrologyDrainageSnapshotIdV2.of` alongside the existing seasonal lake/pending/outlet-ledger state. `prepareUniform`, `prepareScheduled`, `commitUniform` and `commitScheduled` reject a changed atlas before consuming receipts or committing a seasonal checkpoint. Supplied known edges, mouth flags, lake spill edges, and runoff frontier/outlet addresses must agree with the complete caller-verified atlas. Only a *fresh* checkpoint with no pending water, previous discharge, nonzero lake storage, receipt history, or consumed-epoch markers can be newly bound. This is a **fail-closed revision fence, not automatic migration**; callers must not rebind existing in-flight water to a different atlas.
+2. **Deterministic owned runoff across loaded/unloaded regions:** `routeOwnedRunoff` builds a regional seasonal flow graph directly from the verified spherical atlas. Each loaded canonical sample must own exactly one finite, nonnegative local runoff volume (zero included); absent owners, foreign vertices, and invalid forcing fail. Downstream links are authoritative even if the next region is unloaded: the solver retains unresolved water at the frontier instead of claiming ocean discharge. The helper exposes stable verified catchment and reach identities where routes actually resolve, and checks water conservation with the existing graph audit. Local runoff still requires independently audited snow/soil and precipitation ownership.
+3. **Atlas-derived one-call lake/season integration:** `prepareOwnedUniform`, `prepareOwnedScheduled` and `commitOwnedUniform` derive the known edges and verified mouths from the same atlas, capture upstream water at loaded lake inlets before their authenticated spill edges, and reuse the existing chronological lake, receipt, cumulative ocean ledger and single-writer atomic checkpoint operations. Tests cover a lake storing water, delayed overflow parked at an unloaded downstream vertex, then settling at the verified ocean after the neighboring terrain becomes loaded. Cross-region confluence is not re-added as new rainfall.
+
+### Verification and commits
+
+- `d6e7795d4eb7bd04168b2e47ccbf73d90c37cc23` — atlas-bound seasonal checkpoint and revision fence.
+- `da850d44827d820f7acd36d142ae4a11a8297973` — initial ten integration tests.
+- `135490846f3784b2269b84a57d91664d3424a8e3` — atlas-owned seasonal runoff routing.
+- `d88f94c47b59be9954b50dabc82c7c324374c5ae` — three owned-routing tests.
+- `92486c0d3955b2711f94fdc99d8778630599042b` — correct partial-loaded test fixture to avoid supplying an unloaded ocean terminal as fresh runoff.
+- `42f92a79d4b8cab6c090362f057923fb7b3d7d06` — reject consumed-epoch rebinding and atlas-inconsistent lake spill.
+- `2b84e09f293825c480fadfa6b802fea3ca16c06a` — two lake/binding regressions.
+- `74dc743f39433178277d80ca631db418588b62ac` — compose atlas-owned lake capture with seasonal checkpoint.
+- `76b653f8b59a52fd9cd8b98ef2bb73451d9012cc` — three full-path lake/runoff/recovery tests.
+- Early [CI 41503941527](https://github.com/Yusuf-cm/wild-deck/actions/runs/41503941527), [41504039551](https://github.com/Yusuf-cm/wild-deck/actions/runs/41504039551) and [41504081691](https://github.com/Yusuf-cm/wild-deck/actions/runs/41504081691) failed **one test fixture** because it included a fresh terminal-mouth runoff while the mouth was intentionally unloaded. The fixture was corrected in `92486c0d`; later functional runs passed.
+- **[Final functional CI 41504400813](https://github.com/Yusuf-cm/wild-deck/actions/runs/41504400813) PASSED** for `76b653f8b59a52fd9cd8b98ef2bb73451d9012cc`: **1,205 Maven/JUnit tests, zero failures, zero errors, zero skipped, BUILD SUCCESS**. All **18** `HydrologySeasonalTopologyEpochV2Test` methods passed. World experiment, resource replay, browser-save, atlas export and real-browser checks passed. The documentation commit following this entry must have its own CI conclusion checked before declaring the new documentation HEAD green.
+
+### Still unfinished (hydrology NOT complete)
+
+1. **Authoritative lifecycle:** This is an opt-in local seasonal water checkpoint, not the live world tick. Persisted snow/soil, meteorological forcing, sediment receipts, bed incision/deposition, terrain loading and lake state are not all coordinated by one globally atomic epoch. The new one-call entry points accept already audited runoff; they do not calculate snow/soil or sediment themselves.
+2. **Dynamic topology:** No safe migration of pending water, lake storage or sediment after an atlas rebuild; the new fence **rejects** changed topology. Planetary outlet/ocean verification still depends on an independently built, complete spherical atlas. No automatic global drainage regeneration after terrain erosion.
+3. **Physical timing and water science:** Deferred lake spill loses exact residual cross-season travel slices; no calibrated river velocity/flood-wave timing, groundwater/backwater, multiple lake spillways, physically calibrated evaporation/weather or coupled erosion transport in this transition.
+4. **Durability and scale:** The checkpoint store is local single-writer optimistic persistence, not distributed CAS or a globally atomic sender/receiver acknowledgement. No planet-scale long-horizon mass conservation, distributed crash-injection acceptance, mixed-resolution area migration or safe receipt/ledger compaction. Cumulative outlet doubles can reject tiny increments when precision would be lost.
+
+**Safety:** No PR, merge, push to main/other branches, production operation or paid infrastructure change. Continue hydrology before other world layers.
