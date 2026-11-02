@@ -139,4 +139,23 @@ class HydrologyTimedSeasonalEpochV2Test {
         assertEquals(3,correct.seasonal().water().water().state()
             .dischargedM3().get(M),1e-8);
     }
+
+    @Test void transitAndAuthenticatedInboxReceiptConvergeWithoutDoubleRain() {
+        var atlas=atlas();
+        var first=initial(atlas);
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,at(4,2),M),7);
+        var withInbox=new HydrologyCheckpointV2.Checkpoint(0,
+            first.worldState(),HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var one=advance(withInbox,atlas,Set.of(M),
+            List.of(transfer("timed-1",1,3)),2);
+        assertEquals(12,one.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+        var two=advance(one.checkpoint(),atlas,Set.of(M),
+            List.of(transfer("timed-1",1,3)),0);
+        assertEquals(12,two.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+        assertTrue(two.transit().releasedM3().isEmpty());
+        assertTrue(two.seasonal().water().water().claimedM3().isEmpty());
+    }
 }
