@@ -96,7 +96,7 @@ class HydrologySeasonalLaggedLakeNetworkV2Test {
     }
 
     @Test void chronologicalRainfallTimingChangesLakeStorage() {
-        var lakes=Map.of(A,lake(5,0,2,SPILL,1));
+        var lakes=Map.of(A,lake(5,0,2,B,1));
         var early=Map.of(A,List.of(
             new HydrologySeasonalLakeIntegratorV2.Interval(9,0),
             new HydrologySeasonalLakeIntegratorV2.Interval(0,2)));
@@ -114,7 +114,7 @@ class HydrologySeasonalLaggedLakeNetworkV2Test {
     }
 
     @Test void scheduledAndUniformForcingAgreeWhenIntervalsMatch() {
-        var lakes=Map.of(A,lake(5,0,2,SPILL,1));
+        var lakes=Map.of(A,lake(5,0,2,B,1));
         var schedule=Map.of(A,List.of(
             new HydrologySeasonalLakeIntegratorV2.Interval(4.5,1),
             new HydrologySeasonalLakeIntegratorV2.Interval(4.5,1)));
@@ -125,7 +125,7 @@ class HydrologySeasonalLaggedLakeNetworkV2Test {
     }
 
     @Test void rejectsSchedulesThatDoubleCountLocalOrUpstreamWater() {
-        var lakes=Map.of(A,lake(5,0,2,SPILL,1));
+        var lakes=Map.of(A,lake(5,0,2,B,1));
         assertThrows(IllegalArgumentException.class,() ->
             HydrologySeasonalLaggedLakeNetworkV2.advanceScheduled(
                 routed(9,0,-1),lakes,Map.of(A,List.of(
