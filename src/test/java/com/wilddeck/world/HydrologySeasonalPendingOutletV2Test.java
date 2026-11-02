@@ -158,4 +158,56 @@ class HydrologySeasonalPendingOutletV2Test {
         assertEquals(Map.of(east,7.0),result.verifiedOutletM3());
         assertEquals(1,result.traversedReaches().size());
     }
+
+    @Test void checkpointReloadRetainsUnloadedFrontierUntilMouthIsAvailable()
+            throws java.io.IOException {
+        var state=new HydrologySeasonalLakeCarryoverStateV2.State(
+            "outlet-recovery",0,Map.of(),Map.of(A,8.0));
+        var checkpoint=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(state),
+            new HydrologyEpochInboxV2());
+        var file=java.nio.file.Files.createTempFile("outlet-frontier",".chk");
+        try {
+            HydrologyCheckpointStoreV2.save(file,checkpoint);
+            var restored=HydrologyCheckpointStoreV2.load(file);
+            var old=HydrologySeasonalLakeCarryoverStateV2.decode(
+                restored.worldState());
+            var edges=new HashMap<GlobalHydrologyAddressV2.Sample,
+                GlobalHydrologyAddressV2.Sample>();
+            edges.put(A,B);edges.put(B,C);edges.put(C,null);
+            var parked=route(old.pendingM3(),edges,Set.of(A,B),
+                Set.of(),Set.of(C));
+            assertEquals(Map.of(C,8.0),parked.pendingM3());
+            var continued=route(parked.pendingM3(),edges,Set.of(C),
+                Set.of(),Set.of(C));
+            assertEquals(Map.of(C,8.0),continued.verifiedOutletM3());
+            assertEquals(parked.inputM3(),continued.outletTotalM3(),1e-12);
+        } finally {
+            java.nio.file.Files.deleteIfExists(file);
+        }
+    }
+
+    @Test void claimedBoundaryReceiptsJoinOldPendingExactlyOnceBeforeOutlet() {
+        var inbox=new HydrologyEpochInboxV2();
+        var receipt=new HydrologyTransferLedgerV2.Key(0,D,C);
+        inbox.receive(receipt,3.0);
+        var checkpoint=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "outlet-receipts",0,Map.of(),Map.of(A,2.0))),
+            inbox);
+        var staged=HydrologyCheckpointV2.restoreInbox(checkpoint);
+        var claimed=staged.claimAvailable(0,Set.of(C));
+        assertEquals(Map.of(C,3.0),claimed);
+        assertTrue(staged.claimAvailable(0,Set.of(C)).isEmpty());
+        var merged=HydrologySeasonalLakeInboxCommitV2.combined(
+            Map.of(A,2.0),claimed);
+        var edges=new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        edges.put(A,B);edges.put(C,B);edges.put(B,null);
+        var result=route(merged,edges,Set.of(A,B,C),
+            Set.of(),Set.of(B));
+        assertEquals(Map.of(B,5.0),result.verifiedOutletM3());
+        assertEquals(5,result.inputM3(),1e-12);
+    }
 }
