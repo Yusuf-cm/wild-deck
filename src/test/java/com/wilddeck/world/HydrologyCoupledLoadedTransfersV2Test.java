@@ -204,8 +204,8 @@ class HydrologyCoupledLoadedTransfersV2Test {
     @Test void loadedDestinationsNeverProduceUnloadedHints() throws IOException {
         var water = waterSender("hint",Map.of(WATER,7.0));
         var sediment = sedimentSender("hint",Map.of(SEDIMENT,3.0));
-        var loaded = Map.of("r",region(waterReceiver("hint"),
-            sedimentReceiver("hint"),DEST));
+        var loaded = Map.of("r",region(waterReceiver("destination"),
+            sedimentReceiver("destination"),DEST));
         assertTrue(HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
             Map.of("w",water),Map.of("s",sediment),loaded).isEmpty());
     }
@@ -213,7 +213,7 @@ class HydrologyCoupledLoadedTransfersV2Test {
     @Test void acknowledgedWaterRetainsHistoryButIsNotAnUnloadedHint()
             throws IOException {
         var water = waterSender("hint",Map.of(WATER,7.0));
-        var destination = waterReceiver("hint");
+        var destination = waterReceiver("destination");
         HydrologyMixedResolutionLoadedNetworkV2.deliver(
             Map.of("w",water),Map.of("r",
                 new HydrologyMixedResolutionLoadedNetworkV2.Receiver(
@@ -241,7 +241,7 @@ class HydrologyCoupledLoadedTransfersV2Test {
 
     @Test void topologyGateRejectsAcceptedButUnconsumedWater() throws IOException {
         var water = waterSender("gate",Map.of(WATER,7.0));
-        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var destination = region(waterReceiver("destination"),sedimentReceiver("destination"),DEST);
         var ws = Map.of("w",water);
         var loaded = Map.of("r",destination);
         HydrologyCoupledLoadedTransfersV2.deliver(ws,Map.of(),loaded);
@@ -254,7 +254,7 @@ class HydrologyCoupledLoadedTransfersV2Test {
             throws IOException {
         var water = waterSender("gate",Map.of(WATER,7.0));
         var sediment = sedimentSender("gate",Map.of(SEDIMENT,3.0));
-        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var destination = region(waterReceiver("destination"),sedimentReceiver("destination"),DEST);
         var ws = Map.of("w",water);
         var ss = Map.of("s",sediment);
         var loaded = Map.of("r",destination);
@@ -272,7 +272,7 @@ class HydrologyCoupledLoadedTransfersV2Test {
     @Test void topologyGateAcceptsFullyConsumedWaterWithoutSediment()
             throws IOException {
         var water = waterSender("gate",Map.of(WATER,7.0));
-        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var destination = region(waterReceiver("destination"),sedimentReceiver("destination"),DEST);
         var ws = Map.of("w",water);
         var loaded = Map.of("r",destination);
         HydrologyCoupledLoadedTransfersV2.deliver(ws,Map.of(),loaded);
