@@ -2446,3 +2446,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Physical fidelity and resilience:** Preserve residual travel time across seasons; calibrate rainfall/evaporation, river velocity and erosion capacity; implement multiple lake spillways, groundwater, backwater and flood-wave timing. Planetary-scale mass balance, distributed writer fencing, crash/fault-injection and endurance tests remain outstanding.
 
 **Safety:** No merge, PR, push to main, other-branch change, production deployment, or paid infrastructure. Hydrology remains the sole development priority.
+
+
+## 2026-11-02 — Loaded-frontier seasonal reactivation and atomic lake/receipt continuation
+
+**Branch-only scope:** `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Starting HEAD `fa32bf31dab907f88c8881d5768db1be421e3d83`. The starting [GitHub Actions run 41439753337](https://github.com/Yusuf-cm/wild-deck/actions/runs/41439753337) passed **1,142 Maven/JUnit tests**, zero failures/errors/skips, `BUILD SUCCESS`, plus world experiment, resource replay, browser-save, atlas export and real-browser verification. This verifies the previously unverified receipt-aware lake lifecycle.
+
+### Implemented (opt-in; requires authoritative caller-supplied drainage)
+
+1. **Reactivation of conserved frontier water:** `HydrologySeasonalPendingReactivationV2.reactivate` follows supplied, canonical, adjacent drainage edges through currently loaded vertices until a lake inlet, a missing route, or the first unloaded destination. It preserves unresolved water, never invents rainfall or an ocean mouth, rejects physical vertex aliases across sampling resolutions, cycles on traversed paths, invalid volumes, overflow, and attempts to silently discharge old pending water at verified mouths. Multiple sources can converge on one lake without duplicating water. Re-routing is deterministic and audited by an independent total-volume check. It does **not** discover routes, authenticate terrain elevations or advance water through unknown tiles.
+2. **Receipt-inclusive atomic seasonal reactivation:** `HydrologySeasonalLakeInboxCommitV2.prepareReactivated` verifies that a lake candidate consumed exactly the reactivated combination of old pending water and newly claimed durable receipts, then prepares the new lake/pending checkpoint and delivery markers together. The uniform and chronological `prepare*Reactivated` / `commit*Reactivated` helpers connect this to the existing lagged lake network and local atomic checkpoint store. Lake inlets being advanced must be explicitly loaded; unresolved destinations stay pending. This is single-writer local persistence, **not** a global atomic or distributed transaction.
+3. **Restart continuation:** Integration tests exercise an unloaded frontier surviving one committed season, then flowing along newly loaded, explicitly known routes to a lake after a checkpoint reload. Other tests cover receipt-plus-old-water confluence, chronological/uniform equivalence, stale replay rejection, zero/invalid flow, alias protection, cycles, ocean boundary rejection and no advance of unloaded lakes.
+
+### Commits and CI evidence
+
+- `47b97daa4515a5805da62c55f73478c429241edf` — deterministic conserved pending-water reactivation.
+- `88049df421ddadd777cd2c94c3e4e6dbf39bda89` — uniform/chronological lake and receipt checkpoint integration.
+- `d238a915c0c0456d3ca4ebee0abf74a82cc250d6` — initial nine JUnit regression/integration tests.
+- `3273ea582f20a5aa3478f503a96bab433f107f56` — allow pure routing to park water at unloaded lake anchors (no lake advance).
+- `6b21b6d1b08670ca98df38271ac3ff69f974a53e` — require a loaded lake before committing its seasonal advance.
+- `7d0a5c62111ef92c95145273d8a3e91232905f0e` — two additional restart/load-fence tests, **11 new JUnit methods in total**.
+- [CI 41448259046](https://github.com/Yusuf-cm/wild-deck/actions/runs/41448259046) failed one of the initial nine tests because the pure reactivation helper required every lake anchor to be loaded even when water was only being parked. The subsequent correction separates pure parking from committing an unloaded lake.
+- **[CI 41448314477](https://github.com/Yusuf-cm/wild-deck/actions/runs/41448314477) passed 1,151 Maven/JUnit tests**, including the initial nine, with zero failures/errors/skips, `BUILD SUCCESS`, and all browser/world checks.
+- [CI 41448369597](https://github.com/Yusuf-cm/wild-deck/actions/runs/41448369597) tests the additional two restart/load-fence methods. At documentation authoring time its Maven and browser steps had completed successfully, but the workflow had not yet reported a final overall conclusion. **Do not claim final HEAD CI green without checking this run and the documentation-commit workflow.**
+
+### Remaining hydrology acceptance gaps (NOT finished)
+
+1. **Authoritative orchestration:** These new entry points are opt-in and require caller-provided loaded vertices, global drainage edges, verified mouths, audited seasonal runoff and lake geometry. The live world tick still does not automatically coordinate terrain streaming, climate/snow/soil persistence, receipt consumption, lake storage, sediment delivery and riverbed erosion in one epoch.
+2. **Drainage authority and identity:** Pending water is routed only through authenticated known edges. No automatic planetary route discovery, safe dynamic migration after drainage revisions, mixed-resolution seasonal area remapping, or authoritative global catchment/mouth catalog. A changing route graph must be fenced by a higher-level revision/terrain checkpoint.
+3. **Distributed persistence:** No distributed exactly-once transaction or interprocess compare-and-swap, durable globally coordinated sediment/terrain epoch, safe compaction of old receipt history, or distributed crash/restart fault-injection acceptance.
+4. **Physical timing and realism:** Carryover still loses exact residual travel-slice delays across season boundaries; river velocities, flood-wave propagation, groundwater, backwater, multiple lake spillways, calibrated meteorology and erosion capacity remain unfinished.
+5. **Scale:** Planet-wide long-horizon mass conservation and multi-resolution streaming stress tests remain incomplete.
+
+**Safety:** No merges, PRs, changes to main/other branches, production deployment, or paid infrastructure. Continue hydrology before other world layers.
