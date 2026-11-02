@@ -239,4 +239,60 @@ class HydrologyCoupledLoadedTransfersV2Test {
             .compareTo(a.get(1).coordinate().stableKey()) < 0);
     }
 
+    @Test void topologyGateRejectsAcceptedButUnconsumedWater() throws IOException {
+        var water = waterSender("gate",Map.of(WATER,7.0));
+        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var ws = Map.of("w",water);
+        var loaded = Map.of("r",destination);
+        HydrologyCoupledLoadedTransfersV2.deliver(ws,Map.of(),loaded);
+        assertThrows(IllegalStateException.class,() ->
+            HydrologyCoupledLoadedTransfersV2.requireTopologyQuiescence(
+                ws,Map.of(),loaded));
+    }
+
+    @Test void topologyGateRejectsSedimentAwaitingConsumptionAfterWaterRouted()
+            throws IOException {
+        var water = waterSender("gate",Map.of(WATER,7.0));
+        var sediment = sedimentSender("gate",Map.of(SEDIMENT,3.0));
+        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var ws = Map.of("w",water);
+        var ss = Map.of("s",sediment);
+        var loaded = Map.of("r",destination);
+        HydrologyCoupledLoadedTransfersV2.deliver(ws,ss,loaded);
+        HydrologyMixedResolutionCheckpointStoreV2.advance(
+            destination.waterCheckpoint(),
+            HydrologyMixedResolutionCheckpointStoreV2.load(destination.waterCheckpoint()),
+            "routed",List.of(new HydrologyMixedResolutionDischargeV2.Node(
+                DEST,0,null,true)),Set.of(DEST));
+        assertThrows(IllegalStateException.class,() ->
+            HydrologyCoupledLoadedTransfersV2.requireTopologyQuiescence(
+                ws,ss,loaded));
+    }
+
+    @Test void topologyGateAcceptsFullyConsumedWaterWithoutSediment()
+            throws IOException {
+        var water = waterSender("gate",Map.of(WATER,7.0));
+        var destination = region(waterReceiver("gate"),sedimentReceiver("gate"),DEST);
+        var ws = Map.of("w",water);
+        var loaded = Map.of("r",destination);
+        HydrologyCoupledLoadedTransfersV2.deliver(ws,Map.of(),loaded);
+        HydrologyMixedResolutionCheckpointStoreV2.advance(
+            destination.waterCheckpoint(),
+            HydrologyMixedResolutionCheckpointStoreV2.load(destination.waterCheckpoint()),
+            "routed",List.of(new HydrologyMixedResolutionDischargeV2.Node(
+                DEST,0,null,true)),Set.of(DEST));
+        var gate = HydrologyCoupledLoadedTransfersV2.requireTopologyQuiescence(
+            ws,Map.of(),loaded);
+        assertEquals(7.0,gate.water().delivered().doubleValue());
+        assertTrue(gate.sediment().quiescent());
+    }
+
+    @Test void topologyGateRejectsUnloadedWaterWithoutInventingAReceiver()
+            throws IOException {
+        var water = waterSender("gate",Map.of(WATER,7.0));
+        assertThrows(IllegalStateException.class,() ->
+            HydrologyCoupledLoadedTransfersV2.requireTopologyQuiescence(
+                Map.of("w",water),Map.of(),Map.of()));
+    }
+
 }
