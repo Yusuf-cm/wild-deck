@@ -27,7 +27,11 @@ class HydrologySeasonalPendingOutletV2Test {
     }
 
     @Test void loadedCrossRegionWaterReachesVerifiedMouthWithStableCatchment() {
-        var result=route(Map.of(A,3.0),Map.of(A,B,B,C,C,D,D,LAKE),
+        var edges=new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        edges.put(A,B);edges.put(B,C);edges.put(C,D);edges.put(D,LAKE);
+        edges.put(LAKE,null);
+        var result=route(Map.of(A,3.0),edges,
             Set.of(A,B,C,D,LAKE),Set.of(),Set.of(LAKE));
         assertEquals(Map.of(LAKE,3.0),result.verifiedOutletM3());
         assertTrue(result.pendingM3().isEmpty());
