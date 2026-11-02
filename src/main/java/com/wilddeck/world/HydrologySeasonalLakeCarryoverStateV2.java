@@ -1,6 +1,8 @@
 package com.wilddeck.world;
 
 import java.math.BigDecimal;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
@@ -93,6 +95,34 @@ public final class HydrologySeasonalLakeCarryoverStateV2 {
             throw new IllegalArgumentException("Seasonal lake checkpoint budget mismatch");
         return new State(previous.world(),Math.addExact(previous.season(),1),
             updated,result.pendingM3());
+    }
+
+    /**
+     * Persist a verified lake/carryover season in the SAME local atomic
+     * checkpoint file as the existing hydrology inbox. The expected checkpoint
+     * must contain this codec and have an epoch matching its season. The inbox
+     * is preserved byte-for-byte; external receipt consumption and sediment
+     * epochs must be coordinated by a separate authoritative world runner.
+     *
+     * saveNext rejects stale snapshots in the supported single-writer model.
+     * This is not a distributed lock, multi-file transaction or cloud CAS.
+     */
+    public static State commitNext(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySeasonalLaggedLakeNetworkV2.Lake> forcing,
+            HydrologySeasonalLaggedLakeNetworkV2.CarryoverResult candidate)
+            throws IOException {
+        Objects.requireNonNull(file);
+        Objects.requireNonNull(expected);
+        var previous=decode(expected.worldState());
+        if (expected.epoch()!=previous.season())
+            throw new IllegalArgumentException("Checkpoint epoch and lake season differ");
+        var next=advance(previous,forcing,candidate);
+        var checkpoint=new HydrologyCheckpointV2.Checkpoint(
+            next.season(),encode(next),expected.inboxState());
+        HydrologyCheckpointStoreV2.saveNext(file,expected,checkpoint);
+        return next;
     }
 
     public static String encode(State state) {
