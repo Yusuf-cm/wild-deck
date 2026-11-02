@@ -108,7 +108,7 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             int slices, double durationSeconds) {
-        return prepare(expected,atlas,forcing,lakes,loaded,slices,null,durationSeconds);
+        return prepare(expected,atlas,forcing,lakes,loaded,slices,null,durationSeconds,false);
     }
 
     public static Prepared prepareScheduled(HydrologyCheckpointV2.Checkpoint expected,
@@ -118,7 +118,38 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
             Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
             Set<GlobalHydrologyAddressV2.Sample> loaded, double durationSeconds) {
         return prepare(expected,atlas,forcing,lakes,loaded,0,
-            Objects.requireNonNull(schedules),durationSeconds);
+            Objects.requireNonNull(schedules),durationSeconds,false);
+    }
+
+    /**
+     * Opt-in streaming transition: previously persisted snow/soil cells may be
+     * unloaded, but MUST still receive explicit weather forcing. Their snow
+     * and soil stores advance normally; runoff produced at unloaded vertices
+     * is conserved in the pending frontier until those vertices load.
+     *
+     * Forcing must cover exactly loaded cells plus every persisted snow/soil
+     * cell, with no unknown unloaded owners. This does not simulate never-
+     * visited cells or infer weather, and is not a distributed transaction.
+     */
+    public static Prepared prepareStreamingUniform(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            int slices, double durationSeconds) {
+        return prepare(expected,atlas,forcing,lakes,loaded,slices,null,durationSeconds,true);
+    }
+
+    public static Prepared prepareStreamingScheduled(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded, double durationSeconds) {
+        return prepare(expected,atlas,forcing,lakes,loaded,0,
+            Objects.requireNonNull(schedules),durationSeconds,true);
     }
 
     private static Prepared prepare(HydrologyCheckpointV2.Checkpoint expected,
@@ -128,20 +159,27 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             int slices,
             Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
-            double durationSeconds) {
+            double durationSeconds, boolean streaming) {
         Objects.requireNonNull(expected);
         Objects.requireNonNull(atlas);
         Objects.requireNonNull(forcing);
         Objects.requireNonNull(lakes);
         Objects.requireNonNull(loaded);
-        if (!forcing.keySet().equals(loaded) || forcing.isEmpty() ||
+        if (loaded.isEmpty() || !forcing.keySet().containsAll(loaded) ||
             !Double.isFinite(durationSeconds) || durationSeconds <= 0)
             throw new IllegalArgumentException("Incomplete seasonal snow/soil ownership");
         var previous = decode(expected.worldState());
         var oldSnow = HydrologySnowSoilStateV2.decode(previous.snowState());
-        if (!loaded.containsAll(oldSnow.cells().keySet()))
+        if (streaming) {
+            var required = new HashSet<GlobalHydrologyAddressV2.Sample>(loaded);
+            required.addAll(oldSnow.cells().keySet());
+            if (!forcing.keySet().equals(required))
+                throw new IllegalArgumentException("Streaming forcing must cover loaded and persisted cells");
+        } else if (!forcing.keySet().equals(loaded) ||
+                   !loaded.containsAll(oldSnow.cells().keySet())) {
             throw new IllegalArgumentException("Persisted snow/soil cell is unloaded");
-        uniquePhysical(loaded);
+        }
+        uniquePhysical(forcing.keySet());
         for (var entry : forcing.entrySet()) {
             var address = Objects.requireNonNull(entry.getKey());
             atlas.routeAt(address);
@@ -155,17 +193,38 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
         var snow = HydrologySnowSoilStateV2.advanceAudited(oldSnow,forcing);
         var owned = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
-        for (var source : snow.runoff())
-            if (owned.putIfAbsent(source.address(),source.localWater()) != null)
+        var deferred = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for (var source : snow.runoff()) {
+            var target = loaded.contains(source.address()) ? owned : deferred;
+            if (target.putIfAbsent(source.address(),source.localWater()) != null)
                 throw new IllegalArgumentException("Duplicate seasonal runoff source");
+        }
+        // Deferred runoff is already counted as precipitation-derived runoff
+        // in the snow/soil budget. It is not a new external receipt.
+        String topologyState = previous.topologyState();
+        if (!deferred.isEmpty()) {
+            var bound = HydrologySeasonalTopologyEpochV2.decode(topologyState);
+            var outlet = HydrologySeasonalOutletSettlementV2.decode(bound.waterState());
+            var prior = outlet.lakes();
+            var pending = HydrologySeasonalLakeInboxCommitV2.combined(
+                prior.pendingM3(),deferred);
+            var augmented = new HydrologySeasonalLakeCarryoverStateV2.State(
+                prior.world(),prior.season(),prior.lakeStorageM3(),pending);
+            topologyState = HydrologySeasonalTopologyEpochV2.encode(
+                new HydrologySeasonalTopologyEpochV2.Bound(bound.snapshotId(),
+                    HydrologySeasonalOutletSettlementV2.encode(
+                        new HydrologySeasonalOutletSettlementV2.State(
+                            augmented,outlet.dischargedM3()))));
+        }
         var inner = new HydrologyCheckpointV2.Checkpoint(expected.epoch(),
-            previous.topologyState(),expected.inboxState());
+            topologyState,expected.inboxState());
         var water = schedules == null ?
             HydrologySeasonalTopologyEpochV2.prepareOwnedUniform(
                 inner,atlas,owned,lakes,loaded,slices,durationSeconds) :
             HydrologySeasonalTopologyEpochV2.prepareOwnedScheduled(
                 inner,atlas,owned,lakes,schedules,loaded,durationSeconds);
-        audit(snow,water);
+        audit(snow,water,deferred);
         var next = new HydrologyCheckpointV2.Checkpoint(
             water.checkpoint().epoch(),
             encode(new State(previous.radiusMeters(),
@@ -173,6 +232,32 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
                 HydrologySnowSoilStateV2.encode(snow.state()))),
             water.checkpoint().inboxState());
         return new Prepared(snow,water,next);
+    }
+
+    /** Streaming variants commit the same complete local snow/water/inbox epoch. */
+    public static Prepared commitStreamingUniform(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            int slices, double durationSeconds) throws IOException {
+        var result = prepareStreamingUniform(expected,atlas,forcing,lakes,loaded,slices,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
+        return result;
+    }
+
+    public static Prepared commitStreamingScheduled(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            double durationSeconds) throws IOException {
+        var result = prepareStreamingScheduled(expected,atlas,forcing,lakes,schedules,loaded,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
+        return result;
     }
 
     /** Commit the audited snow/soil and water transition as ONE local file. */
@@ -202,7 +287,8 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
     }
 
     private static void audit(HydrologySnowSoilStateV2.Step snow,
-            HydrologySeasonalTopologyEpochV2.Prepared water) {
+            HydrologySeasonalTopologyEpochV2.Prepared water,
+            Map<GlobalHydrologyAddressV2.Sample,Double> deferred) {
         var w = water.water();
         // The old-water routing input is the sum of prior pending frontier
         // water and newly claimed receipts. Fresh snow/soil runoff is already
@@ -210,6 +296,7 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
         BigDecimal inputs = number(snow.initialVolume())
             .add(number(snow.precipitationVolume()))
             .add(number(w.oldWaterRouting().inputM3()))
+            .subtract(sum(deferred))
             .add(number(w.lakeStep().result().previousLakeStorageM3()));
         BigDecimal outputs = number(snow.storedVolume())
             .add(number(snow.evaporationVolume()))
@@ -217,6 +304,8 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
             .add(sum(w.state().lakes().pendingM3()))
             .add(sum(w.state().lakes().lakeStorageM3()))
             .add(sum(w.newOceanDischargeM3()));
+        if (inputs.signum()<0)
+            throw new IllegalArgumentException("Deferred runoff exceeds available water");
         BigDecimal tolerance = inputs.abs().max(outputs.abs())
             .multiply(BigDecimal.valueOf(1e-10))
             .max(BigDecimal.valueOf(1e-8));
