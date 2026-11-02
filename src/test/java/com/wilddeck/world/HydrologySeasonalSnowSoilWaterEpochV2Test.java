@@ -132,7 +132,8 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         assertEquals(one.checkpoint(),HydrologyCheckpointStoreV2.load(file));
         var two = HydrologySeasonalSnowSoilWaterEpochV2.commitUniform(
             file,HydrologyCheckpointStoreV2.load(file),atlas,
-            Map.of(M,weather(M,0,10,0)),Map.of(),Set.of(M),2,86400);
+            Map.of(B,weather(B,0,10,0),M,weather(M,0,10,0)),
+            Map.of(),Set.of(M),2,86400);
         assertEquals(5,two.water().water().state().dischargedM3().get(M),1e-8);
         assertTrue(two.water().water().claimedM3().isEmpty());
         assertThrows(IOException.class,()->HydrologySeasonalSnowSoilWaterEpochV2.commitUniform(
@@ -232,7 +233,7 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
             B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(B,M));
         assertEquals(5,three.water().water().state().dischargedM3().get(M),1e-8);
         var four=streaming(three.checkpoint(),atlas,Map.of(
-            M,weather(M,0,10,0)),Set.of(M));
+            B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(M));
         assertEquals(5,four.water().water().state().dischargedM3().get(M),1e-8);
     }
 
@@ -240,7 +241,7 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         var atlas=atlas();
         var first=initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
         var inbox=new HydrologyEpochInboxV2();
-        inbox.receive(new HydrologyTransferLedgerV2.Key(0,B,M),3);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,at(4,2),M),3);
         var received=new HydrologyCheckpointV2.Checkpoint(
             0,first.worldState(),HydrologyInboxCodecV2.encode(inbox.snapshot()));
         var unloaded=streaming(received,atlas,Map.of(
