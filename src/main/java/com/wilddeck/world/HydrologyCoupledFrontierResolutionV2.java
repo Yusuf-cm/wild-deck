@@ -171,4 +171,72 @@ public final class HydrologyCoupledFrontierResolutionV2 {
         return new Result(plan,HydrologyCoupledLoadedTransfersV2.deliver(
             waterSenders,sedimentSenders,plan.loaded()));
     }
+
+    /**
+     * Resolve and preflight the ENTIRE pending frontier before the first write,
+     * then drain it in deterministic bounded batches. A bad directory entry,
+     * physical ownership overlap or insufficient total loading capacity fails
+     * without acknowledging any receipt. The immutable preflight directory is
+     * reused for every batch so a changing lookup cannot silently redirect it.
+     *
+     * Each water/sediment checkpoint is still committed independently. This is
+     * NOT a globally atomic epoch: callers must freeze writers, retain sender
+     * histories and recover by retrying with the original region inventory.
+     */
+    public record Drain(Plan preflight, List<Result> batches,
+            Map<String,HydrologyCoupledLoadedTransfersV2.Region> loaded) {
+        public Drain {
+            Objects.requireNonNull(preflight);
+            batches = List.copyOf(Objects.requireNonNull(batches));
+            loaded = Collections.unmodifiableMap(new TreeMap<>(Objects.requireNonNull(loaded)));
+            if (batches.isEmpty() || !batches.get(batches.size()-1).plan().complete())
+                throw new IllegalArgumentException("Incomplete frontier drain");
+        }
+    }
+
+    public static Drain deliverBatches(Map<String,Path> waterSenders,
+            Map<String,Path> sedimentSenders,
+            Map<String,HydrologyCoupledLoadedTransfersV2.Region> alreadyLoaded,
+            Directory directory,int maximumNewRegionsPerBatch,int maximumBatches)
+            throws IOException {
+        if (maximumNewRegionsPerBatch < 0 || maximumBatches <= 0)
+            throw new IllegalArgumentException("Invalid frontier batch capacity");
+        int capacity = Math.multiplyExact(maximumNewRegionsPerBatch,maximumBatches);
+        // Resolve and validate all future receivers before any sender is changed.
+        var preflight = planAll(waterSenders,sedimentSenders,alreadyLoaded,
+            directory,capacity);
+        var frozen = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,Entry>();
+        for (var region : preflight.loaded().entrySet()) {
+            for (var sample : region.getValue().ownedVertices()) {
+                var coordinate = HydrologyGlobalCatchmentsV2.coordinate(sample);
+                if (frozen.putIfAbsent(coordinate,
+                        new Entry(region.getKey(),region.getValue())) != null)
+                    throw new IllegalArgumentException("Duplicate physical frontier owner");
+            }
+        }
+        Directory snapshot = coordinate -> {
+            var owner = frozen.get(coordinate);
+            if (owner == null)
+                throw new IllegalStateException("Frontier changed after preflight");
+            return owner;
+        };
+        var loaded = ordered(alreadyLoaded);
+        var batches = new ArrayList<Result>();
+        for (int index=0; index<maximumBatches; index++) {
+            var batch = deliverBatch(waterSenders,sedimentSenders,loaded,
+                snapshot,maximumNewRegionsPerBatch);
+            batches.add(batch);
+            loaded = ordered(batch.plan().loaded());
+            if (batch.plan().complete()) {
+                // Independently recheck durable receipts after the last batch.
+                if (!HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+                        waterSenders,sedimentSenders,loaded).isEmpty())
+                    throw new IOException("Unsettled frontier after completed drain");
+                return new Drain(preflight,batches,loaded);
+            }
+            if (batch.plan().addedRegions().isEmpty())
+                throw new IOException("Frontier drain made no loading progress");
+        }
+        throw new IOException("Frontier changed during bounded delivery");
+    }
 }
