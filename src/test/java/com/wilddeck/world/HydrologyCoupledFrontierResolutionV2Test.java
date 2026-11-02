@@ -298,4 +298,45 @@ class HydrologyCoupledFrontierResolutionV2Test {
                 Map.of("sender",water),Map.of(),Map.of(),forbidden,
                 Integer.MAX_VALUE,2));
     }
+
+    @Test void frozenDirectoryIsResolvedOnlyDuringWholeFrontierPreflight()
+            throws IOException {
+        var water = waterSender("frozen",Map.of(TO_A,7.0,TO_B,8.0));
+        var a = receiver("frozen-a",A);
+        var b = receiver("frozen-b",B);
+        int[] calls = {0};
+        var drained = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            Map.of("sender",water),Map.of(),Map.of(),coordinate -> {
+                if (++calls[0] > 2)
+                    fail("Directory must be frozen before writing any batch");
+                return directoryFor(a,b).resolve(coordinate);
+            },1,2);
+        assertEquals(2,calls[0]);
+        assertEquals(2,drained.batches().size());
+    }
+
+    @Test void twoFrontiersOwnedByOneRegionConsumeOnlyOneBudgetSlot()
+            throws IOException {
+        var water = waterSender("shared",Map.of(TO_A,7.0,TO_B,8.0));
+        var both = receiver("shared-receiver",A,B);
+        var drained = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            Map.of("sender",water),Map.of(),Map.of(),coordinate ->
+                new HydrologyCoupledFrontierResolutionV2.Entry("both",both),1,1);
+        assertEquals(1,drained.preflight().addedRegions().size());
+        assertEquals(2,drained.batches().get(0).plan().resolvedFrontiers());
+        assertEquals(15.0,drained.batches().get(0).delivery()
+            .after().water().report().acknowledged().doubleValue());
+    }
+
+    @Test void conflictingDeferredPhysicalOwnerFailsBeforeFirstBatch()
+            throws IOException {
+        var water = waterSender("overlap",Map.of(TO_A,7.0,TO_B,8.0));
+        var both = receiver("overlap-both",A,B);
+        var b = receiver("overlap-b",B);
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),directoryFor(both,b),1,2));
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().isEmpty());
+    }
 }
