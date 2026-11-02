@@ -103,7 +103,9 @@ class HydrologySeasonalOutletSettlementV2Test {
             new HydrologySeasonalOutletSettlementV2.State(
                 lake,Map.of(C,1.0,alias,2.0)));
         var saturated=new HydrologySeasonalOutletSettlementV2.State(
-            lake,Map.of(C,Double.MAX_VALUE));
+            new HydrologySeasonalLakeCarryoverStateV2.State(
+                "world",0,Map.of(),Map.of(A,Double.MAX_VALUE)),
+            Map.of(C,Double.MAX_VALUE));
         var expected=HydrologyCheckpointV2.capture(0,
             HydrologySeasonalOutletSettlementV2.encode(saturated),
             new HydrologyEpochInboxV2());
