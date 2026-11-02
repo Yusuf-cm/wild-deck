@@ -112,4 +112,34 @@ class HydrologyTimedTransitLedgerV2Test {
         assertThrows(IllegalArgumentException.class,()->
             new HydrologyTimedTransitLedgerV2.Transfer("bad|id",A,1,1));
     }
+
+    @Test void repeatedUnloadedStreamingAndReplayConserveEveryTransfer() {
+        var random=new Random(1776);
+        var transfers=new ArrayList<HydrologyTimedTransitLedgerV2.Transfer>();
+        double expected=0;
+        for(int i=0;i<200;i++) {
+            double volume=i+1;
+            transfers.add(transfer("water-"+i,i%2==0?A:B,
+                1+random.nextInt(25),volume));
+            expected+=volume;
+        }
+        var state=HydrologyTimedTransitLedgerV2.empty("world");
+        double delivered=0;
+        for(int tick=0;tick<=40;tick++) {
+            Set<HydrologyGlobalCatchmentsV2.Coordinate> loaded=
+                tick%3==0 ? Set.of(A) : tick%3==1 ? Set.of(B) : Set.of();
+            var batch=new ArrayList<>(transfers);
+            Collections.shuffle(batch,random);
+            var step=HydrologyTimedTransitLedgerV2.advance(
+                state,batch,tick,loaded);
+            assertEquals(0,step.previousPendingM3().add(step.newlyQueuedM3())
+                .compareTo(step.releasedTotalM3().add(step.remainingM3())));
+            delivered+=step.releasedM3().values().stream().mapToDouble(v->v).sum();
+            state=HydrologyTimedTransitLedgerV2.decode(
+                HydrologyTimedTransitLedgerV2.encode(step.state()));
+        }
+        assertTrue(state.pending().isEmpty());
+        assertEquals(200,state.settled().size());
+        assertEquals(expected,delivered);
+    }
 }
