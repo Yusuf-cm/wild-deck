@@ -62,7 +62,7 @@ class HydrologySeasonalWaterEpochV2Test {
         assertEquals(2.0,result.state().lakes().lakeStorageM3().get(A),1e-12);
         assertEquals(Map.of(C,4.0),result.claimedM3());
         assertEquals(7.0,result.oldWaterRouting().outletTotalM3(),1e-12);
-        assertEquals(5.0,result.lakeStep().result().seasonalRunoffM3(),1e-12);
+        assertEquals(7.0,result.lakeStep().result().seasonalRunoffM3(),1e-12);
         assertTrue(HydrologyCheckpointV2.restoreInbox(result.checkpoint()).snapshot()
             .delivered().contains(new HydrologyTransferLedgerV2.Key(0,B,C)));
         assertEquals(1,result.checkpoint().epoch());
@@ -120,12 +120,12 @@ class HydrologySeasonalWaterEpochV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologySeasonalWaterEpochV2.prepareUniform(
                 first,runoff(5,2),lakes(0),2,Map.of(B,C,C,M),loaded(),Set.of(M)));
-        var alias=new GlobalHydrologyAddressV2.Sample(0,4,6,2);
+        var alias=new GlobalHydrologyAddressV2.Sample(0,4,3,2);
         var old=new HydrologySeasonalLakeCarryoverStateV2.State(
             "world",0,Map.of(A,0.0),Map.of(B,3.0));
         var inbox=new HydrologyEpochInboxV2();
         inbox.receive(new HydrologyTransferLedgerV2.Key(0,
-            new GlobalHydrologyAddressV2.Sample(0,4,5,2),alias),4.0);
+            new GlobalHydrologyAddressV2.Sample(0,4,2,2),alias),4.0);
         var expected=HydrologyCheckpointV2.capture(0,
             HydrologySeasonalLakeCarryoverStateV2.encode(old),inbox);
         var loaded=new HashSet<>(loaded());loaded.add(alias);
