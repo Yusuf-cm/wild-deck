@@ -119,4 +119,76 @@ public final class HydrologySeasonalLakeInboxCommitV2 {
             file,expected,prepared.checkpoint());
         return prepared;
     }
+
+    /**
+     * One-step deterministic planning of receipt claims, uniform lake routing,
+     * and the complete next checkpoint. No persistent mutation occurs.
+     */
+    public static Prepared prepareUniform(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySeasonalLaggedLakeNetworkV2.Lake> forcing,
+            int slices,Set<GlobalHydrologyAddressV2.Sample> loaded) {
+        Objects.requireNonNull(expected);
+        var previous=HydrologySeasonalLakeCarryoverStateV2.decode(expected.worldState());
+        if (previous.season()!=expected.epoch())
+            throw new IllegalArgumentException("Lake season and checkpoint epoch differ");
+        var inbox=HydrologyCheckpointV2.restoreInbox(expected);
+        var claimed=inbox.claimAvailable(previous.season(),Objects.requireNonNull(loaded));
+        var carryover=combined(previous.pendingM3(),claimed);
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed,forcing,slices,carryover);
+        return prepare(expected,forcing,candidate,loaded);
+    }
+
+    /** Uniform forcing, with receipt consumption and lake state committed atomically. */
+    public static Prepared commitUniform(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySeasonalLaggedLakeNetworkV2.Lake> forcing,
+            int slices,Set<GlobalHydrologyAddressV2.Sample> loaded) throws IOException {
+        Objects.requireNonNull(file);
+        var prepared=prepareUniform(expected,routed,forcing,slices,loaded);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,prepared.checkpoint());
+        return prepared;
+    }
+
+    /** Explicit chronological lake forcing, using the same audited receipt bridge. */
+    public static Prepared prepareScheduled(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySeasonalLaggedLakeNetworkV2.Lake> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,
+                List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded) {
+        Objects.requireNonNull(expected);
+        var previous=HydrologySeasonalLakeCarryoverStateV2.decode(expected.worldState());
+        if (previous.season()!=expected.epoch())
+            throw new IllegalArgumentException("Lake season and checkpoint epoch differ");
+        var inbox=HydrologyCheckpointV2.restoreInbox(expected);
+        var claimed=inbox.claimAvailable(previous.season(),Objects.requireNonNull(loaded));
+        var carryover=combined(previous.pendingM3(),claimed);
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceScheduledWithCarryover(
+            routed,forcing,schedules,carryover);
+        return prepare(expected,forcing,candidate,loaded);
+    }
+
+    /** Chronological forcing, with receipt consumption and lake state committed atomically. */
+    public static Prepared commitScheduled(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,
+                HydrologySeasonalLaggedLakeNetworkV2.Lake> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,
+                List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded) throws IOException {
+        Objects.requireNonNull(file);
+        var prepared=prepareScheduled(expected,routed,forcing,schedules,loaded);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,prepared.checkpoint());
+        return prepared;
+    }
+
 }
