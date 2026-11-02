@@ -138,4 +138,65 @@ class HydrologySeasonalOutletSettlementV2Test {
             HydrologySeasonalOutletSettlementV2.prepare(
                 bad,edges(),Set.of(A,B,C),Set.of(),Set.of(C)));
     }
+    @Test void receivedBoundaryWaterAndOldPendingDischargeExactlyOnce() throws IOException {
+        var file=directory.resolve("received-outlet.chk");
+        var inbox=new HydrologyEpochInboxV2();
+        var receipt=new HydrologyTransferLedgerV2.Key(0,A,B);
+        assertTrue(inbox.receive(receipt,3.0));
+        var old=new HydrologySeasonalLakeCarryoverStateV2.State(
+            "world",0,Map.of(),Map.of(A,2.0));
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(old),inbox);
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var result=HydrologySeasonalOutletSettlementV2.commitReceived(
+            file,expected,edges(),Set.of(A,B,C),Set.of(),Set.of(C));
+        assertEquals(Map.of(C,5.0),result.state().dischargedM3());
+        assertTrue(result.state().lakes().pendingM3().isEmpty());
+        var restored=HydrologyCheckpointStoreV2.load(file);
+        assertEquals(result.state(),HydrologySeasonalOutletSettlementV2.decode(
+            restored.worldState()));
+        assertTrue(HydrologyCheckpointV2.restoreInbox(restored)
+            .snapshot().delivered().contains(receipt));
+        assertThrows(IOException.class,()->HydrologySeasonalOutletSettlementV2.commitReceived(
+            file,expected,edges(),Set.of(A,B,C),Set.of(),Set.of(C)));
+        assertEquals(Map.of(C,5.0),HydrologySeasonalOutletSettlementV2.decode(
+            HydrologyCheckpointStoreV2.load(file).worldState()).dischargedM3());
+    }
+
+    @Test void unloadedBoundaryReceiptStaysUndeliveredUntilLaterEpoch() throws IOException {
+        var file=directory.resolve("deferred-outlet.chk");
+        var inbox=new HydrologyEpochInboxV2();
+        var receipt=new HydrologyTransferLedgerV2.Key(0,A,B);
+        inbox.receive(receipt,3.0);
+        var old=new HydrologySeasonalLakeCarryoverStateV2.State(
+            "world",0,Map.of(),Map.of());
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(old),inbox);
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var parked=HydrologySeasonalOutletSettlementV2.commitReceived(
+            file,expected,edges(),Set.of(A),Set.of(),Set.of(C));
+        assertTrue(parked.state().dischargedM3().isEmpty());
+        assertFalse(HydrologyCheckpointV2.restoreInbox(parked.checkpoint())
+            .snapshot().delivered().contains(receipt));
+        var next=HydrologySeasonalOutletSettlementV2.commitReceived(
+            file,HydrologyCheckpointStoreV2.load(file),edges(),
+            Set.of(B,C),Set.of(),Set.of(C));
+        assertEquals(Map.of(C,3.0),next.state().dischargedM3());
+        assertTrue(HydrologyCheckpointV2.restoreInbox(next.checkpoint())
+            .snapshot().delivered().contains(receipt));
+    }
+
+    @Test void staleReceiptAppendCannotBeLostDuringOutletCommit() throws IOException {
+        var file=directory.resolve("receipt-race.chk");
+        var expected=initial(Map.of(A,2.0));
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var inbox=HydrologyCheckpointV2.restoreInbox(expected);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(2,A,B),4.0);
+        var appended=HydrologyCheckpointV2.capture(0,expected.worldState(),inbox);
+        HydrologyCheckpointStoreV2.saveIncoming(file,appended);
+        assertThrows(IOException.class,()->HydrologySeasonalOutletSettlementV2.commitReceived(
+            file,expected,edges(),Set.of(A,B,C),Set.of(),Set.of(C)));
+        assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
+    }
+
 }
