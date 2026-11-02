@@ -339,4 +339,108 @@ class HydrologyCoupledFrontierResolutionV2Test {
         assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
             .acknowledged().isEmpty());
     }
+    @Test void directoryCannotAppendSedimentDuringPreflightBeforeWaterWrites()
+            throws IOException {
+        var water = waterSender("fenced-water",Map.of(TO_A,7.0));
+        var sediment = sedimentSender("fenced-sediment",Map.of());
+        var receiver = receiver("fenced-a",A);
+        var extra = new HydrologySedimentReceiptInboxV2.Receipt(
+            0,1,at(7,4),B);
+        var invoked = new boolean[1];
+        assertThrows(IOException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverAll(
+                Map.of("w",water),Map.of("s",sediment),Map.of(),coordinate -> {
+                    if (!invoked[0]) {
+                        invoked[0] = true;
+                        var expected = HydrologyCheckpointStoreV2.load(sediment);
+                        HydrologySedimentSenderOutboxV2.appendDurable(
+                            sediment,expected,
+                            new HydrologySedimentFrontierTransfersV2.Outgoing(
+                                Map.of(extra,3.0),3.0));
+                    }
+                    return new HydrologyCoupledFrontierResolutionV2.Entry(
+                        "fenced-a",receiver);
+                },1));
+        assertTrue(invoked[0]);
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(
+            receiver.waterCheckpoint()).inbox().receipts().isEmpty());
+        assertEquals(1,HydrologySedimentSenderOutboxV2.restore(
+            HydrologyCheckpointStoreV2.load(sediment)).receipts().size());
+    }
+
+    @Test void directoryCannotChangeWaterInboxDuringPreflight()
+            throws IOException {
+        var water = waterSender("fenced-inbox",Map.of(TO_A,7.0));
+        var receiver = receiver("fenced-inbox-a",A);
+        assertThrows(IOException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatch(
+                Map.of("w",water),Map.of(),Map.of(),coordinate -> {
+                    var expected = HydrologyMixedResolutionCheckpointStoreV2.load(water);
+                    HydrologyMixedResolutionCheckpointStoreV2.receive(
+                        water,expected,new HydrologyMixedResolutionEpochV2.Receipt(
+                            1,at(11,4),at(12,4)),2.0);
+                    return new HydrologyCoupledFrontierResolutionV2.Entry(
+                        "fenced-inbox-a",receiver);
+                },1));
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(
+            receiver.waterCheckpoint()).inbox().receipts().isEmpty());
+    }
+
+    @Test void senderFenceAllowsOnlyLegitimateAcknowledgmentGrowth()
+            throws IOException {
+        var water = waterSender("fenced-replay",Map.of(TO_A,7.0));
+        var sedimentReceipt = new HydrologySedimentReceiptInboxV2.Receipt(
+            0,1,at(4,4),A);
+        var sediment = sedimentSender("fenced-replay",Map.of(sedimentReceipt,3.0));
+        var receiver = receiver("fenced-replay-a",A);
+        var ws = Map.of("w",water);
+        var ss = Map.of("s",sediment);
+        var fence = HydrologyCoupledSenderFenceV2.capture(ws,ss);
+        assertEquals(1,fence.report().waterReceipts());
+        assertEquals(1,fence.report().sedimentReceipts());
+        var result = HydrologyCoupledFrontierResolutionV2.deliverAll(
+            ws,ss,Map.of(),coordinate ->
+                new HydrologyCoupledFrontierResolutionV2.Entry(
+                    "fenced-replay-a",receiver),1);
+        assertTrue(result.plan().complete());
+        assertDoesNotThrow(() -> fence.verify(ws,ss));
+    }
+
+    @Test void multiBatchDrainRejectsProducerMutationDuringDirectoryPreflight()
+            throws IOException {
+        var water = waterSender("fenced-batches",Map.of(TO_A,7.0,TO_B,8.0));
+        var sediment = sedimentSender("fenced-batches",Map.of());
+        var a = receiver("fenced-batches-a",A);
+        var b = receiver("fenced-batches-b",B);
+        var extra = new HydrologySedimentReceiptInboxV2.Receipt(
+            0,1,at(9,4),at(10,4));
+        var invoked = new boolean[1];
+        assertThrows(IOException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("w",water),Map.of("s",sediment),Map.of(),coordinate -> {
+                    if (!invoked[0]) {
+                        invoked[0] = true;
+                        var expected = HydrologyCheckpointStoreV2.load(sediment);
+                        HydrologySedimentSenderOutboxV2.appendDurable(
+                            sediment,expected,
+                            new HydrologySedimentFrontierTransfersV2.Outgoing(
+                                Map.of(extra,5.0),5.0));
+                    }
+                    return coordinate.equals(physical(A))
+                        ? new HydrologyCoupledFrontierResolutionV2.Entry("a",a)
+                        : new HydrologyCoupledFrontierResolutionV2.Entry("b",b);
+                },1,2));
+        assertTrue(invoked[0]);
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(
+            a.waterCheckpoint()).inbox().receipts().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(
+            b.waterCheckpoint()).inbox().receipts().isEmpty());
+    }
+
 }
