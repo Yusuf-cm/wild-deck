@@ -2384,3 +2384,35 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Erosion and distributed correctness:** Cross-region sediment exchange during authoritative riverbed epochs, topology-aware sediment migration, durable distributed writer fencing, global atomic transactions, replay-history compaction and planetary crash/fault-injection/endurance acceptance remain unfinished.
 
 **Safety:** Changes are restricted to this feature branch and hydrology implementation/tests/docs. No merge, PR, main/other branch write, production deployment or paid infrastructure change. Continue outstanding hydrology tasks before other world layers.
+
+
+## 2026-11-02 — Restart-safe seasonal lake carryover and atomic local checkpoint (CI VERIFIED)
+
+**Scope:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `5e4219449ae3c864eea8e15d19d670d270f79e29`. Starting full [Actions run 41424962550](https://github.com/Yusuf-cm/wild-deck/actions/runs/41424962550) passed **1,114 tests**, zero failures/errors/skips. No starting CI failures needed repair.
+
+### Implemented and verified
+
+1. **Explicit old-water carryover into a new season:** `HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover` and `advanceScheduledWithCarryover` accept previously conserved unresolved frontier volumes separately from newly generated snow/soil runoff. Carryover at a lake anchor enters its **first** seasonal slice exactly once; carryover at a nonlake destination remains pending rather than being reclassified as a verified ocean mouth. Newly generated rainfall schedules are independently audited and must **not** include carryover. Exact canonical addresses may aggregate; mixed-resolution aliases of the same physical vertex and old water at a verified ocean mouth are rejected. The budget checks `new seasonal runoff + old lake storage + carried water = verified outlet + pending water + lake evaporation + final storage`.
+2. **Canonical lake-and-pending checkpoint payload:** New `HydrologySeasonalLakeCarryoverStateV2` serializes the world identity, season, lake volumes, and unresolved water **together** in a bounded, canonical, deterministic UTF-8 payload. The state rejects noncanonical seam/polar samples, duplicate physical ownership (including cross-LOD aliases), nonfinite/negative volumes, duplicate records, stale forcing and incorrect previous pending histories. `advance` checks both previous lake volumes and the exact prior frontier map against the candidate and independently audits the whole water budget. This closes the previous omission where only the new lake volume could be saved and delayed spill silently lost.
+3. **Single-writer local atomic seasonal commit:** `commitNext` decodes the expected world payload, requires the checkpoint epoch to equal its season, verifies the candidate transition, and calls existing `HydrologyCheckpointStoreV2.saveNext` to atomically replace lake storage **and** pending water while preserving the existing hydrology inbox unchanged. The store rejects a stale expected checkpoint, including a same-epoch incoming receipt appended after the runner loaded its snapshot. This is an **opt-in** local-filesystem single-writer commit, not a global transaction, a distributed lock, or automatic inbox receipt consumption.
+
+### Commits and exact verification
+
+- `7c02cd1c44e455ae8e8c97c1eb1c132f1eeaf793` — conserved seasonal carryover through lagged lake routing.
+- `8404fc7767f1e38bc64b48635b7aebe2186e31d5` — eight routing/ownership/forcing regression tests.
+- `aab717bef724c29d05d9db69c385f3c3e3deb71c` — canonical lake storage and pending frontier checkpoint state.
+- `62653db40dff11b954d3d1e15ee34b676e90ce3d` — six state/codec/replay/atomic-checkpoint tests.
+- `87cf05aa0e0605355963d322c892da4e15e13858` — verified `commitNext` using existing atomic checkpoint store.
+- `8c259550b1bc787b59cc7b79e15186ccfa534a9f` — three atomic commit, epoch-fence and incoming-receipt conflict tests.
+- [Actions run 41431928015](https://github.com/Yusuf-cm/wild-deck/actions/runs/41431928015) passed **1,122 tests** including the eight carryover tests.
+- [Actions run 41432035479](https://github.com/Yusuf-cm/wild-deck/actions/runs/41432035479) passed **1,128 tests** including six state tests.
+- **[Final functional Actions run 41432288496](https://github.com/Yusuf-cm/wild-deck/actions/runs/41432288496) passed 1,131 Maven/JUnit tests (17 new), zero failures/errors/skips, `BUILD SUCCESS`, and all world experiment, resource replay, browser-save, atlas export and real-browser workflow steps.** The documentation-only commit has a separate workflow; check that run before claiming its HEAD is CI-green.
+
+### Outstanding hydrology acceptance gaps (NOT complete)
+
+1. **Authoritative lifecycle:** This is opt-in and only persists the seasonal lake/carryover envelope. Automatic region loading, coupled water/sediment receipt consumption, climate/snow/soil checkpointing, lake advancement and riverbed terrain commits must still be integrated into a single verified epoch. The lake commit deliberately leaves the existing inbox unchanged; callers must not count an inbox receipt both there and in the carryover map.
+2. **Time-resolved transport:** Cross-season carryover aggregates water at its destination and enters a lake in the first next-season slice; it does **not** retain exact residual travel-time offsets from delayed spills. External unloaded-region frontiers are preserved but not automatically re-routed when a tile loads. Channel travel delays are caller-selected integer slices, not calibrated velocities or flood-wave hydraulics.
+3. **Cross-region terrain and topology:** Durable sediment import/export during riverbed commits, topology-safe migration of pending water/sediment, global outlet discovery, mixed-resolution seasonal area remapping, replay-history compaction, authenticated distributed provenance and globally atomic commits remain unfinished.
+4. **Physical realism and scale:** Multiple lake spillways, groundwater, backwater, real weather calibration, erosion capacity calibration, planetary endurance and distributed crash/fault-injection validation remain unfinished. The existing single-writer checkpoint store is not a distributed CAS and requires an atomic-move-capable local filesystem.
+
+**Safety:** No PR, merge, main/other branch write, production change, paid infrastructure, or deployment. Continue water/hydrology before other world layers.
