@@ -2687,3 +2687,32 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 
 **Verified follow-up (same 2026-11-02 streaming work):** `dafe8be64c403c89955d2e5f4a8046486ab5ec4c` corrected the remaining two test fixtures (strict-mode accidentally given an extra loaded owner; streaming restart omitted a persisted unloaded cell's weather). **[GitHub Actions run 41523172441](https://github.com/Yusuf-cm/wild-deck/actions/runs/41523172441) PASSED**: **1,219 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including all **14/14** tests in `HydrologySeasonalSnowSoilWaterEpochV2Test` (six new). The world experiment, resource replay, browser-save, atlas export and real-browser verification steps also passed. The documentation-only follow-up commit requires its own workflow conclusion before claiming the final documentation HEAD green. The water subsystem is **not** complete for the explicit acceptance gaps above.
+
+## 2026-11-03 — Cross-resolution snow/soil and seasonal erosion ownership guards
+
+**Scope:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. The starting HEAD was `ee9b25489d8bb4601bf6ce808dec0f63289dad78`. The last independently inspected baseline [GitHub Actions run 41523518677](https://github.com/Yusuf-cm/wild-deck/actions/runs/41523518677) completed successfully with **1,219 Maven/JUnit tests, zero failures/errors/skips** and the full world/browser workflow. No baseline CI failure was found.
+
+### Changes made (new acceptance tests not yet confirmed by CI)
+
+1. `HydrologySnowSoilStateV2.State` now rejects **two sample addresses representing the same physical spherical vertex** even if they differ in sampling resolution. `advance` rejects the same double ownership in weather forcing before generating runoff. The decoder inherits this fail-closed check, so an older payload with duplicate physical stores cannot silently inject water twice. This is a local conservation guard; it does not remap mixed-resolution water stores.
+2. `HydrologySeasonalErosionPreviewV2` now rejects duplicate or noncanonical **physical window owners** before both forcing-derived and precomputed erosion previews. Incoming boundary-water contributions are summed in deterministic geographic sample order, eliminating map insertion order as a source of different floating-point accumulation. The erosion preview remains read-only, and incoming water still requires external receipt authentication.
+3. Four new JUnit test methods were added: duplicate physical snow storage and weather forcing, legacy duplicate-owner snow codec rejection, cross-resolution erosion-window ownership rejection, and deterministic imported-water ordering. One additional test correction compares numeric/terrain outputs rather than array reference identity.
+
+### Commit evidence
+
+- `a6ed0b25eb22da79fe16a5edd26a3bf1005cc159` — physical snow/soil owner guard.
+- `84f0794dafa5f693e2dd41ade02278bcd73e3187` — two snow/soil regressions.
+- `17e6156c09f15c2e75289b72ae3a07613571beef` — physical erosion-window guard and deterministic incoming accumulation.
+- `fe8a84b9ada1643b38ab8cc270590b8dc6282604` — two erosion regressions.
+- `1b7a843fd7ac3d1bb6b3446a2d06eb099a0597c9` — deterministic output assertion correction.
+
+**Verification limitation:** The GitHub connector's commit-workflow lookup returned no workflow runs for the new push commits (it only exposes PR-triggered runs); combined commit status also returned no statuses. No new-HEAD Maven/JUnit or GitHub Actions pass is claimed here. The previous **1,219-test** result applies only to the baseline, not to these new changes. The new code and tests require full branch CI confirmation and correction of any failures before being accepted as verified. No local full-repository Maven checkout was available in this run.
+
+### Remaining hydrology acceptance gaps
+
+1. **Verify this run's four new tests and full branch CI.** Correct any failures before treating the changes as accepted.
+2. **Authoritative lifecycle:** Seasonal snow/soil, water receipts, lake/outlet accounting, sediment delivery, riverbed incision/deposition and terrain streaming are not yet one globally atomic world tick. Current opt-in local checkpoints do not settle distributed sender acknowledgments.
+3. **Topology and physical timing:** Safe water/sediment migration after drainage changes, exact cross-season residual travel time, physically calibrated flood/river velocities, groundwater/backwater, multiple lake spillways, and mixed-resolution **state migration** remain unfinished. Rejecting mixed-resolution double ownership is not migration.
+4. **Scale:** Planetary long-horizon water/sediment conservation, crash fault injection, receipt/ledger compaction, and distributed CAS are not accepted. Outlet and atlas authority remain caller-supplied.
+
+**Safety:** No PR, merge, main/other-branch write, production change or paid infrastructure operation. Continue water before other layers.
