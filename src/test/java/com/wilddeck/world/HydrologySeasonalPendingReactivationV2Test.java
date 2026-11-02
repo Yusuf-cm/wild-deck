@@ -174,4 +174,35 @@ class HydrologySeasonalPendingReactivationV2Test {
         assertEquals(5,prepared.state().pendingM3().get(B),1e-12);
         assertEquals(0,prepared.state().lakeStorageM3().get(A),1e-12);
     }
+
+    @Test void pendingWaterSurvivesUnloadedSeasonAndReactivatesAfterRestart()
+            throws IOException {
+        var first=checkpoint(false);
+        var file=directory.resolve("two-seasons.chk");
+        HydrologyCheckpointStoreV2.save(file,first);
+        var before=HydrologySeasonalLakeInboxCommitV2.commitUniformReactivated(
+            file,first,routed(),Map.of(A,lake(0)),2,Set.of(A),routes());
+        assertEquals(5,before.state().pendingM3().get(C),1e-12);
+        var restored=HydrologyCheckpointStoreV2.load(file);
+        var after=HydrologySeasonalLakeInboxCommitV2.commitUniformReactivated(
+            file,restored,routed(),Map.of(A,lake(0)),2,loaded(),routes());
+        assertEquals(2,after.state().lakeStorageM3().get(A),1e-12);
+        assertEquals(3,after.state().pendingM3().get(SPILL),1e-12);
+        assertEquals(2,after.checkpoint().epoch());
+        assertEquals(after.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+        assertThrows(IOException.class,()->
+            HydrologySeasonalLakeInboxCommitV2.commitUniformReactivated(
+                file,restored,routed(),Map.of(A,lake(0)),2,loaded(),routes()));
+    }
+
+    @Test void cannotAdvanceLakeWhoseRegionIsNotLoaded() {
+        var expected=checkpoint(false);
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(),Map.of(A,lake(0)),2,Map.of(C,5.0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalLakeInboxCommitV2.prepareReactivated(
+                expected,Map.of(A,lake(0)),candidate,Set.of(C),
+                routes(),Set.of(OUT)));
+    }
+
 }
