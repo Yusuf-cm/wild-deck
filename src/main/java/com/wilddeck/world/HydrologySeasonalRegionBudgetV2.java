@@ -66,6 +66,38 @@ public final class HydrologySeasonalRegionBudgetV2 {
         }
 
         /**
+         * Route audited seasonal runoff through known global terrain, then
+         * advance an explicitly supplied lake cascade with at least one
+         * travel slice between lakes. Water still in transit is returned as
+         * pending, never counted as a verified ocean mouth. Noncommitting.
+         */
+        public HydrologySeasonalLakeRoutingV2.Result routeKnownNetworkWithLaggedLakes(
+                Map<GlobalHydrologyAddressV2.Sample,
+                    GlobalHydrologyAddressV2.Sample> knownDownstream,
+                Set<GlobalHydrologyAddressV2.Sample> verifiedGlobalMouths,
+                Map<GlobalHydrologyAddressV2.Sample,
+                    HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+                int slices) {
+            return HydrologySeasonalLaggedLakeNetworkV2.advanceUniform(
+                routeKnownNetwork(knownDownstream,verifiedGlobalMouths),
+                lakes,slices);
+        }
+
+        /** Chronological local runoff schedules; upstream spill is separate. */
+        public HydrologySeasonalLakeRoutingV2.Result routeKnownNetworkWithScheduledLaggedLakes(
+                Map<GlobalHydrologyAddressV2.Sample,
+                    GlobalHydrologyAddressV2.Sample> knownDownstream,
+                Set<GlobalHydrologyAddressV2.Sample> verifiedGlobalMouths,
+                Map<GlobalHydrologyAddressV2.Sample,
+                    HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+                Map<GlobalHydrologyAddressV2.Sample,
+                    List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules) {
+            return HydrologySeasonalLaggedLakeNetworkV2.advanceScheduled(
+                routeKnownNetwork(knownDownstream,verifiedGlobalMouths),
+                lakes,schedules);
+        }
+
+        /**
          * Route exactly the audited regional runoff sources through one
          * canonical flow graph. A downstream address outside the loaded
          * seasonal inventory is retained as a pending frontier, not invented
