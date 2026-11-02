@@ -2518,3 +2518,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Scale/resilience:** Planet-wide endurance and mass-balance stress, distributed writer fencing, receipt-history compaction, crash/fault injection, and global transaction semantics.
 
 **Safety:** No merges, PRs, changes to `main` or other branches, production operations or paid infrastructure. Continue water before other world layers.
+
+
+## 2026-11-02 — Durable verified ocean outlet settlement (opt-in)
+
+**Starting evidence:** Branch `feature/world-engine-v2` at `6d66bf21f27e1e45631496bbefb5470bfbb3c4ee`. [Starting CI 41476340878](https://github.com/Yusuf-cm/wild-deck/actions/runs/41476340878) passed **1,166 Maven/JUnit tests** and the complete Java/world/browser workflow. No starting CI failure required correction.
+
+### Implemented
+
+- `HydrologySeasonalOutletSettlementV2` adds a versioned, deterministic local checkpoint envelope holding **both** seasonal lake/frontier state and a cumulative, geographically keyed verified-ocean discharge ledger. It reads existing `WD-LAKE-CARRYOVER-1` payloads as an empty-ledger starting point. The new envelope is explicitly opt-in and **is not automatically readable by the existing lake-only seasonal runner**.
+- `prepare` and `commitNext` route previously conserved pending water along caller-verified loaded edges, retain water at unloaded destinations and lake inlets, add only actual verified-mouth discharge to the cumulative ledger, and atomically persist updated pending water, unchanged lake storage, cumulative outlet volume and the unchanged water inbox. Every settlement advances the local checkpoint epoch without adding precipitation or advancing lakes.
+- `prepareReceived` and `commitReceived` additionally claim available durable boundary receipts and combine them with old pending water before routing. The receipt-delivery markers and consumed epoch, updated frontier, and ocean discharge ledger are written in the **same** guarded local checkpoint. Future or unloaded receipts remain undelivered. A stale expected checkpoint, including an intervening receipt append, is rejected.
+- Canonical spherical addresses and unique physical mouth ownership are required. Nonfinite/negative water, overflow and increments too small to change the cumulative floating-point ledger are rejected instead of silently dropped. Mouths must be explicit null-downstream terminals and loaded before discharge.
+- New `HydrologySeasonalOutletSettlementV2Test` covers unloaded-to-loaded restart, once-only replay, confluence, preserved receipts, receipt-inclusive settlement, deferred receipt delivery, stale inbox writes, invalid mouths, cross-resolution aliases, codec tampering, overflow, precision loss and stale epoch. **Ten new JUnit methods were committed; do not count them as passed until CI confirms.**
+
+### Commit and verification ledger
+
+- `6bf45f749d091ff414ccdd484c6de6e94570c5b9` — initial atomic outlet settlement.
+- `68ddd2b5b27ede27b45ab6a5cba75b6ca8328529` — correct Java exception handling.
+- `01051a7039d15ad3277ef4d9c6ba4624ebb2d55c` — first seven tests.
+- `7f6e8c1ce0f363704cff5bb068a4eb0c259eb07a` — correct overflow fixture to use actual overflow.
+- `e97b813c6d0f22e5706b48a2a0c18756edb87160` — receipt-inclusive outlet settlement.
+- `dcc9120c45c256e555dfd5d877fd3bf8d5f5b48b` — three receipt and stale-inbox tests.
+- `874ba27efaa837f51b5893bb39d16b62e3902b5f` — reject floating-point ledger precision loss.
+- `307225e17f7a7dcac90e9a2eff9ccfa302490cf0` — precision-loss regression.
+- [CI 41486311398](https://github.com/Yusuf-cm/wild-deck/actions/runs/41486311398) **failed** one early test fixture that expected an overflow without actually creating one; the fixture was corrected in `7f6e8c1c`. [CI 41486250925](https://github.com/Yusuf-cm/wild-deck/actions/runs/41486250925) failed before the Java exception-handling correction. **New final-HEAD CI remains to be checked** before claiming green; inspect [branch workflow history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2).
+
+### Remaining acceptance gaps (NOT complete)
+
+1. **Integrate settlement into the authoritative seasonal runner:** The new versioned ledger envelope requires explicit decode/commit APIs. Existing lake-only and snow/soil runners do not transparently consume it, and a zero-forcing outlet settlement consumes a local epoch. A unified water/receipt/lake/riverbed/sediment transaction remains outstanding.
+2. **Distributed and topology safety:** The checkpoint is local single-writer optimistic persistence, not an interprocess CAS or globally atomic transaction. Ocean mouths, loaded vertices and drainage edges remain caller-verified; there is no authoritative planetary mouth catalog, topology-revision binding on this new ledger, external sender acknowledgement protocol, or distributed crash/fault-injection acceptance.
+3. **Physical fidelity and scale:** Exact sub-season travel times, mixed-resolution area remapping, multiple lake spillways, groundwater, calibrated weather/erosion and flood waves, planetary-scale mass balance and safe receipt/ledger compaction remain unfinished. Cumulative discharge uses finite doubles and deliberately fails closed when an increment cannot be represented.
+
+**Safety:** No PR, merge, modification to main or other branches, production change or paid infrastructure operation. Continue water before other layers.
