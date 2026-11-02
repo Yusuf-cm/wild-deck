@@ -2101,3 +2101,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Planetary physical model remains incomplete:** Authoritative ocean/coastline and stable global catchment discovery, mixed-LOD region directory, multiple lake spillways, groundwater, calibrated seasonal forcing, physically timed flooding, transport-capacity calibration and planetary-scale endurance/fault-injection tests remain unfinished.
 
 **Safety:** No merge, PR, push to `main`, edit to another branch, production change or paid infrastructure operation. Continue outstanding water tasks before other world layers.
+
+
+## 2026-11-02 — Coupled loaded water/sediment transfers, cross-LOD unloaded hints, topology gate (CI verified)
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck` on `feature/world-engine-v2`. Started at `2ad59c445dccd542810fae23c8e079da8c2cdf60`; [baseline CI 41364596953](https://github.com/Yusuf-cm/wild-deck/actions/runs/41364596953) passed **998 Maven/JUnit tests**, 0 failures/errors/skips and all world, browser-save, atlas and browser checks.
+
+### Implemented and verified
+
+1. **Coupled durable loaded-region transfer preflight and delivery:** New `HydrologyCoupledLoadedTransfersV2` validates a common authoritative physical ownership map, water and sediment checkpoint inventories, cross-media file aliases, cross-resolution shared vertices, and both existing network preflights **before any receipt write**. It dispatches water receipts first, then sediment receipts, with each medium retaining its existing receiver-first acknowledgment and crash retry semantics. The result exposes separate water-volume and sediment-mass budgets. This is opt-in and not a distributed transaction or automatic world-loop scheduler.
+2. **Deterministic unloaded frontier hints:** `pendingUnloaded` groups unacknowledged water and sediment receipts by physical global coordinate, even across LOD aliases, without double-counting a vertex. It reports water volume and sediment mass separately, excludes loaded destinations and acknowledged histories, and returns deterministic coordinate order. It deliberately does **not** guess an owning tile/resolution, load a region, prune history, or discover unknown downstream terrain.
+3. **Fail-closed terrain/topology quiescence gate:** `requireTopologyQuiescence` rejects drainage edits while any supplied mixed-resolution water is unloaded, unacknowledged or unconsumed. It also invokes the existing sediment topology gate to require acknowledged and consumed sediment plus no pending water in the sediment checkpoints. This is a **read-only check**, not permission for a concurrent or globally atomic terrain edit; the caller must provide all sender histories and freeze writers.
+4. **Regression coverage:** Added **16 JUnit tests** for two-media conservation and idempotent retries, recovery after water-only partial delivery, invalid second-medium preflight rollback, unloaded deferral, cross-LOD physical aliases, deterministic hints, acknowledged-history exclusion, ownership/file alias rejection, and topology gating before and after water consumption.
+
+### Exact verification and correction
+
+- [Source/test CI 41369429016](https://github.com/Yusuf-cm/wild-deck/actions/runs/41369429016) at `fef060ce13c85fa10bb3745590cab77b37854373`: **1014 Maven/JUnit tests passed**, **0 failures, 0 errors, 0 skipped**, `BUILD SUCCESS`. All **16** `HydrologyCoupledLoadedTransfersV2Test` tests passed. The smallest world experiment, resource replay, browser-save controls, planet atlas export and real-browser atlas verification also passed.
+- [Intermediate CI 41369329488](https://github.com/Yusuf-cm/wild-deck/actions/runs/41369329488) and [41369389786](https://github.com/Yusuf-cm/wild-deck/actions/runs/41369389786) failed because test fixtures reused a sender checkpoint path as a receiver path. Corrected the fixture names in `fef060ce`, and the final source/test CI passed. [Implementation CI 41369219853](https://github.com/Yusuf-cm/wild-deck/actions/runs/41369219853) also passed before the new tests.
+- Comparison from baseline to `fef060ce`: **7 commits**, changing exactly **two hydrology files** (new coordinator and test). Documentation is a separate eighth commit and its own workflow must be checked before calling that workflow green.
+
+### Remaining acceptance gaps (hydrology NOT complete)
+
+1. The coupled coordinator is opt-in and only handles delivery/acknowledgment for **two distinct durable checkpoint formats**. The regular water-inbox format and mixed-resolution water outbox are not automatically bridged. No authoritative lifecycle yet coordinates region loading, mixed-resolution water, sediment, lake storage, seasonal forcing, riverbed erosion, and topology migration in one scheduled world epoch.
+2. Multi-file transfers remain individually atomic, **not globally atomic**. A crash after water delivery but before sediment delivery leaves a partial batch recoverable only with complete retained sender histories and cooperative single-writer discipline. There is no authenticated cross-machine transport, durable global fencing or replay-history compaction.
+3. Unloaded hints require an external authoritative mixed-LOD region directory and actual terrain/route provider. They do not infer ocean outlets, global catchment closure or stable basin identities beyond already verified terminal anchors.
+4. Riverbed epochs still require closed local sediment budgets; coupled cross-region imported/exported sediment in terrain commits and migration of in-transit material when drainage changes are unfinished. The quiescence gate does not execute or globally serialize topology changes.
+5. Planetary ocean/coastline routing, multiple lake spillways, groundwater, calibrated multi-year seasonal forcing, physically timed flooding, capacity-calibrated erosion, planetary endurance and distributed fault-injection testing remain incomplete.
+
+**Safety:** No PR, merge, change to `main` or other branches, production operation or paid infrastructure change. Continue hydrology on `feature/world-engine-v2` before other world layers.
