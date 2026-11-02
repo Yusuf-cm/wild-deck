@@ -91,4 +91,14 @@ class HydrologySeasonalBudgetAuditV2Test {
         assertThrows(IllegalArgumentException.class,() ->
             HydrologySeasonalBudgetAuditV2.verify(initial,winter(),forged));
     }
+    @Test void auditedCanonicalAdvanceMatchesLegacyAndIsReplayDeterministic() {
+        var initial = new HydrologySnowSoilStateV2.State("world",Map.of());
+        var first = HydrologySnowSoilStateV2.advanceAudited(initial,winter());
+        assertEquals(HydrologySnowSoilStateV2.advance(initial,winter()),first);
+        var second = HydrologySnowSoilStateV2.advanceAudited(first.state(),spring());
+        assertEquals(HydrologySnowSoilStateV2.advance(first.state(),spring()),second);
+        assertEquals(second,HydrologySnowSoilStateV2.advanceAudited(
+            first.state(),spring()));
+    }
+
 }
