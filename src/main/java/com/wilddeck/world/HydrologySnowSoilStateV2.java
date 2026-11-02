@@ -136,6 +136,20 @@ public final class HydrologySnowSoilStateV2 {
             initial,precipitation,evaporation,runoffVolume,stored);
     }
 
+    /**
+     * Opt-in independently audited seasonal transition. The existing depth
+     * model advances the checkpoint, then a separate SI-volume bucket model
+     * checks every cell's snow, soil, evaporation and runoff before returning
+     * the candidate. Callers may persist the returned state only after this
+     * verification succeeds. This does not authenticate weather or area.
+     */
+    public static Step advanceAudited(State previous,
+            Map<GlobalHydrologyAddressV2.Sample,Forcing> forcing) {
+        var candidate = advance(previous,forcing);
+        HydrologySeasonalBudgetAuditV2.verify(previous,forcing,candidate);
+        return candidate;
+    }
+
     public static String encode(State state) {
         Objects.requireNonNull(state);
         var out=new StringBuilder(MAGIC).append('\n')
