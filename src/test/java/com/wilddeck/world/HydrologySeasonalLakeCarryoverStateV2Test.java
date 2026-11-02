@@ -200,4 +200,148 @@ class HydrologySeasonalLakeCarryoverStateV2Test {
         assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
     }
 
+
+    @Test void receiptAndLakeWaterCommitAtomicallyWithoutDoubleCounting() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        var key=new HydrologyTransferLedgerV2.Key(0,A,B);
+        inbox.receive(key,3);
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var file=directory.resolve("lake-with-inbox.chk");
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var forcing=Map.of(A,lake(0));
+        var carryover=HydrologySeasonalLakeInboxCommitV2.combined(
+            previous.pendingM3(),Map.of(B,3.0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,carryover);
+        var prepared=HydrologySeasonalLakeInboxCommitV2.commitNext(
+            file,expected,forcing,candidate,Set.of(B));
+        assertEquals(Map.of(B,3.0),prepared.claimedM3());
+        assertEquals(10.0,prepared.state().pendingM3().get(B),1e-12);
+        var recovered=HydrologyCheckpointStoreV2.load(file);
+        assertEquals(prepared.checkpoint(),recovered);
+        var receipts=HydrologyCheckpointV2.restoreInbox(recovered).snapshot();
+        assertTrue(receipts.delivered().contains(key));
+        assertTrue(receipts.consumedEpochs().contains(0L));
+        assertThrows(IOException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.commitNext(
+                file,expected,forcing,candidate,Set.of(B)));
+    }
+
+    @Test void unloadedReceiptSurvivesSeasonAndIsClaimedWhenLoaded() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        var key=new HydrologyTransferLedgerV2.Key(0,A,B);
+        inbox.receive(key,3);
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var file=directory.resolve("unloaded-receipt.chk");
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var firstForcing=Map.of(A,lake(0));
+        var firstCandidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),firstForcing,3,previous.pendingM3());
+        var first=HydrologySeasonalLakeInboxCommitV2.commitNext(
+            file,expected,firstForcing,firstCandidate,Set.of(A));
+        assertTrue(first.claimedM3().isEmpty());
+        assertFalse(HydrologyCheckpointV2.restoreInbox(first.checkpoint())
+            .snapshot().delivered().contains(key));
+        var secondForcing=Map.of(A,lake(2));
+        var secondCarryover=HydrologySeasonalLakeInboxCommitV2.combined(
+            first.state().pendingM3(),Map.of(B,3.0));
+        var secondCandidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),secondForcing,3,secondCarryover);
+        var second=HydrologySeasonalLakeInboxCommitV2.commitNext(
+            file,first.checkpoint(),secondForcing,secondCandidate,Set.of(B));
+        assertEquals(Map.of(B,3.0),second.claimedM3());
+        assertEquals(10.0,second.state().pendingM3().get(B),1e-12);
+        assertTrue(HydrologyCheckpointV2.restoreInbox(second.checkpoint())
+            .snapshot().delivered().contains(key));
+    }
+
+    @Test void candidateMustIncludeExactlyClaimedReceipts() {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,A,B),3);
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var forcing=Map.of(A,lake(0));
+        var missing=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.prepare(
+                expected,forcing,missing,Set.of(B)));
+    }
+
+    @Test void futureReceiptsAreNotConsumedEarly() {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        var future=new HydrologyTransferLedgerV2.Key(2,A,B);
+        inbox.receive(future,3);
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        var prepared=HydrologySeasonalLakeInboxCommitV2.prepare(
+            expected,forcing,candidate,Set.of(B));
+        assertTrue(prepared.claimedM3().isEmpty());
+        assertFalse(HydrologyCheckpointV2.restoreInbox(prepared.checkpoint())
+            .snapshot().delivered().contains(future));
+    }
+
+    @Test void crossResolutionReceiptAliasIsRejectedBeforeWrite() throws IOException {
+        var alias=new GlobalHydrologyAddressV2.Sample(0,4,2,2);
+        var neighbor=new GlobalHydrologyAddressV2.Sample(0,4,3,2);
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,neighbor,alias),3);
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        var file=directory.resolve("aliased-receipt.chk");
+        HydrologyCheckpointStoreV2.save(file,expected);
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.commitNext(
+                file,expected,forcing,candidate,Set.of(alias)));
+        assertEquals(expected,HydrologyCheckpointStoreV2.load(file));
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.prepare(
+                expected,forcing,candidate,Set.of(A,alias)));
+    }
+
+    @Test void staleCheckpointWithNewReceiptsCannotEraseInbox() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),
+            new HydrologyEpochInboxV2());
+        var file=directory.resolve("stale-receipt.chk");
+        HydrologyCheckpointStoreV2.save(file,expected);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        var inbox=HydrologyCheckpointV2.restoreInbox(expected);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(2,A,B),3);
+        var updated=HydrologyCheckpointV2.capture(0,expected.worldState(),inbox);
+        HydrologyCheckpointStoreV2.saveIncoming(file,updated);
+        assertThrows(IOException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.commitNext(
+                file,expected,forcing,candidate,Set.of(B)));
+        assertEquals(updated,HydrologyCheckpointStoreV2.load(file));
+    }
+
+    @Test void mergedReceiptVolumeOverflowIsRejected() {
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeInboxCommitV2.combined(
+                Map.of(B,Double.MAX_VALUE),Map.of(B,Double.MAX_VALUE)));
+        var first=HydrologySeasonalLakeInboxCommitV2.combined(
+            Map.of(A,1.0,B,2.0),Map.of(B,3.0));
+        var second=HydrologySeasonalLakeInboxCommitV2.combined(
+            Map.of(B,2.0,A,1.0),Map.of(B,3.0));
+        assertEquals(first,second);
+        assertEquals(5.0,first.get(B),1e-12);
+    }
+
 }
