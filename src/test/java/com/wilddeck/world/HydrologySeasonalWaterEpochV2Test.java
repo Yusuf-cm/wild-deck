@@ -62,7 +62,7 @@ class HydrologySeasonalWaterEpochV2Test {
         assertEquals(2.0,result.state().lakes().lakeStorageM3().get(A),1e-12);
         assertEquals(Map.of(C,4.0),result.claimedM3());
         assertEquals(7.0,result.oldWaterRouting().outletTotalM3(),1e-12);
-        assertEquals(5.0,result.lakeStep().result().seasonalRunoffM3(),1e-12+2);
+        assertEquals(5.0,result.lakeStep().result().seasonalRunoffM3(),1e-12);
         assertTrue(HydrologyCheckpointV2.restoreInbox(result.checkpoint()).snapshot()
             .delivered().contains(new HydrologyTransferLedgerV2.Key(0,B,C)));
         assertEquals(1,result.checkpoint().epoch());
