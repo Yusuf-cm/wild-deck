@@ -205,4 +205,11 @@ class HydrologySeasonalPendingReactivationV2Test {
                 routes(),Set.of(OUT)));
     }
 
+
+    @Test void aggregateVolumeOverflowIsRejectedEvenWithoutConfluence() {
+        assertThrows(IllegalArgumentException.class,()->
+            move(Map.of(C,Double.MAX_VALUE,D,Double.MAX_VALUE),
+                Set.of(A),Map.of()));
+    }
+
 }
