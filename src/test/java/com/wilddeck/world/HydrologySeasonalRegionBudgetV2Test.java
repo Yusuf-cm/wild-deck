@@ -128,4 +128,48 @@ class HydrologySeasonalRegionBudgetV2Test {
         assertThrows(IllegalArgumentException.class,() ->
             HydrologySeasonalRegionBudgetV2.advance(initial(),winter(),-1));
     }
+
+    @Test void crossRegionSeamFlowUsesOneGlobalCatchmentAndConservesRunoff() {
+        var season = HydrologySeasonalRegionBudgetV2.advance(
+            initial(),winter(),RADIUS);
+        var routed = season.route(Map.of(WEST,EAST),Set.of(POLE,EAST));
+        double west = season.season().runoff().stream()
+            .filter(s -> s.address().equals(WEST)).findFirst().orElseThrow().localWater();
+        double east = season.season().runoff().stream()
+            .filter(s -> s.address().equals(EAST)).findFirst().orElseThrow().localWater();
+        assertEquals(west+east,routed.drainage().terminalOutflow().get(EAST),1e-8);
+        assertEquals(EAST,routed.drainage().resolvedCatchments().get(WEST));
+        assertTrue(routed.drainage().pendingOutflow().isEmpty());
+        assertEquals(season.season().runoffVolume(),routed.budget().input(),1e-8);
+        assertEquals(season.season().runoffVolume(),routed.budget().outlet(),1e-8);
+        assertEquals(0,routed.budget().residual(),1e-8);
+    }
+
+    @Test void unloadedDownstreamRemainsPendingInsteadOfBecomingFakeMouth() {
+        var season = HydrologySeasonalRegionBudgetV2.advance(
+            initial(),winter(),RADIUS);
+        var unloaded = new GlobalHydrologyAddressV2.Sample(1,2,6,2);
+        var routed = season.route(Map.of(WEST,unloaded),Set.of(POLE,EAST));
+        double west = season.season().runoff().stream()
+            .filter(s -> s.address().equals(WEST)).findFirst().orElseThrow().localWater();
+        assertEquals(west,routed.drainage().pendingOutflow().get(unloaded),1e-8);
+        assertFalse(routed.drainage().resolvedCatchments().containsKey(WEST));
+        assertEquals(season.season().runoffVolume(),
+            routed.budget().outlet()+routed.budget().frontier(),1e-8);
+    }
+
+    @Test void invalidOrForgedSeasonalRoutesFailBeforeReportingDischarge() {
+        var season = HydrologySeasonalRegionBudgetV2.advance(
+            initial(),winter(),RADIUS);
+        var unknown = new GlobalHydrologyAddressV2.Sample(1,2,5,2);
+        var seamAlias = new GlobalHydrologyAddressV2.Sample(1,2,8,2);
+        assertThrows(IllegalArgumentException.class,() ->
+            season.route(Map.of(unknown,EAST),Set.of(EAST)));
+        assertThrows(IllegalArgumentException.class,() ->
+            season.route(Map.of(WEST,seamAlias),Set.of(EAST)));
+        assertThrows(IllegalArgumentException.class,() ->
+            season.route(Map.of(WEST,EAST),Set.of(WEST)));
+        assertThrows(IllegalArgumentException.class,() ->
+            season.route(Map.of(),Set.of(unknown)));
+    }
 }
