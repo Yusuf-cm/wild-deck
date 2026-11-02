@@ -205,4 +205,52 @@ class HydrologySeasonalErosionPreviewV2Test {
         assertEquals(0,dry.terrain().landscape().erodedMass(),0);
         assertEquals(0,dry.terrain().landscape().depositedMass(),0);
     }
+
+    @Test void rejectsCrossResolutionPhysicalErosionOwnersBeforeSedimentCalculation() {
+        var addresses=new ArrayList<>(window());
+        var alias=new GlobalHydrologyAddressV2.Sample(1,2,1,1);
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(addresses.get(0)),
+                     HydrologyGlobalCatchmentsV2.coordinate(alias));
+        addresses.set(1,alias);
+        var dry=season(window(),0);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculate(
+                new HydrologyTerrainOverlayV2.State("world",Map.of()),
+                addresses,5,5,seed(),dry,RADIUS,2000,.1,.4,
+                capacity(),Set.of(24)));
+        var weather=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+            HydrologySnowSoilStateV2.Forcing>();
+        for(var address:addresses)
+            weather.put(address,HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address,RADIUS,1,5,0,0,1,10));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+                new HydrologyTerrainOverlayV2.State("world",Map.of()),
+                addresses,5,5,seed(),
+                new HydrologySnowSoilStateV2.State("world",Map.of()),
+                weather,RADIUS,2000,.1,.4,capacity(),Set.of(24)));
+    }
+
+    @Test void importedWaterRoutingIsIndependentOfMapInsertionOrder() {
+        var addresses=window();
+        var dry=season(addresses,0);
+        var forward=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        forward.put(addresses.get(0),0.1);
+        forward.put(addresses.get(1),0.2);
+        forward.put(addresses.get(2),0.3);
+        var reverse=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        reverse.put(addresses.get(2),0.3);
+        reverse.put(addresses.get(1),0.2);
+        reverse.put(addresses.get(0),0.1);
+        var before=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var one=HydrologySeasonalErosionPreviewV2.calculate(
+            before,addresses,5,5,seed(),dry,RADIUS,2000,.1,.4,
+            capacity(),Set.of(24),forward);
+        var two=HydrologySeasonalErosionPreviewV2.calculate(
+            before,addresses,5,5,seed(),dry,RADIUS,2000,.1,.4,
+            capacity(),Set.of(24),reverse);
+        assertEquals(one, two);
+        assertEquals(0.6,one.terminalVolume(),1e-8);
+        assertTrue(before.elevations().isEmpty());
+    }
 }
