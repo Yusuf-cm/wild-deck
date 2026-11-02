@@ -147,7 +147,9 @@ class HydrologySeasonalWaterEpochV2Test {
         var expected=HydrologyCheckpointV2.capture(0,
             HydrologySeasonalOutletSettlementV2.encode(huge),
             HydrologyCheckpointV2.restoreInbox(first));
-        assertThrows(IllegalArgumentException.class,()->advance(expected,5,0));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalWaterEpochV2.prepareUniform(expected,runoff(0,1),
+                lakes(0),2,edges(),loaded(),Set.of(M)));
         assertEquals(first,HydrologyCheckpointStoreV2.load(file));
     }
 
