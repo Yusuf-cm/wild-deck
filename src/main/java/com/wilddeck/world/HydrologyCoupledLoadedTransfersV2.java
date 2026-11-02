@@ -226,4 +226,36 @@ public final class HydrologyCoupledLoadedTransfersV2 {
         return List.copyOf(result);
     }
 
+    /**
+     * Fail closed before caller-controlled erosion or drainage topology edits.
+     * Every supplied water export must be acknowledged AND consumed, and the
+     * sediment topology gate must certify all receipts consumed. This does not
+     * authorize a write or prove the caller supplied every planetary sender.
+     * The caller must freeze all writers while checking and changing topology.
+     */
+    public record Quiescence(HydrologyMixedResolutionLoadedNetworkV2.Report water,
+            HydrologySedimentTopologyGateV2.Report sediment) {
+        public Quiescence {
+            Objects.requireNonNull(water);
+            Objects.requireNonNull(sediment);
+        }
+    }
+
+    public static Quiescence requireTopologyQuiescence(
+            Map<String,Path> waterSenderFiles,
+            Map<String,Path> sedimentSenderFiles,
+            Map<String,Region> loaded) throws IOException {
+        var inventories = validate(waterSenderFiles,sedimentSenderFiles,loaded);
+        var plan = plan(waterSenderFiles,sedimentSenderFiles,loaded);
+        var water = plan.water().report();
+        if (water.unloadedCount() != 0 || !water.loadedSettled() ||
+            water.acknowledged().compareTo(water.exported()) != 0 ||
+            water.delivered().compareTo(water.exported()) != 0)
+            throw new IllegalStateException(
+                "Drainage topology blocked by unloaded, unacknowledged or unconsumed water");
+        var sediment = HydrologySedimentTopologyGateV2.requireQuiescent(
+            inventories.sedimentSenders(),inventories.sediment());
+        return new Quiescence(water,sediment);
+    }
+
 }
