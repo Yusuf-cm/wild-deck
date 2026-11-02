@@ -2485,3 +2485,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 
 **Final numerical-safety follow-up (verified):** `b078a71dd0437d38cb5a72b31b2d7d9f7d49a30f` rejects aggregate pending-water volumes that overflow the finite-double world budget even when individual frontier values do not converge. `8fcb8f1418f61e0541bfc961ab1b1f6542da8bb3` adds the corresponding regression. **[GitHub Actions 41448838309](https://github.com/Yusuf-cm/wild-deck/actions/runs/41448838309) passed 1,154 Maven/JUnit tests, including 12/12 new reactivation tests, zero failures/errors/skips, `BUILD SUCCESS`, world experiment, resource replay, browser-save, atlas export and real-browser checks.** Hydrology is still unfinished for the acceptance gaps listed above. The final documentation-only commit has its own workflow and should be checked independently.
+
+
+## 2026-11-02 — Conserved pending-water discharge at verified global mouths
+
+**Scope:** `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2` only. Started at `18db1059abc042bd900234287f483b498e0367ac`. Baseline [CI 41449048891](https://github.com/Yusuf-cm/wild-deck/actions/runs/41449048891) passed 1,154 tests and the complete Java/world/browser workflow.
+
+### Implemented and limitations
+
+1. **Explicit, conserved ocean receiving:** New opt-in pure `HydrologySeasonalPendingOutletV2.route` routes already-persisted pending water across supplied adjacent, canonical drainage edges through loaded vertices. It emits **separate** unresolved frontier/lake-inlet volumes and verified global mouth discharge. A mouth must be explicitly supplied, exist as a null-downstream terminal in the known graph, and be loaded before old water can discharge there. Unknown routes and unloaded mouths remain pending. No precipitation is generated and no regional boundary is silently treated as an ocean.
+2. **Global identities and physical ownership:** Each resolved source receives a geographic `HydrologyGlobalCatchmentsV2.CatchmentId` derived from its verified mouth. Traversed edges receive stable geographic `ReachId` values. Canonical spherical seam adjacency is supported. Cross-resolution aliases of one physical vertex are rejected across all ownership inputs; source order does not affect results. This is identity for **verified resolved paths only**, not global catchment discovery.
+3. **Independent accounting and receipt/restart integration tests:** Input water is checked against pending plus discharged water, with finite aggregate and confluence checks. Tests exercise durable checkpoint reload, unloaded-to-loaded mouth continuation, staged boundary receipt claims, deterministic confluence, lake stopping, false mouths, cycles, invalid edges, seam paths, and resolution-independent mouth IDs.
+
+**Critical boundary:** This class is a **pure planning/audit operator**. It does **not** commit discharged volumes or consumed receipt markers to an authoritative checkpoint, so it does **not** establish crash-safe exactly-once ocean discharge or an end-to-end seasonal lifecycle. The existing receipt/lake checkpoint code is unchanged. Callers must not acknowledge an outlet transfer without a separate durable, replay-safe discharge ledger. Source catchment identity is only as authoritative as caller-supplied verified mouth and route topology.
+
+### Commits and verification
+
+- `bcde00f62e940268f2871d0c13acb52a65fe23a6` — outlet reactivation, water conservation and stable global identities.
+- `837c8850c0ed8fc210417ceb26e66758c4efae4e` — first ten regression tests.
+- `cc7b0de5d75a1361a131145a8f850cbc58ad4f1c` — correct verified-mouth terminal fixture.
+- `23b91990e1ee360eb7f7d3d491a7bbb33ac75568` — two additional checkpoint and receipt integration tests.
+- `53e764f80702c028a0019ad973d4d03c8cee8db1` — assert duplicate claim is rejected.
+- `5e0911da68dc380c9af6b8fa717bb46ddfd355ca` — use a nonexistent checkpoint path for first atomic save.
+- Intermediate [CI 41475647975](https://github.com/Yusuf-cm/wild-deck/actions/runs/41475647975) failed because a test fixture omitted the mouth's explicit null terminal; corrected. [CI 41475789653](https://github.com/Yusuf-cm/wild-deck/actions/runs/41475789653) failed because a test created an empty checkpoint file before calling `save`; corrected.
+- **[Functional CI 41475962289](https://github.com/Yusuf-cm/wild-deck/actions/runs/41475962289) completed successfully** for `5e0911da68dc380c9af6b8fa717bb46ddfd355ca`: **1,166 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including **12/12** new `HydrologySeasonalPendingOutletV2Test` tests. World experiment, finite-resource replay, browser-save, atlas export and real-browser checks passed. The documentation-only commit following this entry requires its own CI verification.
+
+### Remaining acceptance gaps (hydrology NOT finished)
+
+1. **Highest priority: authoritative lifecycle and durable discharge:** Integrate regional terrain loading, climate/snow/soil runoff, water inbox claims, lake storage, verified outlet ledger, sediment import/export and riverbed evolution in one authoritative replay-safe epoch. Persist discharged water and receipt consumption atomically before acknowledging external transfers; test crash/restart/replay at every boundary.
+2. **Topology and identity authority:** Automatically discover/verify planetary drainage, catchments and ocean mouths; migrate pending water/sediment safely after topology changes; reject stale terrain revisions and support mixed-resolution seasonal area remapping.
+3. **Physical fidelity:** Preserve exact cross-season travel delay, support multiple lake spillways and groundwater, calibrate evaporation/precipitation, river speed, flood-wave timing, sediment capacity and erosion.
+4. **Scale/resilience:** Planet-wide endurance and mass-balance stress, distributed writer fencing, receipt-history compaction, crash/fault injection, and global transaction semantics.
+
+**Safety:** No merges, PRs, changes to `main` or other branches, production operations or paid infrastructure. Continue water before other world layers.
