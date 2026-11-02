@@ -117,7 +117,11 @@ class HydrologySeasonalTopologyEpochV2Test {
         var inbox=new HydrologyEpochInboxV2();
         inbox.receive(new HydrologyTransferLedgerV2.Key(0,at(2,2),B),3.0);
         var first=HydrologyCheckpointV2.capture(0,bound(atlas).worldState(),inbox);
-        var partial=advance(first,atlas,0,Set.of(B));
+        var partialRunoff=HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+            atlas,Map.of(B,0.0),Set.of(B),86400);
+        var partial=HydrologySeasonalTopologyEpochV2.prepareUniform(
+            first,atlas,partialRunoff,Map.of(),2,
+            edges(atlas),Set.of(B),Set.of(M));
         assertEquals(3.0,partial.water().oldWaterRouting().inputM3(),1e-12);
         assertEquals(0.0,partial.water().oldWaterRouting().outletTotalM3(),0.0);
         assertEquals(3.0,partial.water().state().lakes().pendingM3()
