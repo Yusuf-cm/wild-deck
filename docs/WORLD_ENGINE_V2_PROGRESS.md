@@ -2260,3 +2260,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. Degree-day snow/soil weather remains uncalibrated. Multiple lake spillways, groundwater, timed flooding, physically calibrated erosion and planetary endurance/fault-injection tests remain unfinished.
 
 **Safety:** No PR, merge, main/other branch write, production deployment, paid infrastructure or database change. Continue water/hydrology before other world layers.
+
+
+## 2026-11-02 — Seasonal runoff through known unloaded global drainage (full CI pending)
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck` on `feature/world-engine-v2`. Started from `01a019c6191350516fc3c5a621894e975e5c5343`. [Baseline GitHub Actions run 41396489038](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396489038) was inspected via the connected workflow job and raw Maven logs: **1,060 JUnit tests passed, zero failures/errors/skips, BUILD SUCCESS**. No baseline failure required fixing.
+
+### Added on this branch
+
+1. **Known-but-unloaded global routing:** New `HydrologySeasonalGlobalRoutingV2` accepts the independently audited `HydrologySeasonalRegionBudgetV2.Result` and a caller-supplied globally addressed route graph. Known unloaded terrain vertices forward existing seasonal runoff with **zero extra local precipitation**. Unknown downstream vertices remain unresolved frontiers rather than being declared ocean outlets. The solver and independent conservation audit verify `seasonal runoff = verified mouth discharge + pending frontier discharge`. Only one canonical physical vertex may own each route, and same-resolution adjacent edges are required.
+2. **Stable resolved catchment/reach IDs:** For routes that reach independently verified global mouths, catchment IDs use `HydrologyGlobalCatchmentsV2.CatchmentId` and geographic mouth coordinates; reach IDs use geographic upstream/downstream coordinates. Neither identity depends on named seasonal region partitions. Paths ending at unknown terrain receive **no fabricated catchment identity**. Invalid routes, cycles, noncanonical seam vertices and mixed-resolution aliases fail closed.
+3. **Physically unitful seasonal mean rates and source ownership audit:** Verified outlet and frontier volumes are divided by the common seasonal duration in seconds to yield **m³/s mean rates**. The new bridge independently checks that every audited seasonal source belongs to exactly one named region with an unchanged water volume, rejecting duplicated, missing or altered region runoff. The result maps are immutable. `HydrologySeasonalRegionBudgetV2.Result.routeKnownNetwork` exposes the opt-in bridge.
+4. **13 JUnit regression tests committed** in `HydrologySeasonalGlobalRoutingV2Test`: unloaded mouth conservation, stable identities across region renames, unknown frontiers, multiple known unloaded hops, duplicate/altered regional ownership, missing route nodes, forged mouths, nonadjacent edges, seam and mixed-resolution aliases, cycles, zero rainfall, public bridge equivalence and fully unresolved basins.
+
+### Commits and exact verification
+
+- `b7d2094893640edd17b4a4b60342235402821a35` — new global seasonal routing implementation.
+- `d565a0fac0ebe0ae11dfd4c379be5db0564943f6` — first 11 JUnit regression tests.
+- `af9738cdbb20fbab6776247789a26895f8810fe0` — regional result API bridge.
+- `ac5b754b7186b8e9d4f5a549c26a4b4668c49738` — two additional regression tests.
+- **Local isolated verification:** Java `javac --release 17` compiled the new source and all 13 tests against explicit API-shape stubs; a reflection runner executed all **13/13 test methods successfully**. This is **NOT** a Maven/JUnit repository test, nor a proof of real dependency behavior. The local runner used stubs for existing world/hydrology APIs.
+- **Full new-commit CI: NOT VERIFIED.** The connected commit workflow lookup only returns PR-triggered runs and reported none for these push commits; combined status checks were empty. Do not claim that the 13 new tests passed the real project or that this HEAD is CI-green until its GitHub Actions push run and Maven logs are inspected. [Development branch workflow history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2).
+
+### Outstanding hydrology acceptance gaps (NOT finished)
+
+1. **Immediate:** Run the complete Maven/JUnit workflow for the exact new HEAD and fix any failures. Integrate this opt-in known-route bridge into the authoritative region cache/loader, coupled water/sediment delivery, lake advancement, seasonal forcing and durable riverbed epochs. It does not itself persist receipts, fetch terrain or authenticate external global mouths.
+2. **Routing:** Caller-supplied global routes must be independently derived from actual terrain and validated over unloaded regions. Mixed-LOD seasonal area remapping and cross-resolution routing are intentionally rejected; planetary mouth discovery and authoritative catchment closure are unfinished. Mean m³/s rates are *seasonal averages*, **not** flood travel-time or hydraulic wave simulation.
+3. **Cross-region sediment and topology:** Durable sediment import/export during riverbed commits, in-transit water/sediment migration after route changes, durable global fencing, authenticated provenance, globally atomic transactions and safe replay-history compaction are unfinished.
+4. **Physical realism and scale:** Multiple lake spillways, groundwater, calibrated meteorological forcing, lake/snow/soil coupling, physically timed flooding, capacity-calibrated erosion, planetary endurance and distributed fault injection are unfinished.
+
+**Safety:** No PR, merge, main/other branch write, production operation or paid infrastructure change. Continue water/hydrology before any other world layer.
