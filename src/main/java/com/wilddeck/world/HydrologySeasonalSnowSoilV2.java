@@ -111,9 +111,13 @@ public final class HydrologySeasonalSnowSoilV2 {
             .add(decimal(precipitation));
         var right = decimal(snow).add(decimal(soil))
             .add(decimal(evaporated)).add(decimal(runoff));
+        double totalInput = left.doubleValue();
+        double totalOutput = right.doubleValue();
+        if (!Double.isFinite(totalInput) || !Double.isFinite(totalOutput))
+            throw new IllegalArgumentException("Seasonal total water overflow");
         double residual = left.subtract(right).doubleValue();
         double tolerance = Math.max(1e-9,
-            Math.max(left.doubleValue(),right.doubleValue())*1e-12);
+            Math.max(totalInput,totalOutput)*1e-12);
         if (!Double.isFinite(residual) || Math.abs(residual) > tolerance)
             throw new IllegalArgumentException("Seasonal water conservation failed");
         return new Step(new State(snow,soil),rain,snowfall,melt,
