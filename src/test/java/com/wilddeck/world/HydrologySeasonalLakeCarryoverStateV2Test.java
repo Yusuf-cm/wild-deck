@@ -141,4 +141,63 @@ class HydrologySeasonalLakeCarryoverStateV2Test {
         assertThrows(IOException.class,() ->
             HydrologyCheckpointStoreV2.saveNext(file,checkpoint,nextCheckpoint));
     }
+    @Test void commitNextAtomicallyPersistsLakeAndPendingWater() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        var checkpoint=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var file=directory.resolve("committed-lake.chk");
+        HydrologyCheckpointStoreV2.save(file,checkpoint);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        var next=HydrologySeasonalLakeCarryoverStateV2.commitNext(
+            file,checkpoint,forcing,candidate);
+        var loaded=HydrologyCheckpointStoreV2.load(file);
+        assertEquals(1,loaded.epoch());
+        assertEquals(next,HydrologySeasonalLakeCarryoverStateV2.decode(
+            loaded.worldState()));
+        assertEquals(checkpoint.inboxState(),loaded.inboxState());
+        assertThrows(IOException.class,() ->
+            HydrologySeasonalLakeCarryoverStateV2.commitNext(
+                file,checkpoint,forcing,candidate));
+    }
+
+    @Test void commitNextRejectsMismatchedCheckpointEpochBeforeWriting() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var checkpoint=HydrologyCheckpointV2.capture(7,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),
+            new HydrologyEpochInboxV2());
+        var file=directory.resolve("wrong-epoch.chk");
+        HydrologyCheckpointStoreV2.save(file,checkpoint);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeCarryoverStateV2.commitNext(
+                file,checkpoint,forcing,candidate));
+        assertEquals(checkpoint,HydrologyCheckpointStoreV2.load(file));
+    }
+
+    @Test void incomingReceiptChangeBlocksStaleLakeSeasonCommit() throws IOException {
+        var previous=initial(Map.of(A,9.0));
+        var checkpoint=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),
+            new HydrologyEpochInboxV2());
+        var file=directory.resolve("incoming-water.chk");
+        HydrologyCheckpointStoreV2.save(file,checkpoint);
+        var inbox=HydrologyCheckpointV2.restoreInbox(checkpoint);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(2,A,B),3);
+        var appended=HydrologyCheckpointV2.capture(0,
+            checkpoint.worldState(),inbox);
+        HydrologyCheckpointStoreV2.saveIncoming(file,appended);
+        var forcing=Map.of(A,lake(0));
+        var candidate=HydrologySeasonalLaggedLakeNetworkV2.advanceUniformWithCarryover(
+            routed(0),forcing,3,previous.pendingM3());
+        assertThrows(IOException.class,() ->
+            HydrologySeasonalLakeCarryoverStateV2.commitNext(
+                file,checkpoint,forcing,candidate));
+        assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
+    }
+
 }
