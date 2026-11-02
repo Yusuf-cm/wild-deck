@@ -2557,3 +2557,37 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 
 **Final full-branch verification:** [GitHub Actions run 41486792771](https://github.com/Yusuf-cm/wild-deck/actions/runs/41486792771) **PASSED** for commit `9586a7de334589a819ef5e838311d3c306736102`, with **1,177 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including all **11 outlet-settlement regressions**. All remaining workflow steps passed. The durable ledger is verified as an opt-in local transition, **not** a completed authoritative planetary hydrology system.
+
+
+## 2026-11-02 — Single-checkpoint seasonal lake, receipt and ocean-ledger integration
+
+**Scope:** `Yusuf-cm/wild-deck` / `feature/world-engine-v2` only. Starting commit `d821709069e6b4f42b65eb9ab4b8df18e2387eb9`; starting [CI 41487039489](https://github.com/Yusuf-cm/wild-deck/actions/runs/41487039489) completed successfully with **1,177 tests**. No starting CI failure needed correction.
+
+### Implemented and verified
+
+1. Added opt-in `HydrologySeasonalWaterEpochV2` with **uniform** and **chronological scheduled** seasonal planning/commit operations. In a *single* local guarded checkpoint epoch it restores the previous lake/outlet envelope, claims currently loaded durable water receipts, routes previous pending water through caller-authenticated loaded drainage edges, credits already conserved water arriving at verified ocean mouths, advances lake storage and substep spill with separately audited fresh seasonal runoff, and persists the updated cumulative ocean ledger, remaining pending water, lake storage and receipt delivery markers. Existing legacy lake payloads can be read through the outlet-settlement decoder. This avoids having to perform a separate zero-forcing outlet settlement epoch before every lake season.
+2. Water from unloaded routes is kept pending and receipts for unloaded destinations remain unclaimed. Once the destination is loaded, the next seasonal epoch can route and settle that water. The coordinator independently audits **previous pending + newly claimed receipts + old lake storage + fresh seasonal runoff = next pending + next lake storage + evaporation + new verified ocean discharge**. Previously discharged cumulative ledger volumes are **not** treated as new water. It checks verified mouths against fresh seasonal outlet results, rejects unloaded lake advancement, stale season epochs, forged terminal mouths, cross-resolution physical ownership aliases, nonfinite/overflow values, and increments that cannot change an existing cumulative floating-point ledger.
+3. New `HydrologySeasonalWaterEpochV2Test` contains **10** JUnit tests: receipt + prior-water confluence, verified mouth accounting, lake storage and overflow, chronological/uniform agreement, checkpoint restart and once-only delivery, unloaded region deferral, previous lake-inlet water, false mouth and shared-vertex aliases, stale inbox append fencing, stale epochs, and ledger precision protection. The code is opt-in and does not modify the existing production runner.
+
+### Commit and CI evidence
+
+- `85f83a753389f4fe700b5e1cc54af6b366547bec` — unified local seasonal water coordinator.
+- `8971c50cd637d1792daed635bcd1f580b0181260` — preserve address ordering of claimed receipts.
+- `ccf8caf0a6ac71b6ed90b406d243e1ef43f81856` — initial seven JUnit tests.
+- `b0a16ee6957dc0ed2c44eaf1d050a406114107aa` — tighten runoff assertion.
+- `e5febf0040969a3a64f566ce0cd9fee5e0c81ec1` — precision test adjustment.
+- `ed56ccc24cd8fcb4b1c6fd36b1efbdd7e111dd0a` — isolate precision test from other sources.
+- `ba8ebbb1e8ad55047295d1e5dff08036693da916` — unloaded-frontier, old-lake-inlet and stale-inbox tests.
+- `340b1836ac647a3b54cd752db05dd80f083726a2` — correct geographic alias and include ocean runoff in test accounting.
+- `8976676321ee82c3257698bb02e15b00a69f0cd4` — use a future-epoch receipt in the stale-append fixture.
+- Intermediate [CI 41494806596](https://github.com/Yusuf-cm/wild-deck/actions/runs/41494806596), [41494838062](https://github.com/Yusuf-cm/wild-deck/actions/runs/41494838062), [41494893429](https://github.com/Yusuf-cm/wild-deck/actions/runs/41494893429), [41494947545](https://github.com/Yusuf-cm/wild-deck/actions/runs/41494947545), and [41495008231](https://github.com/Yusuf-cm/wild-deck/actions/runs/41495008231) failed **test-fixture assertions** (incorrect cross-resolution alias, runoff expectation omitting 2 m³ of ocean water, unrepresentative precision fixture, and invalid same-epoch receipt append). The implementation compiled; these fixtures were corrected.
+- **[Functional CI 41495067725](https://github.com/Yusuf-cm/wild-deck/actions/runs/41495067725) PASSED** at `8976676321ee82c3257698bb02e15b00a69f0cd4`: **1,187 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. All **10** new seasonal-water integration tests passed. World sandbox experiment, resource replay, browser-save tests, atlas export and real-browser checks also passed. The documentation-only commit containing this entry requires its own workflow conclusion before claiming the documentation HEAD green.
+
+### Remaining hydrology acceptance gaps (NOT complete)
+
+1. **Authoritative world lifecycle:** The new operator is an opt-in **local water checkpoint**; the live world tick does not yet atomically coordinate terrain streaming, persisted snow/soil state, seasonal climate, riverbed/erosion and sediment delivery with this water checkpoint. There is no globally atomic water/sediment/terrain epoch.
+2. **Planetary drainage authority and migration:** Caller still authenticates loaded vertices, drainage edges, lake basins and true ocean mouths. No complete global catchment/mouth discovery, revision-fenced dynamic drainage migration, mixed-resolution seasonal area remapping or global topology-change transaction.
+3. **Physical fidelity:** No exact residual cross-season travel times, calibrated flood-wave velocities, multiple lake spillways, groundwater/backwater, calibrated weather and sediment capacity, or fully coupled erosion/sediment deposition.
+4. **Scale and crash safety:** No distributed writer CAS, sender-acknowledgement transaction, planet-scale long-horizon conservation/fault injection, or safe receipt/ledger compaction. Cumulative water uses finite doubles and some very small increments can be rejected rather than represented.
+
+**Safety:** Only the requested feature branch was changed. No merge, PR, main/other-branch change, production operation or paid infrastructure. Hydrology remains the sole development priority.
