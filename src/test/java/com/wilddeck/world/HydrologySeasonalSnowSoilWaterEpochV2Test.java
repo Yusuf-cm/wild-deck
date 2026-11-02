@@ -187,4 +187,115 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
             HydrologySeasonalSnowSoilWaterEpochV2.bindFresh(
                 withReceipt,new HydrologySnowSoilStateV2.State("world",Map.of()),RADIUS));
     }
+    private static HydrologySeasonalSnowSoilWaterEpochV2.Prepared streaming(
+            HydrologyCheckpointV2.Checkpoint old,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Set<GlobalHydrologyAddressV2.Sample> loaded) {
+        return HydrologySeasonalSnowSoilWaterEpochV2.prepareStreamingUniform(
+            old,atlas,forcing,Map.of(),loaded,2,86400);
+    }
+
+    @Test void unloadedSnowIsWeatherForcedAndMeltWaitsForRegionLoading() {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(
+            M,new HydrologySnowSoilStateV2.Cell(0,0),
+            B,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var cold=streaming(first,atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,2,-5,0)),Set.of(B));
+        assertEquals(2,cold.snow().storedVolume(),1e-8);
+        assertEquals(0,cold.snow().runoffVolume(),1e-8);
+        double meltDepth=2/HydrologySphericalCellAreaV2.areaAt(M,RADIUS)/5;
+        var melted=streaming(cold.checkpoint(),atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,0,5,meltDepth)),Set.of(B));
+        assertEquals(2,melted.snow().runoffVolume(),1e-8);
+        assertEquals(2,melted.water().water().state().lakes().pendingM3().get(M),1e-8);
+        assertTrue(melted.water().water().state().dischargedM3().isEmpty());
+        var arrived=streaming(melted.checkpoint(),atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(B,M));
+        assertEquals(2,arrived.water().water().state().dischargedM3().get(M),1e-8);
+        assertEquals(0,arrived.water().water().state().lakes().pendingM3()
+            .getOrDefault(M,0.0),1e-8);
+    }
+
+    @Test void unloadedRunoffAccumulatesWithoutReintroducingOldWaterAsRain() {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(
+            M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var one=streaming(first,atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,2,10,0)),Set.of(B));
+        assertEquals(2,one.water().water().state().lakes().pendingM3().get(M),1e-8);
+        var two=streaming(one.checkpoint(),atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,3,10,0)),Set.of(B));
+        assertEquals(5,two.water().water().state().lakes().pendingM3().get(M),1e-8);
+        var three=streaming(two.checkpoint(),atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(B,M));
+        assertEquals(5,three.water().water().state().dischargedM3().get(M),1e-8);
+        var four=streaming(three.checkpoint(),atlas,Map.of(
+            M,weather(M,0,10,0)),Set.of(M));
+        assertEquals(5,four.water().water().state().dischargedM3().get(M),1e-8);
+    }
+
+    @Test void unloadedRunoffAndDurableReceiptConvergeExactlyOnce() {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var inbox=new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,B,M),3);
+        var received=new HydrologyCheckpointV2.Checkpoint(
+            0,first.worldState(),HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var unloaded=streaming(received,atlas,Map.of(
+            B,weather(B,0,10,0),M,weather(M,2,10,0)),Set.of(B));
+        assertEquals(2,unloaded.water().water().state().lakes().pendingM3().get(M),1e-8);
+        assertTrue(unloaded.water().water().claimedM3().isEmpty());
+        var loaded=streaming(unloaded.checkpoint(),atlas,Map.of(
+            M,weather(M,0,10,0)),Set.of(M));
+        assertEquals(5,loaded.water().water().state().dischargedM3().get(M),1e-8);
+        assertEquals(3,loaded.water().water().claimedM3().get(M),1e-8);
+        var again=streaming(loaded.checkpoint(),atlas,Map.of(
+            M,weather(M,0,10,0)),Set.of(M));
+        assertTrue(again.water().water().claimedM3().isEmpty());
+        assertEquals(5,again.water().water().state().dischargedM3().get(M),1e-8);
+    }
+
+    @Test void streamingRequiresEveryPersistedDormantCellToReceiveWeather() {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        assertThrows(IllegalArgumentException.class,()->streaming(first,atlas,
+            Map.of(B,weather(B,0,10,0)),Set.of(B)));
+        assertThrows(IllegalArgumentException.class,()->streaming(first,atlas,
+            Map.of(B,weather(B,0,10,0),M,weather(M,0,10,0),at(2,2),
+                weather(at(2,2),0,10,0)),Set.of(B)));
+        assertThrows(IllegalArgumentException.class,()->advance(first,atlas,
+            Map.of(B,weather(B,0,10,0)),Map.of()));
+    }
+
+    @Test void streamingScheduledAndUniformMatchForNoLakeAndUnloadedRunoff() {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var forcing=Map.of(B,weather(B,0,10,0),M,weather(M,2,10,0));
+        var uniform=streaming(first,atlas,forcing,Set.of(B));
+        var scheduled=HydrologySeasonalSnowSoilWaterEpochV2.prepareStreamingScheduled(
+            first,atlas,forcing,Map.of(),Map.of(),Set.of(B),86400);
+        assertEquals(uniform.checkpoint(),scheduled.checkpoint());
+    }
+
+    @Test void streamingCheckpointSurvivesRestartAndRejectsStaleWriter() throws IOException {
+        var atlas=atlas();
+        var first=initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var file=directory.resolve("streaming-water.chk");
+        HydrologyCheckpointStoreV2.save(file,first);
+        var pending=HydrologySeasonalSnowSoilWaterEpochV2.commitStreamingUniform(
+            file,first,atlas,Map.of(B,weather(B,0,10,0),M,weather(M,2,10,0)),
+            Map.of(),Set.of(B),2,86400);
+        assertEquals(pending.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+        var arrived=HydrologySeasonalSnowSoilWaterEpochV2.commitStreamingUniform(
+            file,HydrologyCheckpointStoreV2.load(file),atlas,
+            Map.of(M,weather(M,0,10,0)),Map.of(),Set.of(M),2,86400);
+        assertEquals(2,arrived.water().water().state().dischargedM3().get(M),1e-8);
+        assertThrows(IOException.class,()->HydrologySeasonalSnowSoilWaterEpochV2.commitStreamingUniform(
+            file,first,atlas,Map.of(B,weather(B,0,10,0),M,weather(M,2,10,0)),
+            Map.of(),Set.of(B),2,86400));
+        assertEquals(arrived.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+    }
+
 }
