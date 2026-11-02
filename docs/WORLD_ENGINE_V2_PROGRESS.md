@@ -2129,3 +2129,27 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. Planetary ocean/coastline routing, multiple lake spillways, groundwater, calibrated multi-year seasonal forcing, physically timed flooding, capacity-calibrated erosion, planetary endurance and distributed fault-injection testing remain incomplete.
 
 **Safety:** No PR, merge, change to `main` or other branches, production operation or paid infrastructure change. Continue hydrology on `feature/world-engine-v2` before other world layers.
+
+
+## 2026-11-02 — Authoritative unloaded-frontier resolution and bounded coupled delivery (verification pending)
+
+**Scope:** Only `Yusuf-cm/wild-deck` on `feature/world-engine-v2`. Started from `c7d2a8ae1c9fca3aa895cd612ef66da357e50368`. The existing [baseline workflow 41369569788](https://github.com/Yusuf-cm/wild-deck/actions/runs/41369569788) was inspected via its job steps and raw logs: **1014 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**; world experiment, resource replay, browser-save, atlas export and real-browser verification all passed.
+
+### Added this run
+
+1. **Authoritative physical directory bridge:** `HydrologyCoupledFrontierResolutionV2` resolves the existing coupled water/sediment `pendingUnloaded` coordinates through a caller-supplied read-only directory to **existing** durable receiver checkpoints and physical ownership. A cross-LOD water/sediment destination resolves to one physical region; no extra rainfall, water, or sediment is synthesized. Unknown or mismatched ownership and ambiguous region identities are rejected before transfer writes.
+2. **Deterministic bounded delivery:** `planBatch` and `deliverBatch` select a deterministic prefix of new regions under a strict budget, retain unselected frontiers, and use the existing receiver-first, replay-safe coupled delivery. `planAll` and `deliverAll` reject an insufficient budget **without writing any receipt**. All discovered physical directory owners are checked for overlaps before choosing the batch. Both checkpoint formats are preflighted before delivery.
+3. **Nine JUnit regression tests added:** cross-resolution water/sediment coalescing and replay, two successive bounded batches, strict-budget rollback, incorrect ownership, changing region identity, overlapping directory owners, missing mappings, negative budget and conflict with an already loaded region.
+
+### Verification status
+
+- New implementation commit: `ea51b96caa88b3bbec68bb74ae8831a83e8e86a2`; nine-test commit: `35715efbd980fa511d978fb2a184bfa069382ec3`.
+- The new Java source was syntax-compiled with Java 17 against isolated API-shape stubs. **This is NOT a repository build or a JUnit run.**
+- The GitHub connector's commit workflow lookup only exposes PR-triggered runs, and returned no runs/status checks for these push commits. **The nine new tests and full CI are NOT yet verified.** Inspect [branch workflow history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) and fix any failures before treating this milestone as accepted. Do not infer a new green workflow from the previously verified 1014-test baseline.
+
+### Explicit limits and next work
+
+- This is an **opt-in** bridge to a caller-supplied authoritative region directory; it does not generate terrain, discover unknown routes, choose an LOD, physically load files from a cache, or integrate with the regular water-inbox/world-runner lifecycle.
+- Delivery across multiple checkpoints remains individually durable rather than globally atomic. Recovery requires complete sender histories and external single-writer coordination; the directory must remain stable while processing.
+- Outstanding: full new-commit CI verification; authoritative region cache/provider integration; coordinated water/sediment/lake/seasonal/riverbed epochs; cross-region sediment imports and exports in terrain commits; safe in-transit drainage migration; replay-history compaction; verified planetary mouths/catchments, multiple spillways, groundwater, calibrated seasonal forcing, flood timing and long-run endurance/fault-injection tests.
+- No PR, merge, change to `main` or other branches, production change or paid infrastructure operation. **Hydrology is NOT complete.**
