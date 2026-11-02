@@ -199,7 +199,8 @@ class HydrologySeasonalPendingOutletV2Test {
         var staged=HydrologyCheckpointV2.restoreInbox(checkpoint);
         var claimed=staged.claimAvailable(0,Set.of(C));
         assertEquals(Map.of(C,3.0),claimed);
-        assertTrue(staged.claimAvailable(0,Set.of(C)).isEmpty());
+        assertThrows(IllegalStateException.class,
+            ()->staged.claimAvailable(0,Set.of(C)));
         var merged=HydrologySeasonalLakeInboxCommitV2.combined(
             Map.of(A,2.0),claimed);
         var edges=new HashMap<GlobalHydrologyAddressV2.Sample,
