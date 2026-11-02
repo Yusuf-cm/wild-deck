@@ -2479,3 +2479,6 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. **Scale:** Planet-wide long-horizon mass conservation and multi-resolution streaming stress tests remain incomplete.
 
 **Safety:** No merges, PRs, changes to main/other branches, production deployment, or paid infrastructure. Continue hydrology before other world layers.
+
+
+**Post-run verification update:** [Functional CI 41448369597](https://github.com/Yusuf-cm/wild-deck/actions/runs/41448369597) subsequently completed **successfully** for `7d0a5c62111ef92c95145273d8a3e91232905f0e`. Its logs explicitly report **1,153 Maven/JUnit tests, zero failures, zero errors, zero skips, `BUILD SUCCESS`**, including **11/11** tests in `HydrologySeasonalPendingReactivationV2Test`. World experiment, finite-resource replay, browser-save controls, atlas export and real-browser checks also passed. Documentation-only commits must still be checked against their own Actions runs before declaring the final documentation HEAD CI green.
