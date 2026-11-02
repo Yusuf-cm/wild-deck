@@ -180,6 +180,74 @@ public final class HydrologySeasonalTopologyEpochV2 {
         }
     }
 
+    /**
+     * Derive a seasonal graph from the bound atlas instead of trusting an
+     * independently supplied route graph. Every loaded physical vertex owns
+     * exactly one local runoff value, including zero. Unloaded downstream
+     * vertices receive pending water, never invented ocean discharge.
+     *
+     * The supplied runoff must already have been audited against precipitation
+     * and snow/soil storage; this helper cannot infer missing rainfall.
+     */
+    public static HydrologySeasonalGlobalRoutingV2.Result routeOwnedRunoff(
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            double durationSeconds) {
+        Objects.requireNonNull(atlas);
+        Objects.requireNonNull(ownedRunoffM3);
+        Objects.requireNonNull(loaded);
+        if (!Double.isFinite(durationSeconds) || durationSeconds<=0 ||
+            loaded.isEmpty() || loaded.size()>1_000_000 ||
+            !ownedRunoffM3.keySet().equals(loaded))
+            throw new IllegalArgumentException("Incomplete seasonal rainfall ownership");
+        var ordered=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        ordered.putAll(ownedRunoffM3);
+        var nodes=new ArrayList<HydrologyFlowGraphV2.Node>(ordered.size());
+        var reaches=new TreeMap<GlobalHydrologyAddressV2.Sample,
+            HydrologyGlobalCatchmentsV2.ReachId>(HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for (var entry:ordered.entrySet()) {
+            var atlasNode=atlas.routeAt(entry.getKey());
+            double volume=Objects.requireNonNull(entry.getValue());
+            if (!Double.isFinite(volume) || volume<0)
+                throw new IllegalArgumentException("Invalid owned seasonal runoff");
+            nodes.add(new HydrologyFlowGraphV2.Node(entry.getKey(),volume,
+                atlasNode.downstream(),atlasNode.terminal()));
+            if (atlasNode.downstream()!=null)
+                reaches.put(entry.getKey(),new HydrologyGlobalCatchmentsV2.ReachId(
+                    HydrologyGlobalCatchmentsV2.coordinate(entry.getKey()),
+                    HydrologyGlobalCatchmentsV2.coordinate(atlasNode.downstream())));
+        }
+        var flow=HydrologyFlowGraphV2.solve(nodes);
+        var budget=HydrologyConservationV2.verify(nodes,flow);
+        var catchments=new TreeMap<GlobalHydrologyAddressV2.Sample,
+            HydrologyGlobalCatchmentsV2.CatchmentId>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for (var entry:flow.resolvedCatchments().entrySet())
+            catchments.put(entry.getKey(),
+                new HydrologyGlobalCatchmentsV2.CatchmentId(
+                    HydrologyGlobalCatchmentsV2.coordinate(entry.getValue())));
+        return new HydrologySeasonalGlobalRoutingV2.Result(
+            flow,budget,catchments,reaches,
+            rates(flow.terminalOutflow(),durationSeconds),
+            rates(flow.pendingOutflow(),durationSeconds),durationSeconds);
+    }
+
+    private static Map<GlobalHydrologyAddressV2.Sample,Double> rates(
+            Map<GlobalHydrologyAddressV2.Sample,Double> volumes,
+            double durationSeconds) {
+        var result=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        for (var entry:volumes.entrySet()) {
+            double rate=entry.getValue()/durationSeconds;
+            if (!Double.isFinite(rate) || rate<0)
+                throw new IllegalArgumentException("Seasonal discharge rate overflow");
+            result.put(entry.getKey(),rate);
+        }
+        return result;
+    }
+
     public static Prepared commitUniform(Path file,
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologySphericalRouteAtlasV2 atlas,
