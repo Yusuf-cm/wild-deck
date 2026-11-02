@@ -85,4 +85,23 @@ class HydrologySeasonalLakeIntegratorV2Test {
             assertTrue(result.volume() >= 0 && result.volume() <= BASIN.capacity());
         }
     }
+
+    @Test void fourHundredSeasonsRetainGlobalLakeMass() {
+        var basin = new LakeReservoirV2.Basin(
+            new double[]{-4,-1,2,5},new double[]{2,3,5,7},9);
+        var random = new Random(20261102);
+        double storage = 0, precipitation = 0, evaporated = 0, spilled = 0;
+        for (int year=0;year<100;year++) for (int season=0;season<4;season++) {
+            double incoming = random.nextDouble()*80;
+            double evaporation = random.nextDouble()*2;
+            var result = HydrologySeasonalLakeIntegratorV2.step(
+                basin,storage,incoming,evaporation,30);
+            precipitation += incoming;
+            evaporated += result.evaporated();
+            spilled += result.overflow();
+            storage = result.volume();
+            assertTrue(storage >= 0 && storage <= basin.capacity());
+        }
+        assertEquals(precipitation,evaporated+spilled+storage,1e-6);
+    }
 }
