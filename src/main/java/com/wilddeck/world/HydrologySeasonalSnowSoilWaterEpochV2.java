@@ -203,27 +203,20 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
 
     private static void audit(HydrologySnowSoilStateV2.Step snow,
             HydrologySeasonalTopologyEpochV2.Prepared water) {
-        var previous = HydrologySeasonalOutletSettlementV2.decode(
-            HydrologySeasonalTopologyEpochV2.decode(
-                water.water().checkpoint().worldState()).waterState());
-        // The water checkpoint is the NEW state. Use the independently
-        // reported initial snow and previous-water totals from the water step.
         var w = water.water();
+        // The old-water routing input is the sum of prior pending frontier
+        // water and newly claimed receipts. Fresh snow/soil runoff is already
+        // accounted for by the precipitation/store balance, not added again.
         BigDecimal inputs = number(snow.initialVolume())
             .add(number(snow.precipitationVolume()))
-            .add(sum(w.oldWaterRouting().inputM3()))
-            .add(number(w.lakeStep().result().previousLakeStorageM3()))
-            .add(number(snow.runoffVolume()).negate());
+            .add(number(w.oldWaterRouting().inputM3()))
+            .add(number(w.lakeStep().result().previousLakeStorageM3()));
         BigDecimal outputs = number(snow.storedVolume())
             .add(number(snow.evaporationVolume()))
             .add(number(w.lakeStep().result().lakeEvaporationM3()))
             .add(sum(w.state().lakes().pendingM3()))
             .add(sum(w.state().lakes().lakeStorageM3()))
             .add(sum(w.newOceanDischargeM3()));
-        // Subtracting runoff on the left would count it twice: snow/soil
-        // already converted precipitation to runoff, which enters water.
-        // Add it back to obtain the full physical source balance.
-        inputs = inputs.add(number(snow.runoffVolume()));
         BigDecimal tolerance = inputs.abs().max(outputs.abs())
             .multiply(BigDecimal.valueOf(1e-10))
             .max(BigDecimal.valueOf(1e-8));
