@@ -29,8 +29,7 @@ public final class HydrologySeasonalWaterEpochV2 {
             Objects.requireNonNull(checkpoint);
             Objects.requireNonNull(oldWaterRouting);
             Objects.requireNonNull(lakeStep);
-            claimedM3=Collections.unmodifiableMap(new TreeMap<>(
-                sorted(claimedM3)));
+            claimedM3=sorted(claimedM3);
             newOceanDischargeM3=sorted(newOceanDischargeM3);
         }
     }
