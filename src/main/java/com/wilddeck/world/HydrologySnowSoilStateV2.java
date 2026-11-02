@@ -32,10 +32,13 @@ public final class HydrologySnowSoilStateV2 {
             Objects.requireNonNull(cells);
             var ordered=new TreeMap<GlobalHydrologyAddressV2.Sample,Cell>(
                 HydrologyFlowGraphV2.ADDRESS_ORDER);
+            var physicalOwners=new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
             for(var entry:cells.entrySet()) {
                 var address=Objects.requireNonNull(entry.getKey());
                 if(!HydrologySphericalTopologyV2.isCanonical(address))
                     throw new IllegalArgumentException("Noncanonical snow/soil address");
+                if(!physicalOwners.add(HydrologyGlobalCatchmentsV2.coordinate(address)))
+                    throw new IllegalArgumentException("Duplicate physical snow/soil owner");
                 ordered.put(address,Objects.requireNonNull(entry.getValue()));
             }
             if(ordered.size()>MAX_CELLS)
@@ -92,10 +95,13 @@ public final class HydrologySnowSoilStateV2 {
             throw new IllegalArgumentException("Missing forcing for persisted snow/soil cells");
         var sorted=new TreeMap<GlobalHydrologyAddressV2.Sample,Forcing>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
+        var physicalForcing=new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
         for(var entry:forcing.entrySet()) {
             var address=Objects.requireNonNull(entry.getKey());
             if(!HydrologySphericalTopologyV2.isCanonical(address))
                 throw new IllegalArgumentException("Noncanonical seasonal forcing");
+            if(!physicalForcing.add(HydrologyGlobalCatchmentsV2.coordinate(address)))
+                throw new IllegalArgumentException("Duplicate physical seasonal forcing owner");
             sorted.put(address,Objects.requireNonNull(entry.getValue()));
         }
         var cells=new TreeMap<GlobalHydrologyAddressV2.Sample,Cell>(
