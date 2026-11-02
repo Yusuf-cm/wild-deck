@@ -200,6 +200,17 @@ public final class HydrologySeasonalTopologyEpochV2 {
             Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             double durationSeconds) {
+        return routeOwnedRunoff(atlas,ownedRunoffM3,loaded,Set.of(),durationSeconds);
+    }
+
+    /** A loaded lake inlet captures upstream flow before the atlas spill edge. */
+    public static HydrologySeasonalGlobalRoutingV2.Result routeOwnedRunoff(
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Set<GlobalHydrologyAddressV2.Sample> lakeInlets,
+            double durationSeconds) {
+        Objects.requireNonNull(lakeInlets);
         Objects.requireNonNull(atlas);
         Objects.requireNonNull(ownedRunoffM3);
         Objects.requireNonNull(loaded);
@@ -207,6 +218,13 @@ public final class HydrologySeasonalTopologyEpochV2 {
             loaded.isEmpty() || loaded.size()>1_000_000 ||
             !ownedRunoffM3.keySet().equals(loaded))
             throw new IllegalArgumentException("Incomplete seasonal rainfall ownership");
+        if (!loaded.containsAll(lakeInlets))
+            throw new IllegalArgumentException("Unloaded lake inlet in owned runoff");
+        for (var inlet:lakeInlets) {
+            var node=atlas.routeAt(inlet);
+            if (node.terminal() || node.downstream()==null)
+                throw new IllegalArgumentException("Unverified atlas lake spill edge");
+        }
         var ordered=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         ordered.putAll(ownedRunoffM3);
@@ -218,9 +236,10 @@ public final class HydrologySeasonalTopologyEpochV2 {
             double volume=Objects.requireNonNull(entry.getValue());
             if (!Double.isFinite(volume) || volume<0)
                 throw new IllegalArgumentException("Invalid owned seasonal runoff");
+            boolean lakeInlet=lakeInlets.contains(entry.getKey());
             nodes.add(new HydrologyFlowGraphV2.Node(entry.getKey(),volume,
-                atlasNode.downstream(),atlasNode.terminal()));
-            if (atlasNode.downstream()!=null)
+                lakeInlet?null:atlasNode.downstream(),atlasNode.terminal()));
+            if (!lakeInlet && atlasNode.downstream()!=null)
                 reaches.put(entry.getKey(),new HydrologyGlobalCatchmentsV2.ReachId(
                     HydrologyGlobalCatchmentsV2.coordinate(entry.getKey()),
                     HydrologyGlobalCatchmentsV2.coordinate(atlasNode.downstream())));
@@ -251,6 +270,72 @@ public final class HydrologySeasonalTopologyEpochV2 {
                 throw new IllegalArgumentException("Seasonal discharge rate overflow");
             result.put(entry.getKey(),rate);
         }
+        return result;
+    }
+
+    /**
+     * A single-call, atlas-derived seasonal transition. All loaded samples
+     * must provide owned runoff, including zero. Lake anchors stop the local
+     * graph and use their authenticated atlas edge only for delayed spill.
+     * Known edges and verified mouths are derived from the same bound atlas.
+     */
+    public static Prepared prepareOwnedUniform(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            int slices,double durationSeconds) {
+        var routed=routeOwnedRunoff(atlas,ownedRunoffM3,loaded,
+            Objects.requireNonNull(lakes).keySet(),durationSeconds);
+        return prepareUniform(expected,atlas,routed,lakes,slices,
+            knownEdges(atlas,loaded),loaded,allMouths(atlas));
+    }
+
+    public static Prepared prepareOwnedScheduled(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            double durationSeconds) {
+        var routed=routeOwnedRunoff(atlas,ownedRunoffM3,loaded,
+            Objects.requireNonNull(lakes).keySet(),durationSeconds);
+        return prepareScheduled(expected,atlas,routed,lakes,schedules,
+            knownEdges(atlas,loaded),loaded,allMouths(atlas));
+    }
+
+    public static Prepared commitOwnedUniform(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,Double> ownedRunoffM3,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            int slices,double durationSeconds) throws IOException {
+        var prepared=prepareOwnedUniform(expected,atlas,ownedRunoffM3,lakes,
+            loaded,slices,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,prepared.checkpoint());
+        return prepared;
+    }
+
+    private static Map<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample>
+            knownEdges(HydrologySphericalRouteAtlasV2 atlas,
+            Set<GlobalHydrologyAddressV2.Sample> loaded) {
+        var result=new HashMap<GlobalHydrologyAddressV2.Sample,
+            GlobalHydrologyAddressV2.Sample>();
+        for (var address:loaded)
+            result.put(address,atlas.routeAt(address).downstream());
+        for (var node:atlas.routes())
+            if (node.terminal()) result.put(node.address(),null);
+        return result;
+    }
+
+    private static Set<GlobalHydrologyAddressV2.Sample>
+            allMouths(HydrologySphericalRouteAtlasV2 atlas) {
+        var result=new HashSet<GlobalHydrologyAddressV2.Sample>();
+        for (var node:atlas.routes())
+            if (node.terminal()) result.add(node.address());
         return result;
     }
 
