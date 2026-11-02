@@ -2554,3 +2554,6 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 
 **Verified follow-up (2026-11-02):** [GitHub Actions run 41486590428](https://github.com/Yusuf-cm/wild-deck/actions/runs/41486590428) completed **successfully** for commit `89b8f1160dc86998e314980ce65f9f22a2bc1fa3`. Its job logs explicitly report **1,177 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including **11/11 `HydrologySeasonalOutletSettlementV2Test` tests**. All Java/world/resource/browser/atlas steps passed. This verifies the implementation and new tests through that commit; subsequent documentation-only commits require their own CI confirmation. The previously listed physical and orchestration gaps remain open.
+
+
+**Final full-branch verification:** [GitHub Actions run 41486792771](https://github.com/Yusuf-cm/wild-deck/actions/runs/41486792771) **PASSED** for commit `9586a7de334589a819ef5e838311d3c306736102`, with **1,177 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including all **11 outlet-settlement regressions**. All remaining workflow steps passed. The durable ledger is verified as an opt-in local transition, **not** a completed authoritative planetary hydrology system.
