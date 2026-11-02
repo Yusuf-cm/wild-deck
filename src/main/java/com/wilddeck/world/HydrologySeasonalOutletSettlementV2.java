@@ -1,7 +1,6 @@
 package com.wilddeck.world;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
@@ -88,7 +87,7 @@ public final class HydrologySeasonalOutletSettlementV2 {
             if (!encode(state).equals(payload))
                 throw new IllegalArgumentException("Noncanonical outlet ledger");
             return state;
-        } catch (NumberFormatException|IllegalArgumentException ex) {
+        } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid outlet ledger encoding",ex);
         }
     }
