@@ -80,12 +80,12 @@ class HydrologyTimedSeasonalEpochV2Test {
             HydrologyTimedSeasonalEpochV2.encode(
                 HydrologyTimedSeasonalEpochV2.decode(one.checkpoint().worldState())),
             one.checkpoint().inboxState());
-        var two=advance(restored,atlas,Set.of(M),List.of(transfer("edge-1",1,3)),2);
+        var two=advance(restored,atlas,Set.of(B,M),List.of(transfer("edge-1",1,3)),2);
         assertEquals(3,two.transit().releasedTotalM3().doubleValue(),1e-9);
         assertEquals(0,two.transit().remainingM3().doubleValue(),1e-9);
         assertEquals(5,two.seasonal().water().water().state()
             .dischargedM3().get(M),1e-8);
-        var three=advance(two.checkpoint(),atlas,Set.of(M),
+        var three=advance(two.checkpoint(),atlas,Set.of(B,M),
             List.of(transfer("edge-1",1,3)),0);
         assertTrue(three.transit().releasedM3().isEmpty());
         assertEquals(5,three.seasonal().water().water().state()
@@ -132,9 +132,9 @@ class HydrologyTimedSeasonalEpochV2Test {
         var first=initial(atlas);
         var one=advance(first,atlas,Set.of(B),List.of(transfer("edge-1",2,3)),0);
         assertThrows(IllegalArgumentException.class,()->
-            advance(one.checkpoint(),atlas,Set.of(M),
+            advance(one.checkpoint(),atlas,Set.of(B,M),
                 List.of(transfer("edge-1",2,9)),0));
-        var correct=advance(one.checkpoint(),atlas,Set.of(M),
+        var correct=advance(one.checkpoint(),atlas,Set.of(B,M),
             List.of(transfer("edge-1",2,3)),0);
         assertEquals(3,correct.seasonal().water().water().state()
             .dischargedM3().get(M),1e-8);
