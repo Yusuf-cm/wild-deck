@@ -2290,3 +2290,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Physical realism and scale:** Multiple lake spillways, groundwater, calibrated meteorological forcing, lake/snow/soil coupling, physically timed flooding, capacity-calibrated erosion, planetary endurance and distributed fault injection are unfinished.
 
 **Safety:** No PR, merge, main/other branch write, production operation or paid infrastructure change. Continue water/hydrology before any other world layer.
+
+## 2026-11-02 — Seasonal lake/frontier water accounting (full new-commit CI unverified)
+
+**Branch and baseline:** Worked exclusively in `Yusuf-cm/wild-deck`, `feature/world-engine-v2`, beginning at `bac4dfb3e430a01dd6d14bf765323b59992a3a36`. The latest independently confirmed full workflow remains [run 41396489038](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396489038), which passed **1,060 Maven/JUnit tests** at the earlier `01a019c6` baseline. The immediately preceding 13 global-routing regression tests and the new changes in this section **have not yet been verified by full Maven CI**. Connected commit workflow lookup returns only PR-triggered runs, not push runs, and combined status checks for this branch HEAD were empty.
+
+### Implemented (opt-in; no persistence or deployment)
+
+1. **Conserved seasonal lake-frontier advancement:** New `HydrologySeasonalLakeRoutingV2` consumes globally routed pending inflow at caller-authenticated lake anchors exactly once. The existing `LakeReservoirV2.stepInflowThenEvaporation` handles hypsometric storage, wet-area-dependent evaporation and capacity overflow. Previous stored lake volume is explicitly included in the seasonal balance.
+2. **Deferred, deterministic spill and rates:** Spill is exported only to an adjacent canonical vertex as **pending m³**, with seasonal mean **m³/s** computed from the existing routing duration. Multiple independent lake spillways can aggregate at one physical frontier. No spill is reinjected into the already-solved runoff graph or falsely counted as an authenticated ocean mouth. Same-epoch lake-to-lake cascades and spill into already verified mouths are rejected rather than approximated.
+3. **Independent cross-layer conservation and ownership checks:** Before lake updates, the bridge checks the supplied routing budget against its actual terminal and pending outputs, rejects duplicate physical outlet ownership, rejects lakes not represented by an unresolved frontier, and verifies `seasonal runoff + previous lake storage = verified outlet + remaining pending + lake evaporation + final lake storage`. Inputs remain untouched and output maps are immutable.
+4. **Direct seasonal integration:** `HydrologySeasonalRegionBudgetV2.Result.routeKnownNetworkWithLakes` composes the audited snow/soil seasonal runoff route with lake advancement without treating a lake as a verified global ocean mouth.
+
+### Commits and verification evidence
+
+- `6553e9dc8e51384f3c3f13d62ed0c2e93f36b5cc` — conserved lake-frontier operator and water balance.
+- `7c7e647e46faaa36b04ef3990b5dc752de6ea6f4` — nine lake routing regression tests.
+- `a27512bbf0b4462b7ca197c17185126f8a6f3f2f` — opt-in seasonal-to-lake convenience integration.
+- `c39b1197338c613097d5d148d9457546ac3ebafd` — four additional conservation/integration tests.
+- **Local isolated verification:** `javac --release 17` compiled the new class and 13 regression tests against explicit hydrology API-shape stubs, and a reflection runner executed **13/13** test methods successfully. The stubs approximated preexisting graph, lake and weather dependencies. **This is not a real Maven/JUnit integration run and does not prove that the repository compiles or that the actual dependencies behave identically.**
+- **Full CI for these commits:** **NOT VERIFIED.** The GitHub connector did not expose push-triggered workflow results for the new HEAD, and the available combined status endpoint reported no checks. [Development-branch workflow history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) must be checked directly; fix any Maven/CI failures before treating this work as integrated.
+
+### Still unfinished: hydrology is NOT complete
+
+1. **Immediate:** Obtain a complete Maven/JUnit and full Actions run for the exact new HEAD, including the previously unverified global-routing tests. Fix any real dependency or test failures. The new lake operator is opt-in, noncommitting, and requires externally authenticated lake geometry, previous volume, evaporation forcing and spill routes.
+2. **Authoritative lifecycle:** Wire region loading, coupled water/sediment delivery, snow/soil forcing, lake storage, spill routing, terrain evolution and checkpoint recovery into one deterministic single-writer simulation lifecycle. Persist lake storage and durable spill receipts with replay-safe identities; do not inject deferred spill twice on restart.
+3. **Physical hydrology:** Handle same-season lake cascades and multiple spillways with validated routing, seasonal substeps, lake-river backwater and flood timing. No groundwater, calibrated climate, ocean/coastline authority or planetary catchment discovery. Current lake evaporation uses an inflow-first split and supplied basin hypsometry, not calibrated continuous hydraulics.
+4. **Topology/sediment:** Implement cross-region sediment import/export during riverbed epochs, safe water/sediment migration when drainage changes, authenticated transfer provenance, globally coordinated transactions and receipt-history compaction. Mixed-LOD area/routing remapping remains unsupported.
+5. **Validation:** Long-run global mass balance, physical parameter calibration, high-volume numeric stress, distributed crash/replay and planetary-scale endurance remain unverified.
+
+**Safety:** No merge, PR, push to main, other branch changes, production deployment, paid infrastructure or database modification. Continue outstanding water work before other world layers.
