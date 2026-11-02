@@ -199,4 +199,17 @@ class HydrologySeasonalOutletSettlementV2Test {
         assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
     }
 
+    @Test void rejectsDischargeTooSmallForExistingCumulativeLedgerPrecision() {
+        var lakes=new HydrologySeasonalLakeCarryoverStateV2.State(
+            "world",0,Map.of(),Map.of(A,1.0));
+        var state=new HydrologySeasonalOutletSettlementV2.State(
+            lakes,Map.of(C,1.0e16));
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalOutletSettlementV2.encode(state),
+            new HydrologyEpochInboxV2());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalOutletSettlementV2.prepare(
+                expected,edges(),Set.of(A,B,C),Set.of(),Set.of(C)));
+    }
+
 }
