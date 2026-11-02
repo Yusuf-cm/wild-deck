@@ -27,7 +27,7 @@ public final class HydrologyCoupledSenderFenceV2 {
         }
     }
 
-    private record Sediment(Path path,
+    private record Sediment(Path path, long epoch,
             Map<HydrologySedimentReceiptInboxV2.Receipt,Double> receipts,
             Set<HydrologySedimentReceiptInboxV2.Receipt> acknowledged) {
         Sediment {
@@ -59,10 +59,13 @@ public final class HydrologyCoupledSenderFenceV2 {
         Objects.requireNonNull(waterFiles);
         Objects.requireNonNull(sedimentFiles);
         var state = new State();
+        var physicalFiles = new HashSet<Path>();
         for (var entry : waterFiles.entrySet()) {
             String name = Objects.requireNonNull(entry.getKey());
             if (name.isBlank()) throw new IllegalArgumentException("Blank water sender name");
-            Path path = Objects.requireNonNull(entry.getValue());
+            Path path = Objects.requireNonNull(entry.getValue()).toAbsolutePath().normalize();
+            if (!physicalFiles.add(path))
+                throw new IllegalArgumentException("Duplicate hydrology sender checkpoint path");
             var checkpoint = HydrologyMixedResolutionCheckpointStoreV2.load(path);
             state.water.put(name,new Water(path,checkpoint.epoch(),
                 checkpoint.worldState(),checkpoint.inbox(),
@@ -71,10 +74,12 @@ public final class HydrologyCoupledSenderFenceV2 {
         for (var entry : sedimentFiles.entrySet()) {
             String name = Objects.requireNonNull(entry.getKey());
             if (name.isBlank()) throw new IllegalArgumentException("Blank sediment sender name");
-            Path path = Objects.requireNonNull(entry.getValue());
-            var journal = HydrologySedimentSenderOutboxV2.restore(
-                HydrologyCheckpointStoreV2.load(path));
-            state.sediment.put(name,new Sediment(path,journal.receipts(),
+            Path path = Objects.requireNonNull(entry.getValue()).toAbsolutePath().normalize();
+            if (!physicalFiles.add(path))
+                throw new IllegalArgumentException("Duplicate hydrology sender checkpoint path");
+            var checkpoint = HydrologyCheckpointStoreV2.load(path);
+            var journal = HydrologySedimentSenderOutboxV2.restore(checkpoint);
+            state.sediment.put(name,new Sediment(path,checkpoint.epoch(),journal.receipts(),
                 journal.acknowledged()));
         }
         return state;
@@ -131,6 +136,15 @@ public final class HydrologyCoupledSenderFenceV2 {
                     !previous.receipts().equals(now.receipts()) ||
                     !now.acknowledged().containsAll(previous.acknowledged()))
                     throw new IOException("Sediment sender changed outside acknowledgments");
+                // A durable sediment acknowledgment increments the journal epoch
+                // once per nonempty batch. No other epoch movement is permitted
+                // during a fenced drain, even if the receipt map is unchanged.
+                long epochDelta = now.epoch() - previous.epoch();
+                int newAcknowledgments = now.acknowledged().size()
+                    - previous.acknowledged().size();
+                if (epochDelta < 0 || epochDelta > newAcknowledgments ||
+                    (newAcknowledgments > 0 && epochDelta == 0))
+                    throw new IOException("Sediment sender epoch changed without valid acknowledgment progress");
             }
         }
     }
