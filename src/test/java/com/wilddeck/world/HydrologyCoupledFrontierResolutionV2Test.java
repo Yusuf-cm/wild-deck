@@ -246,7 +246,7 @@ class HydrologyCoupledFrontierResolutionV2Test {
                 1,2));
         assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water).acknowledged().isEmpty());
         assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(a.waterCheckpoint())
-            .snapshot().received().isEmpty());
+            .snapshot().receipts().isEmpty());
     }
 
     @Test void zeroLoadingCapacityCanDeliverToAlreadyLoadedOwner()
