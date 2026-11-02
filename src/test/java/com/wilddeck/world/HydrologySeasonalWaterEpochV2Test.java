@@ -142,11 +142,11 @@ class HydrologySeasonalWaterEpochV2Test {
             HydrologyCheckpointV2.restoreInbox(first));
         assertThrows(IllegalArgumentException.class,()->advance(stale,5,0));
         var huge=new HydrologySeasonalOutletSettlementV2.State(
-            HydrologySeasonalLakeCarryoverStateV2.decode(first.worldState()),
+            HydrologySeasonalLakeCarryoverStateV2.decode(initial(0,0).worldState()),
             Map.of(M,1.0e16));
         var expected=HydrologyCheckpointV2.capture(0,
             HydrologySeasonalOutletSettlementV2.encode(huge),
-            HydrologyCheckpointV2.restoreInbox(first));
+            HydrologyCheckpointV2.restoreInbox(initial(0,0)));
         assertThrows(IllegalArgumentException.class,()->
             HydrologySeasonalWaterEpochV2.prepareUniform(expected,runoff(0,1),
                 lakes(0),2,edges(),loaded(),Set.of(M)));
