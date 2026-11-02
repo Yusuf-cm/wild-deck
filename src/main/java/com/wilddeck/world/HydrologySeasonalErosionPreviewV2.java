@@ -77,6 +77,7 @@ public final class HydrologySeasonalErosionPreviewV2 {
         Objects.requireNonNull(addresses);
         Objects.requireNonNull(snowSoil);
         Objects.requireNonNull(weather);
+        requireUniquePhysicalWindow(addresses);
         if(!previous.world().equals(snowSoil.world()))
             throw new IllegalArgumentException("Seasonal and terrain worlds differ");
         if(weather.size()!=addresses.size() ||
@@ -121,6 +122,7 @@ public final class HydrologySeasonalErosionPreviewV2 {
         Objects.requireNonNull(addresses);
         Objects.requireNonNull(season);
         Objects.requireNonNull(incoming);
+        requireUniquePhysicalWindow(addresses);
         Objects.requireNonNull(verifiedOutlets);
         HydrologySphericalCellAreaV2.planetArea(radiusMeters);
         if(!previous.world().equals(season.state().world()))
@@ -147,7 +149,10 @@ public final class HydrologySeasonalErosionPreviewV2 {
         if(runoff.size()!=addresses.size())
             throw new IllegalArgumentException("Seasonal runoff does not cover window");
         double importedTotal=0;
-        for(var entry:incoming.entrySet()) {
+        var orderedIncoming=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        orderedIncoming.putAll(incoming);
+        for(var entry:orderedIncoming.entrySet()) {
             var address=Objects.requireNonNull(entry.getKey());
             var volume=Objects.requireNonNull(entry.getValue());
             if(!runoff.containsKey(address) || !Double.isFinite(volume) || volume<0)
@@ -193,5 +198,21 @@ public final class HydrologySeasonalErosionPreviewV2 {
            Math.abs(terminal-expected)>Math.max(1e-8,expected*1e-10))
             throw new IllegalArgumentException("Erosion preview lost runoff");
         return new Preview(evolved,sourceTotal,terminal);
+    }
+
+    /**
+     * A spherical seam or cross-resolution alias may reference a vertex but
+     * cannot own a second seasonal runoff volume or sediment source.
+     */
+    private static void requireUniquePhysicalWindow(
+            List<GlobalHydrologyAddressV2.Sample> addresses) {
+        var owners=new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        for(var address:addresses) {
+            var sample=Objects.requireNonNull(address);
+            if(!HydrologySphericalTopologyV2.isCanonical(sample) ||
+               !owners.add(HydrologyGlobalCatchmentsV2.coordinate(sample)))
+                throw new IllegalArgumentException(
+                    "Duplicate or noncanonical physical erosion window owner");
+        }
     }
 }
