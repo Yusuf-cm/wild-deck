@@ -2169,7 +2169,7 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 - [Implementation-only CI 41379417175](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379417175): **passed**.
 - [Corrected six-test CI 41379490744](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379490744): **1029 Maven/JUnit tests passed**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser-save verification, atlas export and real-browser checks passed.
-- [Nine-test CI 41379605977](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379605977): full workflow outcome must be checked before declaring the last three tests or the entire new source/test HEAD verified. The Maven test step was observed completed successfully while the real-browser step was still running.
+- [Nine-test CI 41379605977](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379605977) at `cbf3e088c14f33f8fb05700b597861c30470bc49`: **1032 Maven/JUnit tests passed**, zero failures/errors/skips, `BUILD SUCCESS`; all **18** `HydrologyCoupledFrontierResolutionV2Test` tests passed (nine added in this run). World experiment, resource replay, browser-save verification, atlas export and real-browser checks passed. This verifies the final source/test changes.
 - This documentation-only commit has a separate CI run; check it independently.
 
 ### Still unfinished (do not mark water complete)
