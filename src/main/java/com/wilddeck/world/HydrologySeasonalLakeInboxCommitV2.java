@@ -215,8 +215,10 @@ public final class HydrologySeasonalLakeInboxCommitV2 {
         var previous=HydrologySeasonalLakeCarryoverStateV2.decode(expected.worldState());
         if (previous.season()!=expected.epoch())
             throw new IllegalArgumentException("Lake season and checkpoint epoch differ");
+        if (!Objects.requireNonNull(loaded).containsAll(forcing.keySet()))
+            throw new IllegalArgumentException("Cannot advance an unloaded lake");
         var inbox=HydrologyCheckpointV2.restoreInbox(expected);
-        var claimed=inbox.claimAvailable(previous.season(),Objects.requireNonNull(loaded));
+        var claimed=inbox.claimAvailable(previous.season(),loaded);
         var combined=combined(previous.pendingM3(),claimed);
         var reactivated=HydrologySeasonalPendingReactivationV2.reactivate(
             combined,knownDownstream,loaded,forcing.keySet(),verifiedMouths);
