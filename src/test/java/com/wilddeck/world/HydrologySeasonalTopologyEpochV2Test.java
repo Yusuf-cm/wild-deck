@@ -328,4 +328,66 @@ class HydrologySeasonalTopologyEpochV2Test {
                 edges(atlas),Set.of(B),Set.of(M)));
     }
 
+    @Test void oneCallOwnedEpochUsesAtlasToReachOcean() {
+        var atlas=atlas();
+        var owned=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for (var node:atlas.routes()) owned.put(node.address(),0.0);
+        owned.put(B,3.0);
+        owned.put(M,2.0);
+        var prepared=HydrologySeasonalTopologyEpochV2.prepareOwnedUniform(
+            bound(atlas),atlas,owned,Map.of(),loaded(atlas),2,86400);
+        assertEquals(Map.of(M,5.0),prepared.water().state().dischargedM3());
+        assertTrue(prepared.water().state().lakes().pendingM3().isEmpty());
+    }
+
+    @Test void atlasOwnedLakeCaptureStoresWaterAndSchedulesAgree() {
+        var atlas=atlas();
+        var old=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "world",0,Map.of(B,0.0),Map.of())),
+            new HydrologyEpochInboxV2());
+        var first=HydrologySeasonalTopologyEpochV2.bindFresh(old,atlas);
+        var lake=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            new LakeReservoirV2.Basin(new double[]{0},new double[]{1},2),
+            0,0,atlas.routeAt(B).downstream(),1);
+        var uniform=HydrologySeasonalTopologyEpochV2.prepareOwnedUniform(
+            first,atlas,Map.of(B,2.0),Map.of(B,lake),Set.of(B),2,86400);
+        assertEquals(2.0,uniform.water().state().lakes().lakeStorageM3().get(B),1e-12);
+        assertTrue(uniform.water().state().lakes().pendingM3().isEmpty());
+        var schedule=Map.of(B,List.of(
+            new HydrologySeasonalLakeIntegratorV2.Interval(1,0),
+            new HydrologySeasonalLakeIntegratorV2.Interval(1,0)));
+        var scheduled=HydrologySeasonalTopologyEpochV2.prepareOwnedScheduled(
+            first,atlas,Map.of(B,2.0),Map.of(B,lake),schedule,Set.of(B),86400);
+        assertEquals(uniform.checkpoint(),scheduled.checkpoint());
+    }
+
+    @Test void atlasOwnedLakeOverflowSurvivesUnloadedRegionAndSettlesNextSeason() {
+        var atlas=atlas();
+        var old=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "world",0,Map.of(B,0.0),Map.of())),
+            new HydrologyEpochInboxV2());
+        var first=HydrologySeasonalTopologyEpochV2.bindFresh(old,atlas);
+        var basin=new LakeReservoirV2.Basin(new double[]{0},new double[]{1},2);
+        var lake=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            basin,0,0,atlas.routeAt(B).downstream(),1);
+        var season1=HydrologySeasonalTopologyEpochV2.prepareOwnedUniform(
+            first,atlas,Map.of(B,3.0),Map.of(B,lake),Set.of(B),2,86400);
+        assertEquals(2.0,season1.water().state().lakes().lakeStorageM3().get(B),1e-12);
+        assertEquals(1.0,season1.water().state().lakes().pendingM3().values()
+            .stream().mapToDouble(Double::doubleValue).sum(),1e-12);
+        var dry=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for (var node:atlas.routes()) dry.put(node.address(),0.0);
+        var nextLake=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            basin,2,0,atlas.routeAt(B).downstream(),1);
+        var season2=HydrologySeasonalTopologyEpochV2.prepareOwnedUniform(
+            season1.checkpoint(),atlas,dry,Map.of(B,nextLake),loaded(atlas),2,86400);
+        assertEquals(Map.of(M,1.0),season2.water().state().dischargedM3());
+        assertEquals(2.0,season2.water().state().lakes().lakeStorageM3().get(B),1e-12);
+        assertTrue(season2.water().state().lakes().pendingM3().isEmpty());
+    }
+
 }
