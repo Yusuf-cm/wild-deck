@@ -166,7 +166,8 @@ class HydrologySeasonalPendingOutletV2Test {
         var checkpoint=HydrologyCheckpointV2.capture(0,
             HydrologySeasonalLakeCarryoverStateV2.encode(state),
             new HydrologyEpochInboxV2());
-        var file=java.nio.file.Files.createTempFile("outlet-frontier",".chk");
+        var file=java.nio.file.Files.createTempDirectory("outlet-frontier")
+            .resolve("frontier.chk");
         try {
             HydrologyCheckpointStoreV2.save(file,checkpoint);
             var restored=HydrologyCheckpointStoreV2.load(file);
@@ -184,6 +185,7 @@ class HydrologySeasonalPendingOutletV2Test {
             assertEquals(parked.inputM3(),continued.outletTotalM3(),1e-12);
         } finally {
             java.nio.file.Files.deleteIfExists(file);
+            java.nio.file.Files.deleteIfExists(file.getParent());
         }
     }
 
