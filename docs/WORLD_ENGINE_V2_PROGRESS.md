@@ -2153,3 +2153,29 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 - Delivery across multiple checkpoints remains individually durable rather than globally atomic. Recovery requires complete sender histories and external single-writer coordination; the directory must remain stable while processing.
 - Outstanding: full new-commit CI verification; authoritative region cache/provider integration; coordinated water/sediment/lake/seasonal/riverbed epochs; cross-region sediment imports and exports in terrain commits; safe in-transit drainage migration; replay-history compaction; verified planetary mouths/catchments, multiple spillways, groundwater, calibrated seasonal forcing, flood timing and long-run endurance/fault-injection tests.
 - No PR, merge, change to `main` or other branches, production change or paid infrastructure operation. **Hydrology is NOT complete.**
+
+
+## 2026-11-02 — Full-frontier preflight and deterministic bounded coupled delivery (verification)
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `66095bf3b2853ed68730a46024a3dac21b11ceee`. The previously unverified bounded frontier resolver is now confirmed green by [baseline Java CI 41374692682](https://github.com/Yusuf-cm/wild-deck/actions/runs/41374692682), including Maven tests, world experiment, resource replay, browser save, atlas export and real-browser verification.
+
+### Implemented
+
+1. **Whole-frontier read-only preflight before any receipt writes:** `HydrologyCoupledFrontierResolutionV2.deliverBatches` resolves *all* pending water and sediment physical destinations before delivering the first batch. It checks complete region ownership, mixed-LOD shared-vertex aliases, checkpoint format separation, water and sediment sender/receiver histories and the total loading capacity. Invalid future destinations, overlapping ownership and insufficient capacity fail without partial receipt writes. Source commit `d5a03830811ff172bb44f274c3991f8d1e0d5ff0`.
+2. **Bounded deterministic multi-batch delivery:** The new operation repeatedly loads a fixed number of authoritative regions in stable physical frontier order and delivers both durable media through existing receiver-first/acknowledgment-second coordinators. Regions owning several pending vertices consume one budget slot. A read-only snapshot of the validated physical region directory is reused across batches; no external directory lookup is made after the first write. The returned drain records each batch and final loaded inventory. Replay with retained histories is idempotent; pending material is not discarded.
+3. **Tests and corrections:** Nine additional JUnit tests in `HydrologyCoupledFrontierResolutionV2Test` exercise two-region/two-media delivery, total-capacity rejection without writes, invalid later directory mappings, already-loaded zero-budget delivery, completed replay, invalid capacities, frozen directory resolution, one-region multiple-frontier ownership, and deferred physical overlap rejection. Test commits `a1300626309c971370c7e00d75ac14682128fe60` and `cbf3e088c14f33f8fb05700b597861c30470bc49`. Intermediate workflows failed test compilation because a new assertion referenced a nonexistent `Checkpoint.snapshot()` accessor. Corrected to `Checkpoint.inbox().receipts()` in `2a627f81c6445c236da862e15fdb49b30941c15d`. Do not interpret those failed intermediate workflows as passing.
+
+### Exact verification
+
+- [Implementation-only CI 41379417175](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379417175): **passed**.
+- [Corrected six-test CI 41379490744](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379490744): **1029 Maven/JUnit tests passed**, zero failures/errors/skips, `BUILD SUCCESS`; world experiment, resource replay, browser-save verification, atlas export and real-browser checks passed.
+- [Nine-test CI 41379605977](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379605977): full workflow outcome must be checked before declaring the last three tests or the entire new source/test HEAD verified. The Maven test step was observed completed successfully while the real-browser step was still running.
+- This documentation-only commit has a separate CI run; check it independently.
+
+### Still unfinished (do not mark water complete)
+
+1. **No authoritative automatic world lifecycle:** The new drain remains opt-in and operates on a caller-supplied directory and durable checkpoint inventory. It does not automatically generate regions, advance lakes/seasons, erode riverbeds or bridge the older water-inbox format with mixed-resolution sender outboxes.
+2. **No global transaction or authenticated provenance:** Water and sediment files commit independently. A crash after an early batch requires retained complete sender histories, an authoritative stable directory and external single-writer coordination to replay. Preflight cannot protect against another writer changing checkpoints during execution; no distributed fencing or durable global replay watermark/receipt compaction exists.
+3. **Physical gaps:** Coupled cross-region sediment import/export in riverbed epochs, safe rerouting of in-transit water/sediment after drainage changes, globally authoritative catchments/ocean boundaries, multiple lake spillways, groundwater, calibrated seasonal climate, physically timed floods, calibrated long-term erosion and planetary-scale fault-injection/endurance tests remain unfinished.
+
+**Safety:** No merge, PR, write to `main` or other branches, production deployment or paid infrastructure change. Hydrology stays the next-run priority.
