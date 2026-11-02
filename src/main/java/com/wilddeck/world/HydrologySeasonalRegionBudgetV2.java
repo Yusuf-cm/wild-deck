@@ -33,6 +33,50 @@ public final class HydrologySeasonalRegionBudgetV2 {
                 !Double.isFinite(durationDays) || durationDays <= 0)
                 throw new IllegalArgumentException("Invalid regional seasonal budget");
         }
+
+        /**
+         * Route exactly the audited regional runoff sources through one
+         * canonical flow graph. A downstream address outside the loaded
+         * seasonal inventory is retained as a pending frontier, not invented
+         * as an ocean mouth. Only explicitly verified outlets are terminals.
+         * Geographic sample/catchment identities remain stable across the
+         * named region partition. This does not resolve unloaded terrain.
+         */
+        public Routed route(Map<GlobalHydrologyAddressV2.Sample,
+                GlobalHydrologyAddressV2.Sample> downstream,
+                Set<GlobalHydrologyAddressV2.Sample> verifiedOutlets) {
+            Objects.requireNonNull(downstream);
+            Objects.requireNonNull(verifiedOutlets);
+            var owned = new HashSet<GlobalHydrologyAddressV2.Sample>();
+            for (var source : season.runoff())
+                owned.add(source.address());
+            if (!owned.containsAll(verifiedOutlets) ||
+                !owned.containsAll(downstream.keySet()))
+                throw new IllegalArgumentException("Unknown seasonal routing owner");
+            for (var entry : downstream.entrySet()) {
+                if (entry.getValue() == null ||
+                    !HydrologySphericalTopologyV2.isCanonical(entry.getValue()) ||
+                    verifiedOutlets.contains(entry.getKey()))
+                    throw new IllegalArgumentException("Invalid seasonal downstream edge");
+            }
+            var nodes = new ArrayList<HydrologyFlowGraphV2.Node>();
+            for (var source : season.runoff()) {
+                var address = source.address();
+                nodes.add(new HydrologyFlowGraphV2.Node(address,
+                    source.localWater(),downstream.get(address),
+                    verifiedOutlets.contains(address)));
+            }
+            var solved = HydrologyFlowGraphV2.solve(nodes);
+            return new Routed(solved,HydrologyConservationV2.verify(nodes,solved));
+        }
+    }
+
+    public record Routed(HydrologyFlowGraphV2.Result drainage,
+            HydrologyConservationV2.Budget budget) {
+        public Routed {
+            Objects.requireNonNull(drainage);
+            Objects.requireNonNull(budget);
+        }
     }
 
     /**
