@@ -59,8 +59,19 @@ public final class HydrologySeasonalLakeRoutingV2 {
      */
     public static Result advance(HydrologySeasonalGlobalRoutingV2.Result routed,
             Map<GlobalHydrologyAddressV2.Sample,Lake> lakeForcing) {
+        return advanceSubstepped(routed,lakeForcing,1);
+    }
+
+    /**
+     * Opt-in uniform seasonal substeps. Lake spill remains a deferred frontier
+     * export, not an instantaneous lake-to-lake cascade or a flood-wave model.
+     */
+    public static Result advanceSubstepped(HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,Lake> lakeForcing, int substeps) {
         Objects.requireNonNull(routed);
         Objects.requireNonNull(lakeForcing);
+        if (substeps < 1 || substeps > HydrologySeasonalLakeIntegratorV2.MAX_SUBSTEPS)
+            throw new IllegalArgumentException("Invalid lake substep count");
         var drainage = routed.drainage();
         var originalPending = drainage.pendingOutflow();
         var originalOutlets = drainage.terminalOutflow();
@@ -84,6 +95,8 @@ public final class HydrologySeasonalLakeRoutingV2 {
         double seconds = routed.durationSeconds();
         if (!Double.isFinite(seconds) || seconds <= 0)
             throw new IllegalArgumentException("Invalid seasonal lake duration");
+        verifyRates(originalPending,routed.frontierM3PerSecond(),seconds);
+        verifyRates(originalOutlets,routed.outletM3PerSecond(),seconds);
 
         var orderedLakes = new TreeMap<GlobalHydrologyAddressV2.Sample,Lake>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
@@ -99,10 +112,21 @@ public final class HydrologySeasonalLakeRoutingV2 {
                 !HydrologySphericalTopologyV2.adjacent(anchor,lake.spillTo()))
                 throw new IllegalArgumentException("Unowned lake inlet or invalid spill edge");
         }
-        for (var lake : orderedLakes.values())
-            if (physicalLakes.contains(HydrologyGlobalCatchmentsV2.coordinate(lake.spillTo())) ||
-                originalOutlets.containsKey(lake.spillTo()))
+        var physicalOutlets = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+        for (var mouth : originalOutlets.keySet())
+            physicalOutlets.add(HydrologyGlobalCatchmentsV2.coordinate(mouth));
+        var spillOwners = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,
+            GlobalHydrologyAddressV2.Sample>();
+        for (var pendingAddress : originalPending.keySet())
+            spillOwners.put(HydrologyGlobalCatchmentsV2.coordinate(pendingAddress),pendingAddress);
+        for (var lake : orderedLakes.values()) {
+            var coordinate = HydrologyGlobalCatchmentsV2.coordinate(lake.spillTo());
+            if (physicalLakes.contains(coordinate) || physicalOutlets.contains(coordinate))
                 throw new IllegalArgumentException("Spill requires deferred nonlake frontier");
+            var previousOwner = spillOwners.putIfAbsent(coordinate,lake.spillTo());
+            if (previousOwner != null && !previousOwner.equals(lake.spillTo()))
+                throw new IllegalArgumentException("Aliased physical spill frontier");
+        }
 
         var pending = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
@@ -117,8 +141,8 @@ public final class HydrologySeasonalLakeRoutingV2 {
             var anchor = entry.getKey();
             var lake = entry.getValue();
             double incoming = pending.remove(anchor);
-            var step = LakeReservoirV2.stepInflowThenEvaporation(lake.basin(),
-                lake.previousVolumeM3(),incoming,lake.evaporationDepthMeters());
+            var step = HydrologySeasonalLakeIntegratorV2.step(lake.basin(),
+                lake.previousVolumeM3(),incoming,lake.evaporationDepthMeters(),substeps);
             previous = previous.add(decimal(lake.previousVolumeM3()));
             stored = stored.add(decimal(step.volume()));
             evaporated = evaporated.add(decimal(step.evaporated()));
@@ -148,6 +172,20 @@ public final class HydrologySeasonalLakeRoutingV2 {
         return new Result(steps,inflows,pending,rates,
             finite(previous),finite(stored),finite(evaporated),
             finite(outletTotal),input,finite(lhs.subtract(rhs)));
+    }
+
+    private static void verifyRates(
+            Map<GlobalHydrologyAddressV2.Sample,Double> volumes,
+            Map<GlobalHydrologyAddressV2.Sample,Double> rates, double seconds) {
+        Objects.requireNonNull(rates);
+        if (!volumes.keySet().equals(rates.keySet()))
+            throw new IllegalArgumentException("Seasonal lake rate addresses mismatch");
+        for (var entry : volumes.entrySet()) {
+            var rate = decimal(rates.get(entry.getKey()));
+            var recoveredVolume = rate.multiply(BigDecimal.valueOf(seconds));
+            if (!close(recoveredVolume,decimal(entry.getValue())))
+                throw new IllegalArgumentException("Seasonal lake discharge rate mismatch");
+        }
     }
 
     private static void validateOutput(
