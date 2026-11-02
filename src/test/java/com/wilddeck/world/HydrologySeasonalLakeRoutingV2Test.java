@@ -204,4 +204,38 @@ class HydrologySeasonalLakeRoutingV2Test {
             HydrologySeasonalLakeRoutingV2.advance(routed,
                 Map.of(B,lake(1,0,0,SPILL))));
     }
+
+    @Test void substeppedLakeRoutingConservesWaterAndDefersSpill() {
+        var before = routed();
+        var forcing = Map.of(B,lake(6,4,1,SPILL));
+        var legacy = HydrologySeasonalLakeRoutingV2.advance(before,forcing);
+        var timed = HydrologySeasonalLakeRoutingV2.advanceSubstepped(before,forcing,10);
+        assertNotEquals(legacy.lakes().get(B),timed.lakes().get(B));
+        assertEquals(15, timed.seasonalRunoffM3()+timed.previousLakeStorageM3(),1e-10);
+        assertEquals(15,timed.verifiedOutletM3()+
+            timed.pendingM3().values().stream().mapToDouble(Double::doubleValue).sum()+
+            timed.lakeEvaporationM3()+timed.finalLakeStorageM3(),1e-8);
+        assertEquals(0,timed.residualM3(),1e-8);
+        assertEquals(5,before.drainage().pendingOutflow().get(B),0);
+    }
+
+    @Test void rejectsForgedSeasonalRateEvenWhenVolumeBudgetBalances() {
+        var baseline = routed();
+        var forged = new HydrologySeasonalGlobalRoutingV2.Result(
+            baseline.drainage(),baseline.budget(),baseline.catchments(),
+            baseline.reaches(),Map.of(OUT,999.0),
+            baseline.frontierM3PerSecond(),baseline.durationSeconds());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advance(forged,
+                Map.of(B,lake(6,4,0,SPILL))));
+    }
+
+    @Test void rejectsInvalidSubstepCountBeforeAnyLakeAdvancement() {
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advanceSubstepped(routed(),
+                Map.of(B,lake(6,4,0,SPILL)),0));
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advanceSubstepped(routed(),
+                Map.of(B,lake(6,4,0,SPILL)),4097));
+    }
 }
