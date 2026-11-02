@@ -49,6 +49,23 @@ public final class HydrologySeasonalRegionBudgetV2 {
         }
 
         /**
+         * Advance independently identified lakes after conserved global
+         * runoff routing. Lake inlets must remain unresolved frontiers,
+         * never falsely declared global ocean mouths. Spill is deferred
+         * to the next routing/delivery operation rather than reinjected.
+         * This is read-only and does not persist seasonal lake storage.
+         */
+        public HydrologySeasonalLakeRoutingV2.Result routeKnownNetworkWithLakes(
+                Map<GlobalHydrologyAddressV2.Sample,
+                    GlobalHydrologyAddressV2.Sample> knownDownstream,
+                Set<GlobalHydrologyAddressV2.Sample> verifiedGlobalMouths,
+                Map<GlobalHydrologyAddressV2.Sample,
+                    HydrologySeasonalLakeRoutingV2.Lake> lakes) {
+            return HydrologySeasonalLakeRoutingV2.advance(
+                routeKnownNetwork(knownDownstream,verifiedGlobalMouths),lakes);
+        }
+
+        /**
          * Route exactly the audited regional runoff sources through one
          * canonical flow graph. A downstream address outside the loaded
          * seasonal inventory is retained as a pending frontier, not invented
