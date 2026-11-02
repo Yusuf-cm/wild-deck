@@ -249,7 +249,13 @@ class HydrologySeasonalErosionPreviewV2Test {
         var two=HydrologySeasonalErosionPreviewV2.calculate(
             before,addresses,5,5,seed(),dry,RADIUS,2000,.1,.4,
             capacity(),Set.of(24),reverse);
-        assertEquals(one, two);
+        assertEquals(one.terrain().state(),two.terrain().state());
+        assertEquals(one.runoffVolume(),two.runoffVolume(),0);
+        assertEquals(one.terminalVolume(),two.terminalVolume(),0);
+        assertEquals(one.terrain().landscape().erodedMass(),
+                     two.terrain().landscape().erodedMass(),0);
+        assertEquals(one.terrain().landscape().depositedMass(),
+                     two.terrain().landscape().depositedMass(),0);
         assertEquals(0.6,one.terminalVolume(),1e-8);
         assertTrue(before.elevations().isEmpty());
     }
