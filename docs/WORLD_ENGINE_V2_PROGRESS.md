@@ -2764,3 +2764,13 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 - Planet-scale endurance, long-horizon sediment/water conservation, and crash/fault-injection acceptance remain incomplete. Existing finite-double volume limits remain.
 
 **Safety:** No main or other branch modifications, PR, merge, production or paid infrastructure operations.
+
+### Verified correction and acceptance (2026-11-03)
+
+The first integration-test CI runs failed because two **test fixtures** stopped supplying weather for a previously persisted snow/soil cell after changing the loaded set. The production bridge correctly rejected incomplete streaming forcing. The fixtures were corrected to force all persisted cells while loading the transit destination.
+
+- `dcb64ecb2707394c0743a1be0343720d785af786` — additional test combining an authenticated cross-region inbox receipt with timed transit and precipitation, asserting no replay.
+- `f2e668f68720aa0cabe804a8ebc2097619962d92` — corrected persisted-cell forcing in restart and conflict tests.
+- **[GitHub Actions 41548263435](https://github.com/Yusuf-cm/wild-deck/actions/runs/41548263435) PASSED** on `f2e668f68720aa0cabe804a8ebc2097619962d92`: **1,234 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS**. All **5/5** new `HydrologyTimedSeasonalEpochV2Test` methods passed. The full workflow concluded success, including non-Maven world/browser steps. This verifies the new opt-in bridge and test corrections; it does not establish the unfinished acceptance criteria above.
+
+The documentation-only follow-up commit must be checked separately before calling its own HEAD green.
