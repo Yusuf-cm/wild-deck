@@ -2320,3 +2320,32 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 5. **Validation:** Long-run global mass balance, physical parameter calibration, high-volume numeric stress, distributed crash/replay and planetary-scale endurance remain unverified.
 
 **Safety:** No merge, PR, push to main, other branch changes, production deployment, paid infrastructure or database modification. Continue outstanding water work before other world layers.
+
+
+## 2026-11-02 — Chronological seasonal lake integration and discharge-rate hardening (full new-commit CI UNVERIFIED)
+
+**Scope:** `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2` only. Starting HEAD: `c0c786cb34807a94a2db00e2237cea40005356fa`. The most recent independently verified **full** GitHub Actions run available through the connector is [41396489038](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396489038), with **1,060 Maven/JUnit tests passing**, zero failures/errors/skips and successful atlas/browser jobs. That is a **prior baseline**, not proof that the changes below pass full CI. The connector's commit-workflow lookup is PR-triggered-only and returned no new push runs; combined commit statuses for the latest implementation HEAD were empty.
+
+### Implemented, opt-in and noncommitting
+
+1. **Chronological lake forcing:** `HydrologySeasonalLakeIntegratorV2.stepSchedule` advances caller-supplied, ordered, nonnegative inflow and evaporation intervals over the existing hypsometric reservoir. Different rain/evaporation timing can produce different overflow while conserving prior storage plus inflow. No new outlet is inferred.
+2. **Uniform seasonal substeps:** `step(..., substeps)` distributes total seasonal forcing across 1–4096 bounded intervals; one step delegates exactly to the pre-existing inflow-first lake operator. `HydrologySeasonalLakeRoutingV2.advanceSubstepped` integrates this option into the previously audited pending-frontier lake bridge while retaining `advance` as the one-step compatibility path. Overflow remains deferred, never instantaneously reinjected or treated as an authenticated mouth.
+3. **Rate and physical-spill audits:** The lake bridge now checks that supplied frontier/outlet mean m³/s maps have exactly the same keys and reconstruct their reported seasonal volumes. It rejects spill aliases that would create two different sample addresses for the same physical frontier and rejects spill into a verified mouth even through a geographic alias. Independent total-water conservation remains mandatory.
+
+### Commits and verification
+
+- `daab13982c6ba8533e968880aed0e8afb52eb4ee` — chronological and uniform-substep reservoir operator.
+- `efddf90b9c3b82f274637bdc2a855ea9e1f1ef75` — seasonal lake bridge integration and physical/rate validation.
+- `b726f1a29b8f90bbabc0b8b98c946af294f3c819` — seven new JUnit regression methods for schedule ordering, hypsometry, deterministic replay, conservation and input rejection.
+- `eb4620b4ff1fb72fbeb11bfc7dd3bb4e2babf3d3` — three new JUnit integration methods for substepped lake conservation, forged rates and invalid substeps.
+- **Local verification actually performed:** Java 17 `javac --release 17` compiled the new integrator against a locally mirrored existing `LakeReservoirV2` implementation. A standalone smoke harness passed **2,000 seeded randomized water-budget cases**, legacy one-step parity, early-vs-late storm timing, zero forcing and invalid-input cases. This is **not** the full repository Maven/JUnit suite. The ten newly committed JUnit methods have **not** been executed in full CI, and the updated lake bridge has **not** been compiled against the complete repository in this run.
+- **Full new-HEAD CI:** **NOT VERIFIED.** Check [branch Actions history](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) and repair any failures before acceptance. No new run ID is available from the connected GitHub workflow interface.
+
+### Still unfinished; do not declare hydrology complete
+
+1. **First:** Execute full Maven/JUnit plus Actions at exact branch HEAD; fix compilation, real-dependency and integration failures, including the previously unverified global seasonal-routing/lake commits.
+2. **Lifecycle and durability:** Connect authoritative region loading, coupled water/sediment receipts, lake storage, deferred spill delivery, seasonal forcing, erosion and riverbed checkpoint commits in a replay-safe single-writer loop. Durable lake state and spill receipt IDs are not implemented by this change.
+3. **Physical hydrology:** The uniform-substep model is an approximation; chronological schedules require externally supplied weather and discharge, and are not yet driven by the world climate. Same-season lake-to-lake cascades, multiple spillways, backwater, calibrated evaporation, groundwater and flood-wave travel times are unfinished.
+4. **Topology and planet scale:** Cross-region sediment imports/exports during riverbed epochs, drainage-topology migration, mixed-LOD physical remapping, global catchment/coastline authority, distributed atomicity, receipt compaction, crash/replay and planetary endurance testing remain incomplete.
+
+**Safety:** Only the development branch was written. No PR, merge, main/other branch modification, production deployment or paid infrastructure change.
