@@ -2716,3 +2716,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Scale:** Planetary long-horizon water/sediment conservation, crash fault injection, receipt/ledger compaction, and distributed CAS are not accepted. Outlet and atlas authority remain caller-supplied.
 
 **Safety:** No PR, merge, main/other-branch write, production change or paid infrastructure operation. Continue water before other layers.
+
+
+## 2026-11-03 — Absolute-tick cross-season transit ledger (opt-in, NOT integrated)
+
+**Scope and CI baseline:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Starting HEAD `ab013b8868973dadf49eaa2870971d9a02aa3890`. The last independently verified branch workflow remains [GitHub Actions 41523518677](https://github.com/Yusuf-cm/wild-deck/actions/runs/41523518677), which passed **1,219 Maven/JUnit tests** on an earlier commit. The connector's commit-workflow lookup exposes PR-triggered runs only and returned **no runs** for the starting HEAD or the new commits; combined commit statuses also returned **no statuses**. The preceding run's four snow/soil and erosion ownership tests are still **not verified by full branch CI**.
+
+### Implemented and isolated verification
+
+1. Added `HydrologyTimedTransitLedgerV2`, a separate **opt-in** absolute-tick queue for caller-authenticated water transfers. Each transfer has a unique stable ID, a `HydrologyGlobalCatchmentsV2.Coordinate` destination, positive volume and an absolute due tick. Water due at an **unloaded** destination remains pending with its **original** due tick, rather than restarting its delay every season. When that destination loads, overdue transfers become releasable.
+2. The ledger records pending and settled IDs in a canonical versioned codec. Identical replay is ignored even after restart; conflicting reuse of an ID fails closed. Water is aggregated deterministically by transfer ID and geographic destination; `BigDecimal` audits **old pending + newly queued = released + remaining**. Conversion to the existing double-valued release interface rejects aggregate overflow or lost decimal precision.
+3. Added six JUnit regression methods covering unloaded cross-season delivery and restart, once-only replay/conflicting IDs, deterministic confluence and exact mass balance, precision/overflow/time guards, canonical codec tampering, and a 200-transfer/41-tick randomized-order streaming endurance scenario.
+4. **Local isolated verification:** `javac` compiled the new production class and test source, and all **6/6 test methods executed and passed** through a local lightweight JUnit-API shim and a minimal `HydrologyGlobalCatchmentsV2.Coordinate` stub. A separate pure-Java scenario harness also passed. **This is not the repository's Maven/JUnit test suite and does not establish full integration acceptance.** The exact new production and test source sizes in the feature branch matched the locally tested files before the sixth test was appended.
+
+### Commits and CI limitation
+
+- `8768086183837e8e22013dfd20d21dc45f8b2cf4` — opt-in absolute-tick transit ledger.
+- `a9f9b323461db231fad6d9c1deec13bcd1bcfaab` — first five JUnit tests.
+- `7d63aaa13eb104ec25c7cbce25c8aba0bee8a429` — sixth multi-season conservation/replay stress test.
+- **New-commit full CI: UNVERIFIED.** No passing Maven or GitHub Actions claim is made for these commits. Check [feature branch Actions](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) and correct any failures before relying on this new component.
+
+### Remaining water acceptance gaps
+
+1. **Integration is outstanding:** The timed ledger is a **pure planning/codec component**, not wired into `HydrologySeasonalLaggedLakeNetworkV2`, `HydrologySeasonalSnowSoilWaterEpochV2`, or the authoritative checkpoint. Its returned deliveries and state MUST be persisted/consumed atomically by a caller. Existing lake spill carryover still loses exact residual time; this new class alone does not fix that live path.
+2. **Authenticity and physical timing:** The caller must authenticate transit IDs, route edges, world, loaded geography and tick duration. No calibrated travel velocity, hydrograph routing, flood/backwater or multiple spillways. No safe migration of in-flight water when drainage topology changes.
+3. **Full lifecycle:** Snow/soil, lake/outlet water, sediment, erosion, terrain loading and terrain modifications are not one authoritative globally atomic world epoch. No distributed sender/receiver transaction or globally atomic receipt consumption. Settled ID history is bounded but not compacted.
+4. **Verification and scale:** The four previous ownership tests plus six new transit tests still require actual Maven/CI execution. Planetary multi-season mass/sediment conservation, fault-injection and distributed recovery acceptance remain incomplete. No groundwater or calibrated climate model.
+
+**Safety:** All GitHub writes were to `feature/world-engine-v2` only. No PR, merge, main/other-branch write, production or paid infrastructure operation. Hydrology remains the priority.
