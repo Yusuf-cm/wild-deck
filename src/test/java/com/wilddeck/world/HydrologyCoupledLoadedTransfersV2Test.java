@@ -182,4 +182,61 @@ class HydrologyCoupledLoadedTransfersV2Test {
             Map.of("s",water),Map.of("s",sediment),Map.of("r",receiver));
         assertEquals(first,second);
     }
+    @Test void unloadedWaterAndSedimentCrossLodAliasesShareOneHint()
+            throws IOException {
+        var water = waterSender("hint",Map.of(WATER,7.0));
+        var fineSource = new GlobalHydrologyAddressV2.Sample(3,4,9,8);
+        var fineDestination = new GlobalHydrologyAddressV2.Sample(3,4,10,8);
+        var sediment = sedimentSender("hint",Map.of(
+            new HydrologySedimentReceiptInboxV2.Receipt(
+                0,1,fineSource,fineDestination),3.0));
+        var hints = HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            Map.of("w",water),Map.of("s",sediment),Map.of());
+        assertEquals(1,hints.size());
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(DEST),
+            hints.get(0).coordinate());
+        assertEquals(7.0,hints.get(0).waterVolume().doubleValue());
+        assertEquals(3.0,hints.get(0).sedimentMass().doubleValue());
+        assertEquals(1,hints.get(0).waterReceipts());
+        assertEquals(1,hints.get(0).sedimentReceipts());
+    }
+
+    @Test void loadedDestinationsNeverProduceUnloadedHints() throws IOException {
+        var water = waterSender("hint",Map.of(WATER,7.0));
+        var sediment = sedimentSender("hint",Map.of(SEDIMENT,3.0));
+        var loaded = Map.of("r",region(waterReceiver("hint"),
+            sedimentReceiver("hint"),DEST));
+        assertTrue(HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            Map.of("w",water),Map.of("s",sediment),loaded).isEmpty());
+    }
+
+    @Test void acknowledgedWaterRetainsHistoryButIsNotAnUnloadedHint()
+            throws IOException {
+        var water = waterSender("hint",Map.of(WATER,7.0));
+        var destination = waterReceiver("hint");
+        HydrologyMixedResolutionLoadedNetworkV2.deliver(
+            Map.of("w",water),Map.of("r",
+                new HydrologyMixedResolutionLoadedNetworkV2.Receiver(
+                    destination,List.of(DEST))));
+        assertEquals(1,HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().size());
+        assertTrue(HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            Map.of("w",water),Map.of(),Map.of()).isEmpty());
+    }
+
+    @Test void multipleUnloadedDestinationsAreDeterministicallySorted()
+            throws IOException {
+        var second = new HydrologyMixedResolutionEpochV2.Receipt(
+            1,at(7,4),UNLOADED);
+        var water = waterSender("hint",Map.of(second,8.0,WATER,7.0));
+        var a = HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            Map.of("w",water),Map.of(),Map.of());
+        var b = HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            new LinkedHashMap<>(Map.of("w",water)),Map.of(),Map.of());
+        assertEquals(a,b);
+        assertEquals(2,a.size());
+        assertTrue(a.get(0).coordinate().stableKey()
+            .compareTo(a.get(1).coordinate().stableKey()) < 0);
+    }
+
 }
