@@ -196,6 +196,8 @@ public final class HydrologySeasonalSnowSoilWaterEpochV2 {
         var deferred = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         for (var source : snow.runoff()) {
+            if (!loaded.contains(source.address()) && source.localWater() == 0.0)
+                continue; // Zero runoff is not an in-flight water receipt.
             var target = loaded.contains(source.address()) ? owned : deferred;
             if (target.putIfAbsent(source.address(),source.localWater()) != null)
                 throw new IllegalArgumentException("Duplicate seasonal runoff source");
