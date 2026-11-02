@@ -155,8 +155,10 @@ public final class HydrologyCoupledFrontierResolutionV2 {
             Map<String,Path> sedimentSenders,
             Map<String,HydrologyCoupledLoadedTransfersV2.Region> alreadyLoaded,
             Directory directory,int maximumNewRegions) throws IOException {
+        var fence = HydrologyCoupledSenderFenceV2.capture(waterSenders,sedimentSenders);
         var plan = planBatch(waterSenders,sedimentSenders,alreadyLoaded,
             directory,maximumNewRegions);
+        fence.verify(waterSenders,sedimentSenders);
         return new Result(plan,HydrologyCoupledLoadedTransfersV2.deliver(
             waterSenders,sedimentSenders,plan.loaded()));
     }
@@ -166,8 +168,10 @@ public final class HydrologyCoupledFrontierResolutionV2 {
             Map<String,Path> sedimentSenders,
             Map<String,HydrologyCoupledLoadedTransfersV2.Region> alreadyLoaded,
             Directory directory,int maximumNewRegions) throws IOException {
+        var fence = HydrologyCoupledSenderFenceV2.capture(waterSenders,sedimentSenders);
         var plan = planAll(waterSenders,sedimentSenders,alreadyLoaded,
             directory,maximumNewRegions);
+        fence.verify(waterSenders,sedimentSenders);
         return new Result(plan,HydrologyCoupledLoadedTransfersV2.deliver(
             waterSenders,sedimentSenders,plan.loaded()));
     }
@@ -202,9 +206,12 @@ public final class HydrologyCoupledFrontierResolutionV2 {
         if (maximumNewRegionsPerBatch < 0 || maximumBatches <= 0)
             throw new IllegalArgumentException("Invalid frontier batch capacity");
         int capacity = Math.multiplyExact(maximumNewRegionsPerBatch,maximumBatches);
-        // Resolve and validate all future receivers before any sender is changed.
+        // Snapshot durable sender histories before external directory callbacks.
+        // Only acknowledgment markers may advance during this drain.
+        var fence = HydrologyCoupledSenderFenceV2.capture(waterSenders,sedimentSenders);
         var preflight = planAll(waterSenders,sedimentSenders,alreadyLoaded,
             directory,capacity);
+        fence.verify(waterSenders,sedimentSenders);
         var frozen = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,Entry>();
         for (var region : preflight.loaded().entrySet()) {
             for (var sample : region.getValue().ownedVertices()) {
@@ -223,8 +230,10 @@ public final class HydrologyCoupledFrontierResolutionV2 {
         var loaded = ordered(alreadyLoaded);
         var batches = new ArrayList<Result>();
         for (int index=0; index<maximumBatches; index++) {
+            fence.verify(waterSenders,sedimentSenders);
             var batch = deliverBatch(waterSenders,sedimentSenders,loaded,
                 snapshot,maximumNewRegionsPerBatch);
+            fence.verify(waterSenders,sedimentSenders);
             batches.add(batch);
             loaded = ordered(batch.plan().loaded());
             if (batch.plan().complete()) {
