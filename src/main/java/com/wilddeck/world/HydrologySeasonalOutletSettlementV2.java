@@ -126,8 +126,44 @@ public final class HydrologySeasonalOutletSettlementV2 {
             throw new IllegalArgumentException("Outlet settlement epoch mismatch");
         if (!previous.lakes().lakeStorageM3().keySet().containsAll(lakeInlets))
             throw new IllegalArgumentException("Unknown lake inlet in settlement");
+        return prepareRouted(expected,previous,previous.lakes().pendingM3(),
+            expected.inboxState(),downstream,loaded,lakeInlets,verifiedMouths);
+    }
+
+    /**
+     * Claim available boundary receipts and settle them together with old
+     * pending water. Delivery markers, frontier and ocean ledger are committed
+     * in one checkpoint; future/unloaded receipts remain unclaimed.
+     */
+    public static Prepared prepareReceived(HydrologyCheckpointV2.Checkpoint expected,
+            Map<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample> downstream,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Set<GlobalHydrologyAddressV2.Sample> lakeInlets,
+            Set<GlobalHydrologyAddressV2.Sample> verifiedMouths) {
+        Objects.requireNonNull(expected);
+        var previous=decode(expected.worldState());
+        if (previous.lakes().season()!=expected.epoch())
+            throw new IllegalArgumentException("Outlet settlement epoch mismatch");
+        var inbox=HydrologyCheckpointV2.restoreInbox(expected);
+        var claimed=inbox.claimAvailable(expected.epoch(),Objects.requireNonNull(loaded));
+        var combined=HydrologySeasonalLakeInboxCommitV2.combined(
+            previous.lakes().pendingM3(),claimed);
+        return prepareRouted(expected,previous,combined,
+            HydrologyInboxCodecV2.encode(inbox.snapshot()),
+            downstream,loaded,lakeInlets,verifiedMouths);
+    }
+
+    private static Prepared prepareRouted(HydrologyCheckpointV2.Checkpoint expected,
+            State previous,Map<GlobalHydrologyAddressV2.Sample,Double> water,
+            String inboxState,
+            Map<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample> downstream,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Set<GlobalHydrologyAddressV2.Sample> lakeInlets,
+            Set<GlobalHydrologyAddressV2.Sample> verifiedMouths) {
+        if (!previous.lakes().lakeStorageM3().keySet().containsAll(lakeInlets))
+            throw new IllegalArgumentException("Unknown lake inlet in settlement");
         var routed=HydrologySeasonalPendingOutletV2.route(
-            previous.lakes().pendingM3(),downstream,loaded,lakeInlets,verifiedMouths);
+            water,downstream,loaded,lakeInlets,verifiedMouths);
         var totals=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         totals.putAll(previous.dischargedM3());
@@ -143,7 +179,7 @@ public final class HydrologySeasonalOutletSettlementV2 {
             previous.lakes().lakeStorageM3(),routed.pendingM3());
         var state=new State(lakes,totals);
         var next=new HydrologyCheckpointV2.Checkpoint(
-            lakes.season(),encode(state),expected.inboxState());
+            lakes.season(),encode(state),inboxState);
         return new Prepared(state,next,routed);
     }
 
@@ -157,4 +193,15 @@ public final class HydrologySeasonalOutletSettlementV2 {
         HydrologyCheckpointStoreV2.saveNext(file,expected,planned.checkpoint());
         return planned;
     }
+    /** Receipt-inclusive local atomic settlement, guarded against stale inboxes. */
+    public static Prepared commitReceived(Path file,HydrologyCheckpointV2.Checkpoint expected,
+            Map<GlobalHydrologyAddressV2.Sample,GlobalHydrologyAddressV2.Sample> downstream,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Set<GlobalHydrologyAddressV2.Sample> lakeInlets,
+            Set<GlobalHydrologyAddressV2.Sample> verifiedMouths) throws IOException {
+        var planned=prepareReceived(expected,downstream,loaded,lakeInlets,verifiedMouths);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,planned.checkpoint());
+        return planned;
+    }
+
 }
