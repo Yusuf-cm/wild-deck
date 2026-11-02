@@ -238,4 +238,19 @@ class HydrologySeasonalLakeRoutingV2Test {
             HydrologySeasonalLakeRoutingV2.advanceSubstepped(routed(),
                 Map.of(B,lake(6,4,0,SPILL)),4097));
     }
+
+    @Test void rejectsSpillAliasOfAlreadyPendingPhysicalVertex() {
+        var original = routed();
+        var alias = new GlobalHydrologyAddressV2.Sample(0,4,3,2);
+        var forgedFlow = new HydrologyFlowGraphV2.Result(
+            original.drainage().discharge(),original.drainage().terminalOutflow(),
+            Map.of(B,5.0,alias,4.0),original.drainage().resolvedCatchments());
+        var forged = new HydrologySeasonalGlobalRoutingV2.Result(
+            forgedFlow,new HydrologyConservationV2.Budget(11,2,9,0),
+            Map.of(),Map.of(),Map.of(OUT,2.0/86400),
+            Map.of(B,5.0/86400,alias,4.0/86400),86400);
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologySeasonalLakeRoutingV2.advance(forged,
+                Map.of(B,lake(6,4,0,SPILL))));
+    }
 }
