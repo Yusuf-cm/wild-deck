@@ -2416,3 +2416,33 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Physical realism and scale:** Multiple lake spillways, groundwater, backwater, real weather calibration, erosion capacity calibration, planetary endurance and distributed crash/fault-injection validation remain unfinished. The existing single-writer checkpoint store is not a distributed CAS and requires an atomic-move-capable local filesystem.
 
 **Safety:** No PR, merge, main/other branch write, production change, paid infrastructure, or deployment. Continue water/hydrology before other world layers.
+
+
+## 2026-11-02 — Durable seasonal lake receipt ingestion and opt-in season runner (NEW HEAD CI UNVERIFIED)
+
+**Scope and starting evidence:** Work exclusively on `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `693327c8216f1ed80e7bdd70266225459f69d5bd`. The starting full GitHub Actions run [41432525783](https://github.com/Yusuf-cm/wild-deck/actions/runs/41432525783) completed successfully with **1,131 Maven/JUnit tests** and all world experiment, resource replay, browser-save, atlas export and real-browser checks. The baseline had no CI failures to fix.
+
+### Implemented (opt-in, local single-writer)
+
+1. **Water receipt-to-season bridge:** New `HydrologySeasonalLakeInboxCommitV2.prepare` restores the persisted epoch inbox and claims only receipts whose destinations are explicitly identified as loaded, with source epochs no later than the current lake season. Earlier receipts to still-unloaded destinations remain in the journal with their original edge/epoch identities. It merges newly claimed volumes with *previously conserved* pending water, rejects overflow and mixed-LOD aliases of one physical vertex, and requires the seasonal candidate to account for the exact merged carryover. No receipt is silently reclassified as new precipitation or a verified ocean mouth.
+2. **Atomic local world/inbox advancement:** `commitNext` validates lake state and whole-season conservation, then uses existing `HydrologyCheckpointStoreV2.saveNext` to persist updated lake storage, pending water, receipt delivery markers and claimed-epoch marker in **one** local checksummed atomic checkpoint. Stale snapshots, including newly appended receipts, fail rather than overwriting newer water. This is *not* a distributed transaction or interprocess compare-and-swap.
+3. **Uniform and chronological seasonal runner:** `prepareUniform`/`commitUniform` and `prepareScheduled`/`commitScheduled` automatically construct the correct combined carryover, advance the existing audited finite-delay lake network and prepare/commit the next checkpoint. They remove the caller's need to manually compute the receipt-inclusive candidate and provide a no-I/O planning path for validation.
+4. **Shared physical receiver protection:** Explicit loaded-vertex preflight rejects cross-resolution aliases; distinct source edges to the same canonical receiver aggregate once, while an identical replayed receipt remains idempotent in the existing ledger.
+
+### Commits and exact verification
+
+- `aa24d203469ad9d2263e2a48c8c7f140cffa69d6` — receipt bridge and atomic lake/inbox commit.
+- `b7bf9d283b698f8cb0663735a3e8b22fed9c9147` — seven integration/regression tests: atomic commit, unloaded replay, omitted receipt rejection, future receipt deferral, cross-resolution alias rejection, stale checkpoint, overflow.
+- `a1b1f17d9e07f89da961d798cca60100eea41b6b` — uniform and scheduled season planning/commit helpers.
+- `5fe46395f629e3be4574b2089767ed0a707473bf` — three seasonal-runner integration tests.
+- `3c670cc571b0c4f27d077d0b75265b05d4f1e995` — shared-receiver multi-source idempotency test.
+- **11 new JUnit methods were committed.** The GitHub connector exposes only PR-triggered workflow runs through its commit-run lookup; it returned **no push-triggered runs or combined statuses** for the new implementation HEAD. **No full Maven/JUnit or local Java compilation of these new commits was performed in this run. The new tests are NOT claimed as passed.** Check [feature-branch Actions](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2), inspect the actual new HEAD workflow and fix any failure before accepting this implementation. The 1,131 passing tests belong to the **prior** baseline only.
+
+### Remaining hydrology acceptance gaps (NOT complete)
+
+1. **First: CI and integration:** Run full Maven/JUnit and GitHub Actions for the exact new HEAD; resolve any compile/runtime/test failures. The new runner is opt-in and requires caller-supplied audited global runoff, explicit loaded destinations, lake topology and climate forcing. No authoritative world tick yet invokes it.
+2. **Coordinated terrain/water/sediment lifecycle:** Couple region loading, inbox receipt consumption, seasonal snow/soil persistence, lake checkpointing, cross-region sediment import/export and riverbed erosion in one verified epoch. The new local lake/inbox transaction does not atomically commit a separate sediment checkpoint or terrain store.
+3. **Unloaded terrain and topology changes:** Pending water is durably retained, but unloaded destinations are not automatically discovered/routed on load. No topology-safe migration of pending water/sediment, mixed-resolution area remapping, global mouth discovery, planetary catchment authority or replay-history compaction.
+4. **Physical fidelity and resilience:** Preserve residual travel time across seasons; calibrate rainfall/evaporation, river velocity and erosion capacity; implement multiple lake spillways, groundwater, backwater and flood-wave timing. Planetary-scale mass balance, distributed writer fencing, crash/fault-injection and endurance tests remain outstanding.
+
+**Safety:** No merge, PR, push to main, other-branch change, production deployment, or paid infrastructure. Hydrology remains the sole development priority.
