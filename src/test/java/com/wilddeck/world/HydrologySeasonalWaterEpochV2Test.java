@@ -199,7 +199,7 @@ class HydrologySeasonalWaterEpochV2Test {
         var first=initial(3,0);
         HydrologyCheckpointStoreV2.save(file,first);
         var inbox=HydrologyCheckpointV2.restoreInbox(first);
-        inbox.receive(new HydrologyTransferLedgerV2.Key(0,B,C),4.0);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(2,B,C),4.0);
         var appended=HydrologyCheckpointV2.capture(0,first.worldState(),inbox);
         HydrologyCheckpointStoreV2.saveIncoming(file,appended);
         assertThrows(IOException.class,()->
