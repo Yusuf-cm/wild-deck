@@ -132,8 +132,7 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         assertEquals(one.checkpoint(),HydrologyCheckpointStoreV2.load(file));
         var two = HydrologySeasonalSnowSoilWaterEpochV2.commitUniform(
             file,HydrologyCheckpointStoreV2.load(file),atlas,
-            Map.of(B,weather(B,0,10,0),M,weather(M,0,10,0)),
-            Map.of(),Set.of(M),2,86400);
+            Map.of(M,weather(M,0,10,0)),Map.of(),Set.of(M),2,86400);
         assertEquals(5,two.water().water().state().dischargedM3().get(M),1e-8);
         assertTrue(two.water().water().claimedM3().isEmpty());
         assertThrows(IOException.class,()->HydrologySeasonalSnowSoilWaterEpochV2.commitUniform(
@@ -291,7 +290,8 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         assertEquals(pending.checkpoint(),HydrologyCheckpointStoreV2.load(file));
         var arrived=HydrologySeasonalSnowSoilWaterEpochV2.commitStreamingUniform(
             file,HydrologyCheckpointStoreV2.load(file),atlas,
-            Map.of(M,weather(M,0,10,0)),Map.of(),Set.of(M),2,86400);
+            Map.of(B,weather(B,0,10,0),M,weather(M,0,10,0)),
+            Map.of(),Set.of(M),2,86400);
         assertEquals(2,arrived.water().water().state().dischargedM3().get(M),1e-8);
         assertThrows(IOException.class,()->HydrologySeasonalSnowSoilWaterEpochV2.commitStreamingUniform(
             file,first,atlas,Map.of(B,weather(B,0,10,0),M,weather(M,2,10,0)),
