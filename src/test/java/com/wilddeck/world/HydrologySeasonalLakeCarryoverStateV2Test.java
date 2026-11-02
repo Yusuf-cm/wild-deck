@@ -404,4 +404,25 @@ class HydrologySeasonalLakeCarryoverStateV2Test {
             HydrologyCheckpointStoreV2.load(file)).snapshot().delivered().contains(key));
     }
 
+
+    @Test void distinctUpstreamEdgesAggregateOnceAtSharedDestination() {
+        var previous=initial(Map.of(A,9.0));
+        var inbox=new HydrologyEpochInboxV2();
+        var fromEast=sample(4,2);
+        var west=new HydrologyTransferLedgerV2.Key(0,A,B);
+        var east=new HydrologyTransferLedgerV2.Key(0,fromEast,B);
+        assertTrue(inbox.receive(west,3));
+        assertFalse(inbox.receive(west,3));
+        assertTrue(inbox.receive(east,4));
+        var expected=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(previous),inbox);
+        var prepared=HydrologySeasonalLakeInboxCommitV2.prepareUniform(
+            expected,routed(0),Map.of(A,lake(0)),3,Set.of(B));
+        assertEquals(Map.of(B,7.0),prepared.claimedM3());
+        assertEquals(14.0,prepared.state().pendingM3().get(B),1e-12);
+        var snapshot=HydrologyCheckpointV2.restoreInbox(prepared.checkpoint())
+            .snapshot();
+        assertEquals(Set.of(west,east),snapshot.delivered());
+    }
+
 }
