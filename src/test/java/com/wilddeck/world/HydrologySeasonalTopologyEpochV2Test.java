@@ -217,4 +217,71 @@ class HydrologySeasonalTopologyEpochV2Test {
             HydrologySeasonalTopologyEpochV2.decode(payload.replace(
                 HydrologyDrainageSnapshotIdV2.of(atlas),"not-a-hash")));
     }
+    @Test void atlasOwnedRunoffRoutesAcrossRegionsWithoutDuplicateRainfall() {
+        var atlas=atlas();
+        var sources=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for (var node:atlas.routes()) sources.put(node.address(),0.0);
+        sources.put(B,3.0);
+        sources.put(M,2.0);
+        var routed=HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+            atlas,sources,loaded(atlas),86400);
+        assertEquals(Map.of(M,5.0),routed.drainage().terminalOutflow());
+        assertTrue(routed.drainage().pendingOutflow().isEmpty());
+        assertEquals(5.0,routed.budget().input(),1e-12);
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(M),
+            routed.catchments().get(B).mouth());
+        var prepared=HydrologySeasonalTopologyEpochV2.prepareUniform(
+            bound(atlas),atlas,routed,Map.of(),2,
+            edges(atlas),loaded(atlas),Set.of(M));
+        assertEquals(Map.of(M,5.0),prepared.water().state().dischargedM3());
+        var reversed=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        var addresses=new ArrayList<>(sources.keySet());
+        Collections.reverse(addresses);
+        for (var address:addresses) reversed.put(address,sources.get(address));
+        assertEquals(routed,HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+            atlas,reversed,loaded(atlas),86400));
+    }
+
+    @Test void atlasOwnedRunoffWaitsForUnloadedDownstreamAndContinuesNextSeason() {
+        var atlas=atlas();
+        var firstRunoff=HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+            atlas,Map.of(B,3.0),Set.of(B),86400);
+        assertTrue(firstRunoff.drainage().terminalOutflow().isEmpty());
+        assertEquals(3.0,firstRunoff.drainage().pendingOutflow().values()
+            .stream().mapToDouble(Double::doubleValue).sum(),1e-12);
+        var first=HydrologySeasonalTopologyEpochV2.prepareUniform(
+            bound(atlas),atlas,firstRunoff,Map.of(),2,
+            edges(atlas),Set.of(B),Set.of(M));
+        assertEquals(3.0,first.water().state().lakes().pendingM3().values()
+            .stream().mapToDouble(Double::doubleValue).sum(),1e-12);
+        var dry=new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        for (var node:atlas.routes()) dry.put(node.address(),0.0);
+        var nextRunoff=HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+            atlas,dry,loaded(atlas),86400);
+        var second=HydrologySeasonalTopologyEpochV2.prepareUniform(
+            first.checkpoint(),atlas,nextRunoff,Map.of(),2,
+            edges(atlas),loaded(atlas),Set.of(M));
+        assertEquals(Map.of(M,3.0),second.water().state().dischargedM3());
+        assertTrue(second.water().state().lakes().pendingM3().isEmpty());
+    }
+
+    @Test void atlasOwnedRunoffRejectsMissingForeignAndInvalidOwners() {
+        var atlas=atlas();
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+                atlas,Map.of(B,1.0),Set.of(B,M),86400));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+                atlas,Map.of(at(8,2),1.0),Set.of(at(8,2)),86400));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+                atlas,Map.of(B,Double.NaN),Set.of(B),86400));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+                atlas,Map.of(B,-1.0),Set.of(B),86400));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalTopologyEpochV2.routeOwnedRunoff(
+                atlas,Map.of(B,1.0),Set.of(B),0));
+    }
+
 }
