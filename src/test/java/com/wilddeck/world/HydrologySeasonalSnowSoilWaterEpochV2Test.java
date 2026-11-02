@@ -249,11 +249,11 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         assertEquals(2,unloaded.water().water().state().lakes().pendingM3().get(M),1e-8);
         assertTrue(unloaded.water().water().claimedM3().isEmpty());
         var loaded=streaming(unloaded.checkpoint(),atlas,Map.of(
-            M,weather(M,0,10,0)),Set.of(M));
+            B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(M));
         assertEquals(5,loaded.water().water().state().dischargedM3().get(M),1e-8);
         assertEquals(3,loaded.water().water().claimedM3().get(M),1e-8);
         var again=streaming(loaded.checkpoint(),atlas,Map.of(
-            M,weather(M,0,10,0)),Set.of(M));
+            B,weather(B,0,10,0),M,weather(M,0,10,0)),Set.of(M));
         assertTrue(again.water().water().claimedM3().isEmpty());
         assertEquals(5,again.water().water().state().dischargedM3().get(M),1e-8);
     }
