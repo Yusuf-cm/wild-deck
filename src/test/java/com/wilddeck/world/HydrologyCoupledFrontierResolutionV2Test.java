@@ -194,4 +194,108 @@ class HydrologyCoupledFrontierResolutionV2Test {
                 Map.of("s",water),Map.of(),Map.of("a",a),coordinate ->
                     new HydrologyCoupledFrontierResolutionV2.Entry("a",b),1));
     }
+
+    @Test void completeDrainBatchesWaterAndSedimentWithOneNewRegionPerBatch()
+            throws IOException {
+        var water = waterSender("drain",Map.of(TO_A,7.0,TO_B,8.0));
+        var sediment = sedimentSender("drain",Map.of(
+            new HydrologySedimentReceiptInboxV2.Receipt(0,1,at(4,4),A),3.0));
+        var a = receiver("drain-a",A);
+        var b = receiver("drain-b",B);
+        var ws = Map.of("water",water);
+        var ss = Map.of("sediment",sediment);
+        var drained = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            ws,ss,Map.of(),directoryFor(a,b),1,2);
+        assertEquals(2,drained.batches().size());
+        assertEquals(2,drained.loaded().size());
+        assertEquals(2,drained.preflight().addedRegions().size());
+        assertEquals(1,drained.batches().get(0).plan().deferred().size());
+        assertTrue(drained.batches().get(1).plan().complete());
+        assertEquals(15.0,drained.batches().get(1).delivery().after()
+            .water().report().acknowledged().doubleValue());
+        assertEquals(1,drained.batches().stream()
+            .mapToInt(batch -> batch.delivery().sediment().newlyReceived()).sum());
+        assertTrue(HydrologyCoupledLoadedTransfersV2.pendingUnloaded(
+            ws,ss,drained.loaded()).isEmpty());
+    }
+
+    @Test void insufficientTotalBatchCapacityFailsBeforeWritingAnyReceipts()
+            throws IOException {
+        var water = waterSender("capacity",Map.of(TO_A,7.0,TO_B,8.0));
+        var a = receiver("capacity-a",A);
+        var b = receiver("capacity-b",B);
+        var original = HydrologyMixedResolutionCheckpointStoreV2.load(a.waterCheckpoint());
+        assertThrows(IllegalStateException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),directoryFor(a,b),1,1));
+        assertEquals(original,HydrologyMixedResolutionCheckpointStoreV2.load(a.waterCheckpoint()));
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water).acknowledged().isEmpty());
+    }
+
+    @Test void invalidLaterDirectoryRegionFailsBeforeFirstBatch()
+            throws IOException {
+        var water = waterSender("invalid-later",Map.of(TO_A,7.0,TO_B,8.0));
+        var a = receiver("invalid-a",A);
+        var wrong = receiver("invalid-b",at(9,4));
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),coordinate ->
+                    coordinate.equals(physical(A))
+                        ? new HydrologyCoupledFrontierResolutionV2.Entry("a",a)
+                        : new HydrologyCoupledFrontierResolutionV2.Entry("b",wrong),
+                1,2));
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water).acknowledged().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(a.waterCheckpoint())
+            .snapshot().received().isEmpty());
+    }
+
+    @Test void zeroLoadingCapacityCanDeliverToAlreadyLoadedOwner()
+            throws IOException {
+        var water = waterSender("loaded-only",Map.of(TO_A,7.0));
+        var a = receiver("loaded-only-a",A);
+        var result = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            Map.of("sender",water),Map.of(),Map.of("a",a),
+            coordinate -> {
+                fail("Already loaded physical destination must not be resolved again");
+                return null;
+            },0,1);
+        assertEquals(1,result.batches().size());
+        assertEquals(0,result.preflight().addedRegions().size());
+        assertEquals(1,result.batches().get(0).delivery().water().newlyAcknowledged());
+    }
+
+    @Test void replayOfCompletedBatchesNeverDuplicatesReceipts() throws IOException {
+        var water = waterSender("replay",Map.of(TO_A,7.0,TO_B,8.0));
+        var a = receiver("replay-a",A);
+        var b = receiver("replay-b",B);
+        var senders = Map.of("sender",water);
+        var first = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            senders,Map.of(),Map.of(),directoryFor(a,b),1,2);
+        var second = HydrologyCoupledFrontierResolutionV2.deliverBatches(
+            senders,Map.of(),first.loaded(),coordinate -> {
+                fail("No pending unloaded frontiers after first drain");
+                return null;
+            },0,1);
+        assertEquals(0,second.batches().get(0).delivery().water().newlyAcknowledged());
+        assertEquals(15.0,second.batches().get(0).delivery().after()
+            .water().report().acknowledged().doubleValue());
+    }
+
+    @Test void invalidBatchBoundsRejectWithoutDirectoryLookup() throws IOException {
+        var water = waterSender("bad-bounds",Map.of(TO_A,7.0));
+        HydrologyCoupledFrontierResolutionV2.Directory forbidden = coordinate -> {
+            fail("Invalid bounds must fail before resolving a directory");
+            return null;
+        };
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),forbidden,-1,1));
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),forbidden,1,0));
+        assertThrows(ArithmeticException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverBatches(
+                Map.of("sender",water),Map.of(),Map.of(),forbidden,
+                Integer.MAX_VALUE,2));
+    }
 }
