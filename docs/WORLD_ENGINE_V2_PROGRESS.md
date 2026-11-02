@@ -2744,3 +2744,23 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Verification and scale:** The four previous ownership tests plus six new transit tests still require actual Maven/CI execution. Planetary multi-season mass/sediment conservation, fault-injection and distributed recovery acceptance remain incomplete. No groundwater or calibrated climate model.
 
 **Safety:** All GitHub writes were to `feature/world-engine-v2` only. No PR, merge, main/other-branch write, production or paid infrastructure operation. Hydrology remains the priority.
+
+
+## 2026-11-03 — Opt-in atomic timed-transit + seasonal water checkpoint (CI pending)
+
+**Scope:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Before these changes, branch HEAD `8436b3baff5d3dbf63a0d1c16874cc0637b5287d` passed [GitHub Actions 41541354449](https://github.com/Yusuf-cm/wild-deck/actions/runs/41541354449). This baseline pass does **not** verify the new code.
+
+1. Added `HydrologyTimedSeasonalEpochV2`, an **opt-in** versioned wrapper around the existing topology-bound snow/soil water state and `HydrologyTimedTransitLedgerV2`. It advances both at the same absolute epoch, releasing due transit only to explicitly loaded canonical physical vertices, and injects released water into **previous pending water** before the seasonal runoff solve. It does not invent rainfall, restart unloaded travel timers, or double-count incoming water as precipitation.
+2. The staged result combines transit pending/settled history, seasonal snow/soil storage, lake/frontier/outlet water, and existing inbox receipt markers in one `HydrologyCheckpointV2.Checkpoint`. `commitStreamingUniform` uses the existing `HydrologyCheckpointStoreV2.saveNext` compare-and-swap local checkpoint write. Transfer ID/route authentication and weather forcing remain caller responsibilities; this is **not** a distributed transaction.
+3. Added integration tests for overdue water at unloaded destinations, later loading with rainfall, idempotent replay and restart, future-due transfers, incompatible world identities, conflicting replay, and stale-writer checkpoint protection.
+
+**New commits:** `885671c313bc02cfb95eee0c83d9ffc38c08e7c7` (integration), `1994ca3154e19d40b7836ce83214df633a2e7f6a` (tests), `45267a544a75b90420d11eef7c319a7b33df180f` (correct future-due test). **New-HEAD CI has not yet been confirmed passed.** Check [branch Actions](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) and fix any failures before declaring acceptance.
+
+### Remaining hydrology acceptance gaps
+
+- Confirm full Maven/JUnit and other branch CI for the new bridge. The new bridge is **opt-in**, not the default world runner or global simulation scheduler; only uniform streaming seasons are supported, not scheduled intervals.
+- Transit travel times are caller-supplied **seasonal ticks**, not calibrated river velocities; partial-slice lake spill delay still lacks exact residual travel time. Transfer provenance, topology migration of in-flight water, distributed sender acknowledgement and safe ID compaction are not implemented.
+- No single global atomic snow/soil/water/**sediment/riverbed/terrain** epoch. No incremental global priority-flood through arbitrary unknown unloaded terrain, multiple lake spillways, physically calibrated groundwater/backwater/floods, or mixed-resolution water-store migration.
+- Planet-scale endurance, long-horizon sediment/water conservation, and crash/fault-injection acceptance remain incomplete. Existing finite-double volume limits remain.
+
+**Safety:** No main or other branch modifications, PR, merge, production or paid infrastructure operations.
