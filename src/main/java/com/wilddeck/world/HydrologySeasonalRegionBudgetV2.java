@@ -12,7 +12,7 @@ import java.util.*;
  * The entire weather inventory and planetary areas are checked before any
  * snow/soil transition. Only the resulting audited runoff may be injected
  * into downstream river routing; precipitation must not be injected again.
- * This does not load regions, route rivers, persist checkpoints, or provide
+ * This does not load regions, discover drainage routes, persist checkpoints, or provide
  * globally atomic seasonal advancement.
  */
 public final class HydrologySeasonalRegionBudgetV2 {

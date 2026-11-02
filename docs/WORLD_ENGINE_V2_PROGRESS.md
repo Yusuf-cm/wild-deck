@@ -2233,3 +2233,30 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Physical calibration:** Cell areas must be independently authoritative and physically nonoverlapping. The degree-day snow/soil model remains approximate and caller-forced; it does not supply groundwater, calibrated precipitation/temperature/evaporation, timed floods or multiple lake spillways. Planetary catchments, ocean boundaries and large-world fault-injection/endurance tests remain incomplete.
 
 **Safety:** No merge, PR, write to `main` or other branches, production operation or paid infrastructure modification. Continue water/hydrology before other world layers.
+
+
+## 2026-11-02 — Owned multi-region seasonal runoff and verified frontier routing (CI passed)
+
+**Scope:** Only `Yusuf-cm/wild-deck` on `feature/world-engine-v2`. Starting HEAD `26956b69bb6e6d9cde61f130bfd8e8f5a657f193`; [baseline CI 41391063969](https://github.com/Yusuf-cm/wild-deck/actions/runs/41391063969) passed **1,050 Maven/JUnit tests**, zero failures/errors/skips, plus world experiment, resource replay, browser-save, atlas export and real-browser checks. No starting failures.
+
+### Implemented
+
+1. **One physical owner per seasonal source across named regions.** New `HydrologySeasonalRegionBudgetV2.advance` preflights all region weather, rejects duplicate seam/pole/boundary samples, missing persisted cells, mixed sampling resolutions, inconsistent season lengths and forged spherical cell areas, and prevents total owned area exceeding the planet. It advances one globally ordered snow/soil checkpoint using the independent SI-volume audit and partitions its runoff by region without reinjecting precipitation. Mixed-LOD area remapping is **not** implemented; mixed resolutions fail closed.
+2. **Audited cross-region runoff routing.** `Result.route` routes exactly those runoff sources through the existing global-address flow graph, verifies adjacent canonical edges and explicit outlet ownership, and independently checks that runoff equals verified terminal discharge plus unresolved frontier discharge. Unloaded destinations remain pending, never fake ocean mouths. Known resolved outlet addresses are independent of named region partitions; global mouth discovery is still external.
+3. **Seasonal erosion audit integration.** `HydrologySeasonalErosionPreviewV2.calculateFromForcing` now uses `HydrologySnowSoilStateV2.advanceAudited` before seasonal runoff drives erosion/sediment preview. This remains a noncommitting preview.
+
+### Exact verification
+
+- [CI 41396178091](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396178091) for initial source/test commit `d2d3d9b644f1c4865821bb5d82589d9a3bb5872c`: **1,057 tests passed**, zero failures/errors/skips, `BUILD SUCCESS`, all other workflow checks passed.
+- [CI 41396278627](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396278627) for routing source commit `e5e0e84a8aa40c97c7ab7919d870448787c54bea`: **passed**.
+- [CI 41396282311](https://github.com/Yusuf-cm/wild-deck/actions/runs/41396282311) for final functional test commit `0f9e77e82ae9b6a9f553379d155af1cf865b09b9`: **1,060 Maven/JUnit tests passed**, zero failures/errors/skips, `BUILD SUCCESS`. All **10 new `HydrologySeasonalRegionBudgetV2Test` tests passed**: conservation, deterministic order, shared-vertex ownership, LOD/area/duration rejection, multi-season persisted stores, cross-region seam routing, unloaded frontier conservation and invalid routes. World experiment, resource replay, browser-save, atlas export and real-browser checks passed.
+- This final documentation/comment commit triggers its own workflow and must be checked independently.
+
+### Still unfinished: hydrology is NOT complete
+
+1. The seasonal regional coordinator is **opt-in**. It is not wired into automatic authoritative region loading, coupled water/sediment delivery, lake storage, climate forcing, durable riverbed commits or restart recovery. The caller must avoid injecting raw precipitation again.
+2. The route graph requires caller-provided terrain edges and verified outlets. It does not discover unloaded terrain, authenticate global ocean mouths, resolve planetary catchments, safely migrate in-transit water/sediment after drainage changes, or remap overlapping mixed-LOD areas.
+3. Cross-region sediment imports/exports during terrain epochs, globally atomic commits, durable distributed writer fencing and receipt-history compaction remain unfinished.
+4. Degree-day snow/soil weather remains uncalibrated. Multiple lake spillways, groundwater, timed flooding, physically calibrated erosion and planetary endurance/fault-injection tests remain unfinished.
+
+**Safety:** No PR, merge, main/other branch write, production deployment, paid infrastructure or database change. Continue water/hydrology before other world layers.
