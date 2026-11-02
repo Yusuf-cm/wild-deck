@@ -119,10 +119,12 @@ class HydrologyTimedSeasonalEpochV2Test {
             new HydrologyTimedSeasonalEpochV2.State(decoded.seasonal(),
                 HydrologyTimedTransitLedgerV2.encode(
                     HydrologyTimedTransitLedgerV2.empty("other"))));
-        assertThrows(IllegalArgumentException.class,()->
-            advance(first,atlas,Set.of(M),List.of(transfer("invalid",2,4)),0)
-                .transit().releasedM3().get(HydrologyGlobalCatchmentsV2.coordinate(M))
-                .doubleValue());
+        var future=advance(first,atlas,Set.of(M),
+            List.of(transfer("future",2,4)),0);
+        assertTrue(future.transit().releasedM3().isEmpty());
+        assertEquals(4,future.transit().remainingM3().doubleValue(),1e-9);
+        assertEquals(0,future.seasonal().water().water().state()
+            .dischargedM3().getOrDefault(M,0.0),1e-9);
     }
 
     @Test void rejectsConflictingReplayBeforeCheckpointChange() {
