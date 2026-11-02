@@ -155,9 +155,15 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
     @Test void rejectsChangedAtlasAndMalformedCombinedPayload() {
         var atlas = atlas();
         var first = initial(atlas,Map.of(),Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var changedSources = new ArrayList<HydrologyGlobalSlopeRouterV2.Source>();
+        changedSources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,0),0));
+        for (long y=1;y<4;y++) for (long x=0;x<8;x++)
+            changedSources.add(new HydrologyGlobalSlopeRouterV2.Source(at(x,y),0));
+        changedSources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,4),0));
+        var extraMouth = at(0,2);
         var wrong = HydrologySphericalRouteAtlasV2.compile(
-            List.of(new HydrologyGlobalSlopeRouterV2.Source(M,0)),
-            a->0,Set.of(M));
+            changedSources,a->a.equals(M)||a.equals(extraMouth)?0:10,
+            Set.of(M,extraMouth));
         assertThrows(IllegalArgumentException.class,()->advance(
             first,wrong,Map.of(M,weather(M,1,10,0)),Map.of()));
         assertThrows(IllegalArgumentException.class,()->
