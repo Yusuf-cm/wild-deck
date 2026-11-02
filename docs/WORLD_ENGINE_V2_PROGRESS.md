@@ -2179,3 +2179,29 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 3. **Physical gaps:** Coupled cross-region sediment import/export in riverbed epochs, safe rerouting of in-transit water/sediment after drainage changes, globally authoritative catchments/ocean boundaries, multiple lake spillways, groundwater, calibrated seasonal climate, physically timed floods, calibrated long-term erosion and planetary-scale fault-injection/endurance tests remain unfinished.
 
 **Safety:** No merge, PR, write to `main` or other branches, production deployment or paid infrastructure change. Hydrology stays the next-run priority.
+
+
+## 2026-11-02 — Coupled sender-history fencing and seasonal snow/soil water budget (new-commit CI pending)
+
+**Scope:** Only `Yusuf-cm/wild-deck` on `feature/world-engine-v2`. Starting HEAD `ca755b99fb502a900bc11403b020a552c7040009`. The existing [baseline CI 41379752928](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379752928) was inspected directly: the test job completed successfully; raw Maven logs show **1,032 tests, zero failures/errors/skips and BUILD SUCCESS**, with browser atlas checks passed. This verifies the *starting* commit, **not** the new commits below.
+
+### Changes
+
+1. **Opt-in durable sender-history fence:** New `HydrologyCoupledSenderFenceV2` captures the exact sender file inventory, water outbox and inbox/world/epoch, and sediment sender journal before an external directory is consulted. It allows only monotonic growth of receipt acknowledgments during delivery. `HydrologyCoupledFrontierResolutionV2.deliverBatch`, `deliverAll`, and `deliverBatches` now reject producer mutation during preflight; the multi-batch drain also verifies the original sender history before and after each batch. This prevents a changing sender frontier from silently bypassing the frozen directory. It does **not** lock independent processes or make partially committed batches globally atomic. Commits: `c9e67797`, `9a751505`, test `8fdf7065`.
+2. **Seasonal rain/snow/soil balance in physical units:** New `HydrologySeasonalSnowSoilV2` partitions precipitation at the freezing point, accumulates snow, bounds positive-temperature degree-day melt by existing snow, bounds evapotranspiration by available liquid water, retains water up to an explicit soil capacity, and exports excess as runoff. A decimal-based audit checks snow + soil + precipitation = new snow + new soil + evaporation + runoff. Explicit SI units and finite/overflow validation avoid silently mixing depths with volumes. This is an **opt-in local catchment calculation**, not calibrated climate, global routing, groundwater, or a persistent seasonal world scheduler. Commits: `9f3d27fb`, tests `9d16a34a`, overflow fix `b69a01cd`.
+3. **Ten new JUnit tests committed:** Four sender-history mutation/acknowledgment integration tests and six seasonal water-budget tests, including freezing precipitation, bounded snowmelt, soil capacity, evaporation, deterministic multi-season replay, and invalid/overflow forcing.
+
+### Exact verification and limits
+
+- **Verified baseline:** [CI 41379752928](https://github.com/Yusuf-cm/wild-deck/actions/runs/41379752928), 1,032 Maven/JUnit tests passed on the previous HEAD.
+- **Isolated verification this run:** Java 17 compilation of the sender-fence API against shape-compatible stubs passed. An equivalent Java 17 seasonal implementation compiled and passed five standalone smoke assertions for freezing, melt, evaporation, deterministic season sequencing and overflow. **These are not full repository tests.**
+- **Not yet verified:** The ten new JUnit tests, complete Maven build, and GitHub Actions result for the new source/test HEAD. The connected commit-run lookup exposes PR-triggered runs only and returned no push-run results; no local Maven checkout was available. Do not claim a new green CI run until the exact new HEAD's workflow and logs are checked. Fix any CI failures before treating these changes as accepted.
+
+### Still unfinished (water subsystem NOT complete)
+
+1. Automatic authoritative lifecycle for region loading, coupled water/sediment delivery, lake storage, climate forcing and riverbed epochs. The sender fence is cooperative read-only verification, **not** a distributed lock or global transaction; a writer can still race between verification and a checkpoint write. Incomplete multi-region commits require retained sender histories and replay.
+2. Coupled cross-region sediment imports/exports in riverbed terrain commits; safe rerouting/migration of in-transit water and sediment after terrain/topology changes; replay-safe compaction and durable global fencing.
+3. Authoritative planetary drainage, stable resolved catchments and verified ocean/coastline mouths beyond existing known terminals; multiple lake spillways and groundwater.
+4. Calibrated precipitation/temperature/evaporation/melt parameters, physically timed floods, lake/soil/snow integration, erosion-capacity calibration, large-world endurance and distributed fault injection.
+
+**Safety:** Only development-branch commits; no PR, merge, main/other branch write, production operation or paid infrastructure change. Continue hydrology before other world layers.
