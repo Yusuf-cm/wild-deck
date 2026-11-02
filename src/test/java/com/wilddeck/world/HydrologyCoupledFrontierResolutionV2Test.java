@@ -443,4 +443,49 @@ class HydrologyCoupledFrontierResolutionV2Test {
             b.waterCheckpoint()).inbox().receipts().isEmpty());
     }
 
+    @Test void sedimentEpochAdvanceWithoutAcknowledgmentCannotBypassSenderFence()
+            throws IOException {
+        var water = waterSender("epoch-fence",Map.of(TO_A,7.0));
+        var sediment = sedimentSender("epoch-fence",Map.of());
+        var receiver = receiver("epoch-fence-a",A);
+        var initial = HydrologyCheckpointStoreV2.load(sediment);
+        assertThrows(IOException.class,() ->
+            HydrologyCoupledFrontierResolutionV2.deliverAll(
+                Map.of("w",water),Map.of("s",sediment),Map.of(),coordinate -> {
+                    HydrologyCheckpointStoreV2.saveNext(sediment,initial,
+                        new HydrologyCheckpointV2.Checkpoint(
+                            initial.epoch()+1,initial.worldState(),initial.inboxState()));
+                    return new HydrologyCoupledFrontierResolutionV2.Entry(
+                        "epoch-fence-a",receiver);
+                },1));
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(water)
+            .acknowledged().isEmpty());
+        assertTrue(HydrologyMixedResolutionCheckpointStoreV2.load(
+            receiver.waterCheckpoint()).inbox().receipts().isEmpty());
+    }
+
+    @Test void senderFenceRejectsSedimentEpochDriftWithIdenticalJournal()
+            throws IOException {
+        var sediment = sedimentSender("drift",Map.of());
+        var paths = Map.of("s",sediment);
+        var fence = HydrologyCoupledSenderFenceV2.capture(Map.of(),paths);
+        var before = HydrologyCheckpointStoreV2.load(sediment);
+        HydrologyCheckpointStoreV2.saveNext(sediment,before,
+            new HydrologyCheckpointV2.Checkpoint(
+                before.epoch()+1,before.worldState(),before.inboxState()));
+        assertThrows(IOException.class,() -> fence.verify(Map.of(),paths));
+    }
+
+    @Test void senderFenceRejectsAliasedCheckpointPathsBeforeDelivery()
+            throws IOException {
+        var sediment = sedimentSender("alias",Map.of());
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledSenderFenceV2.capture(Map.of(),
+                Map.of("first",sediment,"second",sediment)));
+        var water = waterSender("alias",Map.of(TO_A,7.0));
+        assertThrows(IllegalArgumentException.class,() ->
+            HydrologyCoupledSenderFenceV2.capture(
+                Map.of("first",water,"second",water),Map.of()));
+    }
+
 }
