@@ -33,11 +33,27 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
         }
     }
 
+    /**
+     * A season with old pending water has two independent sources: newly
+     * generated runoff and previously conserved carryover. The latter is NOT
+     * rainfall and must not be counted in seasonalRunoffM3().
+     */
+    public record CarryoverResult(HydrologySeasonalLakeRoutingV2.Result result,
+            Map<GlobalHydrologyAddressV2.Sample,Double> carryoverM3) {
+        public CarryoverResult {
+            Objects.requireNonNull(result);
+            var ordered = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+                HydrologyFlowGraphV2.ADDRESS_ORDER);
+            ordered.putAll(Objects.requireNonNull(carryoverM3));
+            carryoverM3 = Collections.unmodifiableMap(ordered);
+        }
+    }
+
     /** Uniform local runoff and potential evaporation in each time slice. */
     public static HydrologySeasonalLakeRoutingV2.Result advanceUniform(
             HydrologySeasonalGlobalRoutingV2.Result routed,
             Map<GlobalHydrologyAddressV2.Sample,Lake> lakes, int slices) {
-        return advance(routed,lakes,slices,null);
+        return advance(routed,lakes,slices,null,Map.of()).result();
     }
 
     /**
@@ -56,25 +72,53 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
             throw new IllegalArgumentException("Missing lake forcing schedules");
         int slices = schedules.isEmpty() ? 1 :
             Objects.requireNonNull(schedules.values().iterator().next()).size();
-        return advance(routed,lakes,slices,schedules);
+        return advance(routed,lakes,slices,schedules,Map.of()).result();
     }
 
-    private static HydrologySeasonalLakeRoutingV2.Result advance(
+    /**
+     * Advance an additional, already-conserved pending frontier exactly once.
+     * A carryover at a lake inlet arrives in the first slice; nonlake water
+     * stays deferred until a separately authenticated drainage route consumes
+     * it. The same physical coordinate may appear in new runoff and carryover
+     * only under the identical canonical sample address.
+     */
+    public static CarryoverResult advanceUniformWithCarryover(
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,Lake> lakes, int slices,
+            Map<GlobalHydrologyAddressV2.Sample,Double> carryoverM3) {
+        return advance(routed,lakes,slices,null,carryoverM3);
+    }
+
+    /** Chronological forcing; carryover is independent of the local rain schedule. */
+    public static CarryoverResult advanceScheduledWithCarryover(
+            HydrologySeasonalGlobalRoutingV2.Result routed,
+            Map<GlobalHydrologyAddressV2.Sample,Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,
+                List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Map<GlobalHydrologyAddressV2.Sample,Double> carryoverM3) {
+        Objects.requireNonNull(schedules);
+        if (schedules.isEmpty() && !Objects.requireNonNull(lakes).isEmpty())
+            throw new IllegalArgumentException("Missing lake forcing schedules");
+        int slices = schedules.isEmpty() ? 1 :
+            Objects.requireNonNull(schedules.values().iterator().next()).size();
+        return advance(routed,lakes,slices,schedules,carryoverM3);
+    }
+
+    private static CarryoverResult advance(
             HydrologySeasonalGlobalRoutingV2.Result routed,
             Map<GlobalHydrologyAddressV2.Sample,Lake> lakes, int slices,
             Map<GlobalHydrologyAddressV2.Sample,
-                List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules) {
+                List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Map<GlobalHydrologyAddressV2.Sample,Double> carryoverM3) {
         Objects.requireNonNull(lakes);
+        Objects.requireNonNull(carryoverM3);
         if (slices < 1 || slices > HydrologySeasonalLakeIntegratorV2.MAX_SUBSTEPS ||
             lakes.size() > MAX_LAKES || (long) slices*lakes.size() > MAX_LAKE_SLICES)
             throw new IllegalArgumentException("Lake routing slice budget exceeded");
         // Reuse the independent, rate-aware routing audit before touching water.
         var base = HydrologySeasonalLakeRoutingV2.advance(routed,Map.of());
-        if (lakes.isEmpty()) {
-            if (schedules != null && !schedules.isEmpty())
-                throw new IllegalArgumentException("Unexpected lake schedules");
-            return base;
-        }
+        if (lakes.isEmpty() && schedules != null && !schedules.isEmpty())
+            throw new IllegalArgumentException("Unexpected lake schedules");
         var ordered = new TreeMap<GlobalHydrologyAddressV2.Sample,Lake>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         ordered.putAll(lakes);
@@ -85,6 +129,21 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
         for (var address : routed.drainage().terminalOutflow().keySet()) {
             own(owners,address);
             outlets.add(HydrologyGlobalCatchmentsV2.coordinate(address));
+        }
+        var carryover = new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
+            HydrologyFlowGraphV2.ADDRESS_ORDER);
+        BigDecimal carryoverTotal = BigDecimal.ZERO;
+        if (carryoverM3.size() > 100_000)
+            throw new IllegalArgumentException("Carryover frontier budget exceeded");
+        for (var entry : carryoverM3.entrySet()) {
+            var address = Objects.requireNonNull(entry.getKey());
+            var value = Objects.requireNonNull(entry.getValue());
+            var coordinate = HydrologyGlobalCatchmentsV2.coordinate(address);
+            if (outlets.contains(coordinate))
+                throw new IllegalArgumentException("Carryover at verified ocean outlet");
+            own(owners,address);
+            carryover.put(address,value);
+            carryoverTotal = carryoverTotal.add(number(value));
         }
         var lakeCoordinates = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
         for (var entry : ordered.entrySet()) {
@@ -113,7 +172,8 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
         }
         for (var address : ordered.keySet())
             if (!base.pendingM3().containsKey(address) &&
-                !incomingLakeEdges.contains(address))
+                !incomingLakeEdges.contains(address) &&
+                !carryover.containsKey(address))
                 throw new IllegalArgumentException("Unowned or unreachable lake inlet");
         // Reject closed lake-to-lake cycles even though delayed simulation would
         // be numerically finite. A closed artificial spill loop is not a basin.
@@ -173,6 +233,18 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
             spilled.put(address,0.0);
             initial=initial.add(number(lake.previousVolumeM3()));
         }
+        // Prior frontier water is not fresh precipitation. Carryover at a
+        // lake inlet enters only once, at the first slice; other pending water
+        // remains unresolved until a later authoritative routing operation.
+        for (var entry : carryover.entrySet()) {
+            var address = entry.getKey();
+            if (ordered.containsKey(address)) {
+                due.get(address)[0] = add(due.get(address)[0],entry.getValue());
+            } else {
+                pending.put(address,add(pending.getOrDefault(address,0.0),
+                    entry.getValue()));
+            }
+        }
         for (int i=0;i<slices;i++) {
             for (var entry : ordered.entrySet()) {
                 var address=entry.getKey();
@@ -221,15 +293,17 @@ public final class HydrologySeasonalLaggedLakeNetworkV2 {
             pendingTotal=pendingTotal.add(number(entry.getValue()));
             rates.put(entry.getKey(),entry.getValue()/routed.durationSeconds());
         }
-        BigDecimal left=number(base.seasonalRunoffM3()).add(initial);
+        BigDecimal left=number(base.seasonalRunoffM3()).add(initial)
+            .add(carryoverTotal);
         BigDecimal right=number(base.verifiedOutletM3()).add(pendingTotal)
             .add(finalStorage).add(evaporation);
         if (!close(left,right))
             throw new IllegalArgumentException("Lagged lake network water conservation violated");
-        return new HydrologySeasonalLakeRoutingV2.Result(steps,inflow,pending,rates,
+        return new CarryoverResult(new HydrologySeasonalLakeRoutingV2.Result(
+            steps,inflow,pending,rates,
             finite(initial),finite(finalStorage),finite(evaporation),
             base.verifiedOutletM3(),base.seasonalRunoffM3(),
-            finite(left.subtract(right)));
+            finite(left.subtract(right))),carryover);
     }
 
     private static void own(Map<HydrologyGlobalCatchmentsV2.Coordinate,
