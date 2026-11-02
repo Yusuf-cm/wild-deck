@@ -55,7 +55,8 @@ public final class HydrologySeasonalTopologyEpochV2 {
             !lakes.pendingM3().isEmpty() ||
             lakes.lakeStorageM3().values().stream().anyMatch(v->v!=0.0) ||
             !state.dischargedM3().isEmpty() ||
-            !inbox.receipts().isEmpty() || !inbox.delivered().isEmpty())
+            !inbox.receipts().isEmpty() || !inbox.delivered().isEmpty() ||
+            !inbox.consumedEpochs().isEmpty())
             throw new IllegalArgumentException("Cannot bind in-flight water to new topology");
         return new HydrologyCheckpointV2.Checkpoint(checkpoint.epoch(),
             encode(new Bound(HydrologyDrainageSnapshotIdV2.of(atlas),
@@ -160,7 +161,12 @@ public final class HydrologySeasonalTopologyEpochV2 {
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             Set<GlobalHydrologyAddressV2.Sample> mouths) {
         for (var address:loaded) atlas.routeAt(address);
-        for (var address:lakes.keySet()) atlas.routeAt(address);
+        for (var entry:lakes.entrySet()) {
+            var route=atlas.routeAt(entry.getKey());
+            if (!Objects.equals(route.downstream(),entry.getValue().spillTo()))
+                throw new IllegalArgumentException(
+                    "Lake spill contradicts bound drainage atlas");
+        }
         for (var address:runoff.drainage().pendingOutflow().keySet())
             atlas.routeAt(address);
         for (var address:runoff.drainage().terminalOutflow().keySet()) {
