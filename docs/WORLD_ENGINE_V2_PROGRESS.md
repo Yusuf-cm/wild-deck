@@ -2625,3 +2625,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Durability and scale:** The checkpoint store is local single-writer optimistic persistence, not distributed CAS or a globally atomic sender/receiver acknowledgement. No planet-scale long-horizon mass conservation, distributed crash-injection acceptance, mixed-resolution area migration or safe receipt/ledger compaction. Cumulative outlet doubles can reject tiny increments when precision would be lost.
 
 **Safety:** No PR, merge, push to main/other branches, production operation or paid infrastructure change. Continue hydrology before other world layers.
+
+
+## 2026-11-02 — Audited snow/soil + topology-bound lake/ocean epoch (opt-in)
+
+**Scope and starting CI:** Only `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Started at `309836addeaea776a41301e2cbe2d207a62f55ae`, whose [CI 41504658044](https://github.com/Yusuf-cm/wild-deck/actions/runs/41504658044) passed **1,205 tests**. No baseline CI failures.
+
+### Implemented
+
+1. Added `HydrologySeasonalSnowSoilWaterEpochV2` with a canonical versioned envelope storing **snow/soil cell state and topology-fenced seasonal lake/frontier/ocean state in the same local checkpoint**, alongside the existing durable receipt inbox. `bindFresh` only accepts a pristine, already atlas-bound initial checkpoint; an in-flight lake, water, ocean ledger or receipt history cannot be retroactively bound.
+2. `prepareUniform` / `prepareScheduled` and `commitUniform` / `commitScheduled` advance the existing independently audited degree-day snow/soil buckets, inject **only resulting runoff** into atlas-owned drainage, and use the existing delayed lake, pending frontier, verified ocean ledger and once-only receipt settlement. One local `saveNext` persists the combined result, so a crash cannot durably advance only the snow or only the water half of this opt-in epoch.
+3. The bridge rejects changed drainage topology, inconsistent world identities, invalid/noncanonical or aliased geographic ownership, unforced previously stored snow/soil cells, mismatched spherical cell area, changed radius within the envelope, stale checkpoints and incorrect water accounting. It independently checks the combined budget: **old snow/soil + precipitation + old pending/claimed receipts + old lake storage = new snow/soil + snow/soil evaporation + new pending + new lake storage + lake evaporation + new verified ocean discharge**. Cumulative historical ocean discharge is excluded from new water.
+4. Eight new JUnit tests cover ocean runoff once-only, snow accumulation and later melt, uniform/scheduled equivalence, lake storage and delayed spill, durable receipt confluence and restart with stale-write rejection, area/loaded-cell failures, changed atlas and codec tampering, and fresh-binding/world identity guards. Existing terrain, other branches and production code paths are unchanged.
+
+### Exact verification
+
+- `df387994448640b4d863572b5f7abdbd8bd07223` — initial coupled implementation; [CI 41513310310](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513310310) failed a compile error in its initial audit expression.
+- `490d6f80b38c50c859b5721633202b86b890af74` — corrected audit and double-counting; [CI 41513336989](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513336989) **passed** (before new tests).
+- `9920f3e367b91b5865141343fa09ab616a50fbed` — eight regression tests; [CI 41513413205](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513413205) failed **one test setup**, which attempted to compile an incomplete spherical atlas. The other seven new tests passed.
+- `abae5a6e16a5391f5cb668a85130953eb58a2e14` — fixed changed-atlas fixture to use a complete closed spherical surface; **[CI 41513478791 PASSED](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513478791)** with **1,213 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including **8/8** new tests. The remaining world experiment, resource replay, browser-save, atlas export and real-browser checks also passed. This documentation-only commit requires a separate CI check before the final HEAD is called green.
+
+### Still unfinished (water subsystem NOT complete)
+
+1. **Streaming snow/soil state:** Every previously persisted snow/soil cell must be loaded and forced for this transition. This prevents silent storage loss but is not an automatic unloaded-cell snow/soil scheduler, and no partial-cell migration or per-region checkpoint is implemented.
+2. **Planetary authority and terrain coupling:** The atlas, outlet truth, lake geometry, weather, and planet radius are supplied by a caller. No globally atomic erosion/sediment/terrain/lake/climate epoch, dynamically rebuilt drainage atlas, or safe water/sediment topology migration. Riverbed incision and sediment deposition remain outside this new checkpoint.
+3. **Physical fidelity:** Degree-day snow, soil capacity and lake evaporation remain simplified; exact cross-season travel times, multiple spillways, groundwater, calibrated flood waves, precipitation calibration and physically timed discharge remain unfinished.
+4. **Distributed safety and scale:** Only one local checkpoint file is atomically replaced. No distributed CAS, sender/receiver acknowledgement transaction, planet-scale long-duration mass-balance or crash-injection validation, or safe receipt/ledger compaction. Floating-point precision limits remain.
+
+**Safety:** No PR, merge, main/other-branch changes, production operations or paid infrastructure changes. Continue water/hydrology before other world layers.
