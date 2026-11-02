@@ -2351,3 +2351,36 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 4. **Topology and planet scale:** Cross-region sediment imports/exports during riverbed epochs, drainage-topology migration, mixed-LOD physical remapping, global catchment/coastline authority, distributed atomicity, receipt compaction, crash/replay and planetary endurance testing remain incomplete.
 
 **Safety:** Only the development branch was written. No PR, merge, main/other branch modification, production deployment or paid infrastructure change.
+
+
+## 2026-11-02 — Audited lagged lake cascades and chronological seasonal forcing (CI VERIFIED)
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `1999f9983a798ee10b8f8f13a06278799a32f6b2`. The baseline push workflow [41419040295](https://github.com/Yusuf-cm/wild-deck/actions/runs/41419040295) passed **1,098 JUnit tests**, zero failures/errors/skips and `BUILD SUCCESS`. This verifies that the previously reported unverified global seasonal routing, lake routing and substep code was integrated at the starting HEAD.
+
+### Implemented and verified
+
+1. **Explicit finite-delay lake-to-lake water routing:** New `HydrologySeasonalLaggedLakeNetworkV2.advanceUniform` consumes only audited unresolved global-frontier runoff, integrates each lake's hypsometric reservoir over bounded seasonal slices, and delivers upstream lake overflow to a downstream lake **no earlier than the configured subsequent slice**. Spill whose arrival lies beyond the season remains pending at the receiving lake anchor. Nonlake spill remains a deferred frontier export. This prevents silently converting an unresolved spill into a verified ocean mouth or instantaneously recycling it as new rainfall.
+2. **Chronological storm/evaporation schedules:** `advanceScheduled` accepts an explicit ordered runoff and evaporation schedule for every lake. The sum of each lake's **local** scheduled inflow must equal its independently audited frontier source; upstream spill is tracked separately. Evaporation schedule depth must match supplied forcing. Uniform slices are the convenient default, not a claimed meteorological hydrograph.
+3. **Cross-region ownership, topology and conservation:** Physical sample coordinates are checked across lake inlets, pending frontiers, spill targets and authenticated mouths. Cross-LOD duplicate ownership, noncanonical seam/pole samples, nonadjacent spill edges, cycles, unreachable lake anchors, incorrect schedules, invalid durations, forged mean rates and excessive simulation budgets fail closed. Each step uses the existing finite-volume lake reservoir. Independent whole-network conservation verifies `seasonal runoff + previous lake storage = verified outlet + deferred frontier water + lake evaporation + final lake storage`. Deterministic ordered maps and immutable results support reproducible replay, but **do not implement durable exactly-once replay by themselves**.
+4. **Audited seasonal-region bridge:** `HydrologySeasonalRegionBudgetV2.Result` now exposes `routeKnownNetworkWithLaggedLakes` and `routeKnownNetworkWithScheduledLaggedLakes`. Both start from audited snow/soil runoff and caller-supplied known global drainage, rather than injecting precipitation again. No production/world-runner checkpoint is modified.
+
+### Commits and exact verification
+
+- `0eec564f7b96460be92a778036a10ac6649e3293` — finite-delay seasonal lake cascade implementation.
+- `d03a3d481205c85f4275ce8c666552f6607ccdea` — initial 15 JUnit regression tests.
+- `9958c155ab37ceccf1d2eb1a726a6b251709b11d` — correct two test fixtures with nonadjacent lake spill targets.
+- `56f458e9cc522cea13b78f527229247a90598847` — audited seasonal-region convenience bridges.
+- `46db012044d2abd5b6f89650d930de43ee816b5d` — real snow/soil seasonal integration regression.
+- Intermediate [CI 41424615607](https://github.com/Yusuf-cm/wild-deck/actions/runs/41424615607) **failed** on two test fixture spill-edge validation errors (no source compilation failure). These were fixed in `9958c155`.
+- [CI 41424645433](https://github.com/Yusuf-cm/wild-deck/actions/runs/41424645433) passed **1,113 JUnit tests**, including **15/15 new tests**, zero failures/errors/skips, `BUILD SUCCESS` and all other workflow checks.
+- **Final functional [CI 41424699893](https://github.com/Yusuf-cm/wild-deck/actions/runs/41424699893) passed 1,114 JUnit tests, including 16/16 new lagged-lake tests, zero failures/errors/skips, `BUILD SUCCESS`, world experiment, resource replay, browser-save, atlas export and real-browser verification.** This is a real full Maven/GitHub Actions run, not an isolated stub harness.
+- The final documentation-only commit triggers a separate workflow; inspect that workflow before claiming the documentation HEAD is green.
+
+### Hydrology acceptance gaps (NOT complete)
+
+1. **Durability and epoch lifecycle:** This new lagged operator is opt-in and noncommitting. Its deferred post-season lake-to-lake arrivals must be persisted with lake storage and receipt identities in an authoritative single-writer checkpoint before advancing another season; otherwise callers could lose or double-consume water on restart. Automatic region loading, coupled water/sediment receipt delivery, seasonal forcing and riverbed commits remain to be joined into one verified lifecycle.
+2. **Physics:** Travel is an explicit integer number of seasonal slices, **not** calibrated river velocity, channel travel time or a flood-wave solver. Real climate storm schedules, temperature/energy-calibrated evaporation, backwater, groundwater, lake overflow hydraulics and multiple independently modeled spillways remain unfinished.
+3. **Planetary routing and topology:** Known global drainage and verified mouths are caller supplied. No automatic planetary outlet/catchment discovery, mixed-resolution seasonal area remapping, dynamic lake-basin ownership across tiles or safe migration of water/sediment across changing drainage routes.
+4. **Erosion and distributed correctness:** Cross-region sediment exchange during authoritative riverbed epochs, topology-aware sediment migration, durable distributed writer fencing, global atomic transactions, replay-history compaction and planetary crash/fault-injection/endurance acceptance remain unfinished.
+
+**Safety:** Changes are restricted to this feature branch and hydrology implementation/tests/docs. No merge, PR, main/other branch write, production deployment or paid infrastructure change. Continue outstanding hydrology tasks before other world layers.
