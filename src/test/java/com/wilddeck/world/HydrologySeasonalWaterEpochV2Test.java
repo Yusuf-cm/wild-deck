@@ -163,4 +163,48 @@ class HydrologySeasonalWaterEpochV2Test {
         assertEquals(Map.of(M,2.0),next.state().dischargedM3());
         assertEquals(0.0,next.newOceanDischargeM3().get(M),0.0);
     }
+
+    @Test void unloadedBoundaryDefersReceiptAndOldWaterWithoutFabricatingOcean() {
+        var first=initial(3,4);
+        var parked=HydrologySeasonalWaterEpochV2.prepareUniform(
+            first,runoff(5,2),lakes(0),2,edges(),Set.of(A,B,M),Set.of(M));
+        assertEquals(Map.of(M,2.0),parked.state().dischargedM3());
+        assertEquals(Map.of(B,3.0,C,3.0),parked.state().lakes().pendingM3());
+        assertTrue(parked.claimedM3().isEmpty());
+        assertFalse(HydrologyCheckpointV2.restoreInbox(parked.checkpoint())
+            .snapshot().delivered().contains(new HydrologyTransferLedgerV2.Key(0,B,C)));
+        var arrived=HydrologySeasonalWaterEpochV2.prepareUniform(
+            parked.checkpoint(),runoff(0,2),lakes(2),2,edges(),loaded(),Set.of(M));
+        assertEquals(Map.of(M,14.0),arrived.state().dischargedM3());
+        assertTrue(arrived.state().lakes().pendingM3().isEmpty());
+        assertEquals(Map.of(C,4.0),arrived.claimedM3());
+    }
+
+    @Test void priorLakeInletWaterIsNotRecountedAsRain() {
+        var inbox=new HydrologyEpochInboxV2();
+        var old=new HydrologySeasonalLakeCarryoverStateV2.State(
+            "world",0,Map.of(A,0.0),Map.of(A,4.0));
+        var first=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(old),inbox);
+        var next=HydrologySeasonalWaterEpochV2.prepareUniform(
+            first,runoff(5,2),lakes(0),2,edges(),loaded(),Set.of(M));
+        assertEquals(9.0,next.lakeStep().result().lakeInflowM3().get(A),1e-12);
+        assertEquals(5.0,next.lakeStep().result().seasonalRunoffM3()-2.0,1e-12);
+        assertEquals(Map.of(M,2.0),next.state().dischargedM3());
+        assertEquals(Map.of(B,7.0),next.state().lakes().pendingM3());
+    }
+
+    @Test void staleReceiptAppendCannotBeSilentlyLostBySeasonalCommit() throws IOException {
+        var file=directory.resolve("race.chk");
+        var first=initial(3,0);
+        HydrologyCheckpointStoreV2.save(file,first);
+        var inbox=HydrologyCheckpointV2.restoreInbox(first);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(0,B,C),4.0);
+        var appended=HydrologyCheckpointV2.capture(0,first.worldState(),inbox);
+        HydrologyCheckpointStoreV2.saveIncoming(file,appended);
+        assertThrows(IOException.class,()->
+            HydrologySeasonalWaterEpochV2.commitUniform(
+                file,first,runoff(5,2),lakes(0),2,edges(),loaded(),Set.of(M)));
+        assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
+    }
 }
