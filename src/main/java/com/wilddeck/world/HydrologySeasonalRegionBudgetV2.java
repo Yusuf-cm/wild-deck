@@ -35,6 +35,20 @@ public final class HydrologySeasonalRegionBudgetV2 {
         }
 
         /**
+         * Route audited seasonal runoff through a caller-supplied global
+         * drainage network that may include known but unloaded vertices.
+         * Only independently verified global mouths receive stable catchment
+         * IDs. Unknown terrain remains pending; no extra water is injected.
+         */
+        public HydrologySeasonalGlobalRoutingV2.Result routeKnownNetwork(
+                Map<GlobalHydrologyAddressV2.Sample,
+                    GlobalHydrologyAddressV2.Sample> knownDownstream,
+                Set<GlobalHydrologyAddressV2.Sample> verifiedGlobalMouths) {
+            return HydrologySeasonalGlobalRoutingV2.route(
+                this,knownDownstream,verifiedGlobalMouths);
+        }
+
+        /**
          * Route exactly the audited regional runoff sources through one
          * canonical flow graph. A downstream address outside the loaded
          * seasonal inventory is retained as a pending frontier, not invented
