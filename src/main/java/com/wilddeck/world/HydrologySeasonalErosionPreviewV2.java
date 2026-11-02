@@ -84,7 +84,7 @@ public final class HydrologySeasonalErosionPreviewV2 {
            !weather.keySet().containsAll(snowSoil.cells().keySet()))
             throw new IllegalArgumentException("Incomplete seasonal erosion forcing");
         HydrologySphericalAreaContractV2.verifyWeather(weather,radiusMeters);
-        var season=HydrologySnowSoilStateV2.advance(snowSoil,weather);
+        var season=HydrologySnowSoilStateV2.advanceAudited(snowSoil,weather);
         return new ForcedPreview(season,calculate(
             previous,addresses,width,height,seed,season,radiusMeters,
             sedimentDensity,erosionStrength,maximumCut,
