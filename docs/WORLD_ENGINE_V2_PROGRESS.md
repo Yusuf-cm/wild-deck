@@ -2656,3 +2656,31 @@ The corrected snapshot test fixture commit `491f6cf9b1422d78be68435f1d43b9483cd6
 
 
 **Final follow-up verification:** [GitHub Actions run 41513743199](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513743199) completed **successfully** for documentation commit `17d27314c5b91b16dff8448b94dddc507c8cd167`: **1,213 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including **8/8** new snow/soil-water tests. Java/world/resource/browser-save/atlas/Chromium steps also passed. The final follow-up documentation-only commit is not a new implementation acceptance claim. Hydrology remains incomplete for the explicit gaps above.
+
+
+## 2026-11-02 — Weather-forced unloaded snow/soil and durable deferred runoff
+
+**Scope:** `Yusuf-cm/wild-deck` / `feature/world-engine-v2` exclusively. Started at `ad9b7c2094370d36cfabddf7b94ed42dff433a26`; [baseline CI 41513994974](https://github.com/Yusuf-cm/wild-deck/actions/runs/41513994974) **PASSED 1,213 JUnit tests** and the complete world/browser workflow. No baseline failure.
+
+### Implementation
+
+1. Added opt-in `prepareStreamingUniform`, `prepareStreamingScheduled`, `commitStreamingUniform` and `commitStreamingScheduled` to `HydrologySeasonalSnowSoilWaterEpochV2`. Existing strict methods continue rejecting unloaded persisted snow/soil cells. Streaming requires independently supplied seasonal forcing for **every loaded sample AND every persisted snow/soil sample**, even if its terrain is unloaded; unknown unloaded forcing owners are rejected. This explicitly advances snow/soil stores while terrain is unloaded, rather than freezing their seasonal state or inventing unobserved weather.
+2. Loaded cells' audited runoff is routed through the topology-fenced atlas as before. Positive runoff generated at **unloaded** persisted cells is instead merged with previously conserved pending frontier water inside the same local candidate checkpoint. Zero runoff is not turned into a phantom pending receipt. When the cell later loads, existing verified drainage/mouth routing can settle the deferred water. The old pending and new runoff are never separately injected as rainfall.
+3. The combined snow/soil + lake/frontier/ocean audit subtracts freshly deferred runoff from old-water routing inputs, because it is already accounted for by this epoch's precipitation and snow/soil stores. The atomic checkpoint retains snow/soil stores, pending water, lake storage, cumulative ocean discharge and receipt delivery markers together. Cross-resolution duplicate physical owners, invalid area, missing weather and stale writes remain rejected.
+4. Six new integration/regression tests cover unloaded snowfall and melt, repeated deferred rainfall and eventual ocean settlement, receipt confluence exactly once, missing/extra forcing guards and strict-mode compatibility, scheduled/uniform equivalence, and restart/stale-writer protection.
+
+### Verification and commits
+
+- `6ebae99fba18e19f6b9e25fc1dcdd277b67a546e` — streaming snow/soil and deferred runoff; [CI 41522737447](https://github.com/Yusuf-cm/wild-deck/actions/runs/41522737447) passed.
+- `c10c41a5f5057017769d11a4f9b4023be167d715` — six new tests; [CI 41522798035](https://github.com/Yusuf-cm/wild-deck/actions/runs/41522798035) **FAILED 3 test-fixture errors**, not a compilation failure: two fixtures omitted required weather for a persisted, now-unloaded cell; one receipt source was not geographically adjacent.
+- `d1f833641aa7bc09547dbae51f13e47a7511067d` — suppress zero-volume pending frontier entries.
+- `48547ebbb759c7674391dd945ef33204032ee7de` and `20482610feb001063e6c23d8c29df0e3d1091d7d` — correct test forcing ownership and receipt adjacency. **Final full CI must be verified separately; no pass claimed for these commits here.**
+
+### Still unfinished (hydrology NOT complete)
+
+1. This is an **opt-in, caller-forced streaming step**. It cannot infer weather for unvisited terrain or simulate newly discovered cells until supplied with forcing. The complete spherical atlas and loaded set remain caller-authenticated. No automatic live-world streaming scheduler.
+2. No globally atomic climate/snow/soil/water/**sediment/riverbed/terrain** epoch, safe drainage-topology migration, or distributed sender acknowledgement. Local checkpoint atomicity is not a distributed transaction.
+3. No calibrated river velocities, exact residual cross-season lake spill travel times, groundwater/backwater, multiple spillways, mixed-resolution area remapping, or physically calibrated erosion/flood dynamics.
+4. No planet-scale multi-season conservation/endurance/fault-injection acceptance or safe ledger compaction. Existing finite-double precision limits remain.
+
+**Safety:** Only the feature branch was modified. No merge, PR, main/other-branch changes, production operations or paid infrastructure changes. Hydrology remains the sole priority.
