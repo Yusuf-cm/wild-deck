@@ -304,4 +304,23 @@ class HydrologySeasonalErosionPreviewV2Test {
                 capacity(),Set.of(24),
                 Map.of(addresses.get(0),Double.MIN_VALUE),Map.of()));
     }
+
+    @Test void checkedWeatherForcingCanCarryAuthenticatedSedimentSeparately() {
+        var addresses=window();
+        var source=addresses.get(0);
+        var weather=new LinkedHashMap<GlobalHydrologyAddressV2.Sample,
+            HydrologySnowSoilStateV2.Forcing>();
+        for(var address:addresses)
+            weather.put(address,HydrologySnowSoilStateV2.Forcing.forSphericalCell(
+                address,RADIUS,0,5,0,0,1,10));
+        var result=HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+            new HydrologyTerrainOverlayV2.State("world",Map.of()),
+            addresses,5,5,seed(),new HydrologySnowSoilStateV2.State("world",Map.of()),
+            weather,RADIUS,2_000,0,0,new double[25],Set.of(24),
+            Map.of(source,100.0),Map.of(source,2_000.0));
+        assertEquals(0,result.season().runoffVolume(),0);
+        assertEquals(100,result.erosion().terminalVolume(),1e-6);
+        assertEquals(2_000,result.erosion().terrain().landscape().importedMass(),0);
+        assertEquals(0,result.erosion().terrain().landscape().erodedMass(),0);
+    }
 }
