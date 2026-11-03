@@ -3040,7 +3040,7 @@ This final verification paragraph is documentation-only and its own new commit w
 - `6a703d9b9a726eaaadd199d00ee5d4ffb4d17192` — reverse-order fleet and alias tests.
 - `1835a79c40a5567c7cc1d35590d9171235042cf1` — complete-fleet recovery lock assertions. **[Actions 41599011249](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599011249) PASSED: 1,285 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including 5/5 new CAS tests and 4/4 network recovery tests. Full GitHub Actions workflow passed.
 - `655ff6e8b5a67c951150615c71267e108d9edc99` — corrected checkpoint CAS documentation. **[Actions 41599037541](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599037541) PASSED** full workflow.
-- `9aad63c6a05ad4ca5132a11c63e6f2bf2db0a452` — final adjacent nonpolar receipt fixture refinement; **CI verification still pending at time of this entry**, do not extrapolate earlier green workflows to this HEAD.
+- `9aad63c6a05ad4ca5132a11c63e6f2bf2db0a452` — final adjacent nonpolar receipt fixture refinement; **[Actions 41599058060](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599058060) PASSED** on the final code/test HEAD: full Maven/JUnit and world/browser workflow passed. The separate documentation HEAD still requires its own CI conclusion.
 
 ### Remaining hydrology acceptance gaps
 
