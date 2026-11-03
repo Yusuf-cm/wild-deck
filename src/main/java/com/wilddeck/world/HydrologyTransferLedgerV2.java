@@ -50,8 +50,8 @@ public final class HydrologyTransferLedgerV2 {
         for(var entry:received.entrySet()) {
             if(entry.getKey().epoch()!=epoch)continue;
             var destination=entry.getKey().to();
-            double total=totals.getOrDefault(destination,0.0)+entry.getValue();
-            if(!Double.isFinite(total))throw new IllegalArgumentException("Transfer overflow");
+            double total=HydrologyWaterVolumeAdditionV2.add(
+                totals.getOrDefault(destination,0.0),entry.getValue());
             totals.put(destination,total);
         }
         return Collections.unmodifiableMap(totals);
