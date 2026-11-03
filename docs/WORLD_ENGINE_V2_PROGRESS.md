@@ -2923,3 +2923,31 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Physics and scale:** Multiple lake spillways, groundwater, backwater, transient flood hydraulics, calibrated river velocities/climate, global sediment/erosion commits, large-world endurance/fault injection, and safe transfer-history compaction remain outstanding.
 
 **Safety:** No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. The documentation commit itself requires a separate CI result before calling the final documentation HEAD green.
+
+
+## 2026-11-03 — Opt-in durable fleet replay into timed seasonal receiver (hydrology only)
+
+**Scope:** `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Baseline [Actions 41575542538](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575542538) **PASSED** at `f66d626c43d91bb09c6e84a062acaeb0435e5942`.
+
+### Implemented
+
+1. Added `HydrologyTimedBoundaryFleetRecoveryV2`: preflight loads the complete caller-supplied durable sender fleet and the exact receiver checkpoint; the existing fleet audit authenticates sender journal edges against the complete supplied atlas, rejects cross-sender ID/physical-owner collisions and finds transfers absent from BOTH pending and settled receiver ledgers. The helper then prepares either uniform or chronologically scheduled seasonal water forcing using only those missing transfers, and can atomically CAS the receiver-local transit + seasonal water checkpoint. Recovered water enters transit/pending inventory, **not rainfall**, and an already received ID is not debited or delivered twice.
+2. Hardened `HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints` to reject hard-linked/symlinked sender checkpoint aliases via `Files.isSameFile` (normalized paths alone cannot detect this double-counting). Also rejects sender aliases of the receiver checkpoint.
+3. Added four fleet recovery integration tests (two-sender unloaded-to-loaded delivery, once-only rainfall separation, strict foreign-receiver rejection, scheduled lake path without lakes and stale receiver CAS, mixed-resolution duplicate sender ownership) and one hard-link alias regression.
+
+### Commits and verification
+
+- `5d5bb8b3cd3ee903612a62506d5aa21907d639a1` — durable fleet-to-seasonal recovery implementation. [Actions 41580090370](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580090370) **PASSED** on implementation-only HEAD.
+- `3d3083f4805cd294b1b9a37e4db24138392f4c02` — four new recovery tests.
+- `4e26d6c612107b5b30ca9625f497f855d220bd0b` — physical checkpoint alias guard.
+- `5ae2a2cef0654dae280b9318ea4149b6f29c8352` — hard-link alias test.
+- `2c560ac4788adadb198a7343a49a690af011a3ac` — correct two-sender integration fixture to select two verified edges that both terminate at the subsequently loaded outlet. Intermediate [Actions 41580137196](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580137196) failed one test because the original fixture chose different downstream destinations; this correction addresses that failure.
+- [Actions 41580175693](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580175693) had completed Maven tests, world experiment, resource replay, browser save and atlas export successfully when this section was written; **the complete workflow and final documentation HEAD require independent verification**. Do not call the entire run green from an in-progress workflow.
+
+### Explicit remaining acceptance gaps
+
+- The helper writes **only one receiver-local checkpoint**. Sender journals are independently durable; there is **no globally atomic sender/receiver transaction, sender acknowledgement, distributed lock or safe history compaction**. The caller must authenticate/quiesce all senders and atlas and retain sender journals.
+- Recovered transfers use caller-authenticated complete drainage routes and due ticks. No automatic live river-source debit, calibrated velocity, global topology migration of in-flight water/sediment, or incremental unknown-terrain priority-flood.
+- Snow/soil, lakes, riverbed, sediment, terrain and all receivers are **not** one globally atomic world epoch. Mixed-resolution store migration, multiple spillways, groundwater/backwater, flood hydraulics, climate calibration, planet-scale conservation/fault injection and distributed CAS remain unfinished.
+
+**Safety:** No merge, PR, other-branch/main write, production or paid infrastructure change. Continue hydrology before other layers.
