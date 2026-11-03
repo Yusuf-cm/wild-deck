@@ -185,6 +185,8 @@ class HydrologySeasonalPendingOutletV2Test {
             assertEquals(parked.inputM3(),continued.outletTotalM3(),1e-12);
         } finally {
             java.nio.file.Files.deleteIfExists(file);
+            java.nio.file.Files.deleteIfExists(file.resolveSibling(
+                "." + file.getFileName() + ".hydrology.lock"));
             java.nio.file.Files.deleteIfExists(file.getParent());
         }
     }
