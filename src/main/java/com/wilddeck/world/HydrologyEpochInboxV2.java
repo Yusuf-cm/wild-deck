@@ -80,12 +80,28 @@ public final class HydrologyEpochInboxV2 {
         if(epoch<0)throw new IllegalArgumentException("Invalid epoch");
         Objects.requireNonNull(loaded);
         if(consumed.contains(epoch))throw new IllegalStateException("Epoch already consumed");
+        // Loading a coarse and a fine alias of one physical vertex must not
+        // make two receivers for the same water. A cross-resolution receipt
+        // requires explicit remapping, not an indefinitely parked transfer.
+        var owners=new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,
+            GlobalHydrologyAddressV2.Sample>();
+        for(var address:loaded) {
+            Objects.requireNonNull(address);
+            if(!HydrologySphericalTopologyV2.isCanonical(address) ||
+                owners.putIfAbsent(HydrologyGlobalCatchmentsV2.coordinate(address),address)!=null)
+                throw new IllegalArgumentException("Duplicate or noncanonical loaded water vertex");
+        }
         var totals=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         var ready=new ArrayList<HydrologyTransferLedgerV2.Key>();
         for(var entry:ledger.snapshot().entrySet()){
             var key=entry.getKey();
-            if(key.epoch()>epoch||delivered.contains(key)||!loaded.contains(key.to()))continue;
+            if(key.epoch()>epoch||delivered.contains(key))continue;
+            var owner=owners.get(HydrologyGlobalCatchmentsV2.coordinate(
+                HydrologySphericalTopologyV2.canonical(key.to())));
+            if(owner==null)continue;
+            if(!key.to().equals(owner))
+                throw new IllegalArgumentException("Water receipt requires physical resolution migration");
             double sum=HydrologyWaterVolumeAdditionV2.add(
                 totals.getOrDefault(key.to(),0.0),entry.getValue());
             totals.put(key.to(),sum);
