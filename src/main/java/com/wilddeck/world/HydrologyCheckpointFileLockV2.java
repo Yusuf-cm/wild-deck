@@ -5,6 +5,11 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -20,6 +25,33 @@ final class HydrologyCheckpointFileLockV2 {
 
     @FunctionalInterface
     interface Operation<T> { T run() throws IOException; }
+
+    /**
+     * Hold an entire caller-authenticated local checkpoint fleet while
+     * validating it and committing one receiver. Deterministic acquisition
+     * order prevents lock-order inversion between cooperating JVM writers.
+     * Every path must be distinct; hard-link and symlink checks remain in
+     * withLock. This is not a distributed transaction or global lease.
+     */
+    static <T> T withLocks(Collection<Path> files, Operation<T> operation)
+            throws IOException {
+        Objects.requireNonNull(files);
+        Objects.requireNonNull(operation);
+        var ordered = new TreeSet<Path>(Comparator.comparing(Path::toString));
+        for (var file : files) {
+            Path normalized = Objects.requireNonNull(file).toAbsolutePath().normalize();
+            if (!ordered.add(normalized))
+                throw new IOException("Duplicate checkpoint in local lock fleet");
+        }
+        return withLocksOrdered(new ArrayList<>(ordered), 0, operation);
+    }
+
+    private static <T> T withLocksOrdered(List<Path> files, int index,
+            Operation<T> operation) throws IOException {
+        if (index == files.size()) return operation.run();
+        return withLock(files.get(index),
+            () -> withLocksOrdered(files, index + 1, operation));
+    }
 
     static <T> T withLock(Path file, Operation<T> operation) throws IOException {
         Objects.requireNonNull(file);
