@@ -2885,3 +2885,12 @@ The file-based sender recovery read now verifies that the embedded journal epoch
 - `8b1ffdafb871cd8f1ee1236cf0535f99ec1dab30` — recovery epoch consistency guard.
 - `939af24bee13c4e914e554d8668ddef009f293b8` — eleventh JUnit regression method for forged sender checkpoint epochs.
 - [Actions 41568444030](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568444030) **PASSED** for the earlier geodesic sender test HEAD. The new recovery guard and eleventh test require their own completed CI before acceptance.
+
+
+### Final verified acceptance for this sender/travel/recovery slice
+
+**[GitHub Actions 41568616363](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568616363) PASSED** on documentation HEAD `2a95a90881ba6f79605afcc6c480e85c83a278c5` after the recovery epoch guard and its test. The workflow's Maven logs show **1,254 JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**; **11/11** tests in `HydrologyTimedBoundarySenderV2Test` passed. The workflow also passed the smallest world experiment, finite resource replay, browser save controls, portable atlas export, and real-browser atlas verification.
+
+All implementation and regression commits through `939af24bee13c4e914e554d8668ddef009f293b8` are included in this passing run. This verifies the **opt-in local sender journal, geometric travel planner, and read-only missing-receiver replay planning** under the tested cases. It does **not** establish distributed sender/receiver atomicity, authoritative live-source debit, safe arbitrary topology migration, calibrated hydraulic travel times, or global water/sediment/terrain conservation. Those acceptance gaps remain open.
+
+This final verification paragraph is documentation-only and its own new commit workflow must be checked separately before calling the documentation HEAD green.
