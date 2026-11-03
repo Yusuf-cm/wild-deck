@@ -67,7 +67,7 @@ class HydrologyCheckpointLocalCasV2Test {
         HydrologyCheckpointStoreV2.save(file, initial);
         var from = new GlobalHydrologyAddressV2.Sample(2,4,4,3);
         var a = new GlobalHydrologyAddressV2.Sample(2,4,5,3);
-        var b = new GlobalHydrologyAddressV2.Sample(2,4,6,3);
+        var b = new GlobalHydrologyAddressV2.Sample(2,4,4,4);
         var keyA = new HydrologyTransferLedgerV2.Key(1,from,a);
         var keyB = new HydrologyTransferLedgerV2.Key(1,from,b);
         var inboxA = new HydrologyEpochInboxV2();
