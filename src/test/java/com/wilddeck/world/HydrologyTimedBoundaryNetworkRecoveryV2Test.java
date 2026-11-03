@@ -157,8 +157,12 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
         assertEquals(2,prepared.transit().releasedTotalM3().doubleValue(),1e-9);
         var receiverFile=receivers.get("r0").checkpoint();
         var untouched=HydrologyCheckpointStoreV2.load(receivers.get("r1").checkpoint());
-        HydrologyCheckpointStoreV2.saveNext(
-            receiverFile,plan.expectedCheckpoints().get("r0"),prepared.checkpoint());
+        var committed=HydrologyTimedBoundaryNetworkRecoveryV2.commitUniform(
+            senders,receivers,"r0",atlas,
+            Map.of(destination,dry(destination)),Map.of(),
+            Set.of(destination),2,86400);
+        assertEquals(prepared.checkpoint(),committed.checkpoint());
+        assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(receiverFile));
         assertEquals(untouched,HydrologyCheckpointStoreV2.load(
             receivers.get("r1").checkpoint()));
         assertThrows(IOException.class,()->
@@ -190,6 +194,12 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
             plan,"r",atlas,Map.of(edge.destination(),dry(edge.destination())),
             Map.of(),Map.of(),Set.of(edge.destination()),86400);
         assertEquals(2,prepared.transit().releasedTotalM3().doubleValue(),1e-9);
+        var committed=HydrologyTimedBoundaryNetworkRecoveryV2.commitScheduled(
+            Map.of("s",senderFile),receivers,"r",atlas,
+            Map.of(edge.destination(),dry(edge.destination())),Map.of(),Map.of(),
+            Set.of(edge.destination()),86400);
+        assertEquals(prepared.checkpoint(),committed.checkpoint());
+        assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(receiverFile));
         var alias=directory.resolve("alias.chk");
         Files.createLink(alias,senderFile);
         assertThrows(IllegalArgumentException.class,()->
@@ -197,6 +207,6 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
                 Map.of("s",senderFile,"alias",alias),receivers,atlas));
         assertEquals(first.epoch()+1,
             HydrologyCheckpointStoreV2.load(senderFile).epoch());
-        assertEquals(0,HydrologyCheckpointStoreV2.load(receiverFile).epoch());
+        assertEquals(1,HydrologyCheckpointStoreV2.load(receiverFile).epoch());
     }
 }
