@@ -2791,7 +2791,7 @@ The documentation-only follow-up commit must be checked separately before callin
 
 - `603bf748a2203214721233b75b716c202a2d465c` — chronological timed-seasonal integration and season/tick guard; [Actions 41555340756](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555340756) **PASSED**.
 - `b3e4209e85a146057c1214904080a56b12d7f56a` — scheduled lake/restart and clock-consistency tests; [Actions 41555370973](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555370973) **PASSED**.
-- `39ef070d92e4deda4c82c9d8c3139a087289ad48` — fail-closed pending-water precision guard; [Actions 41555394385](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555394385) was **in progress** at documentation preparation, so no pass claimed for that individual workflow.
+- `39ef070d92e4deda4c82c9d8c3139a087289ad48` — fail-closed pending-water precision guard; [Actions 41555394385](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555394385) **PASSED**.
 - `7fd4def13089ab03127fba92488fe7bf22494ec4` — precision-loss integration regression; [Actions 41555410813](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555410813) **PASSED** with both implementation and regression tests. This is the verified code HEAD before the documentation-only commit.
 
 ### Remaining hydrology acceptance gaps
