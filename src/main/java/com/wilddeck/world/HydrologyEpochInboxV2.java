@@ -53,6 +53,23 @@ public final class HydrologyEpochInboxV2 {
         return ledger.accept(key,flow);
     }
 
+
+    /**
+     * Stage a complete water receipt batch without partially accepting a
+     * valid prefix when a later transfer is invalid or already consumed.
+     * Returns the number of newly recorded edges, not the replay count.
+     */
+    public synchronized int receiveBatch(
+            Map<HydrologyTransferLedgerV2.Key,Double> incoming) {
+        Objects.requireNonNull(incoming);
+        for (var key : incoming.keySet()) {
+            Objects.requireNonNull(key);
+            if (consumed.contains(key.epoch()))
+                throw new IllegalStateException("Cannot add water to consumed epoch");
+        }
+        return ledger.acceptBatch(incoming);
+    }
+
     /**
      * Returns the epoch's accumulated incoming water once. A second claim
      * fails rather than reinjecting water into the next solve.

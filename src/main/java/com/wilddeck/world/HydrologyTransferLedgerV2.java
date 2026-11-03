@@ -61,6 +61,46 @@ public final class HydrologyTransferLedgerV2 {
         return true;
     }
 
+
+    /**
+     * Validate an unordered multi-sender batch before changing ANY receipt.
+     * An invalid late entry, conflicting replay or physical-source fork
+     * leaves the original ledger untouched. Return the number of new edges.
+     * This does not authenticate sender debits or acknowledge delivery.
+     */
+    public synchronized int acceptBatch(Map<Key,Double> incoming) {
+        Objects.requireNonNull(incoming);
+        var ordered = new TreeMap<Key,Double>(ORDER);
+        for (var entry : incoming.entrySet()) {
+            var key = Objects.requireNonNull(entry.getKey());
+            var flow = Objects.requireNonNull(entry.getValue());
+            if (!Double.isFinite(flow) || flow < 0)
+                throw new IllegalArgumentException("Invalid transfer flow");
+            ordered.put(key,flow);
+        }
+        var owners = new HashMap<>(sourceOwners);
+        var additions = new TreeMap<Key,Double>(ORDER);
+        for (var entry : ordered.entrySet()) {
+            var key = entry.getKey();
+            var flow = entry.getValue();
+            var existing = received.get(key);
+            if (existing != null) {
+                if (Double.compare(existing,flow) != 0)
+                    throw new IllegalArgumentException("Conflicting transfer replay");
+                continue;
+            }
+            var prior = owners.putIfAbsent(origin(key),key);
+            if (prior != null && !prior.equals(key))
+                throw new IllegalArgumentException(
+                    "Physical water source already discharged this epoch");
+            additions.put(key,flow);
+        }
+        received.putAll(additions);
+        for (var key : additions.keySet())
+            sourceOwners.put(origin(key),key);
+        return additions.size();
+    }
+
     public synchronized Map<GlobalHydrologyAddressV2.Sample,Double> incoming(long epoch) {
         if(epoch<0)throw new IllegalArgumentException("Invalid epoch");
         var totals=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(

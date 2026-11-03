@@ -49,16 +49,36 @@ public final class HydrologyWorldRunnerV2 {
     public synchronized boolean receive(HydrologyTransferLedgerV2.Key key,double flow)
             throws IOException {
         Objects.requireNonNull(key);
-        if(key.epoch()<=last.epoch())
-            throw new IllegalArgumentException("Transfer targets committed epoch");
+        return receiveBatch(Map.of(key,flow)) != 0;
+    }
+
+    /**
+     * Persist a multi-sender water receipt batch in ONE same-epoch checkpoint.
+     * All edges are checked before the local file is replaced. Exact replays
+     * are no-ops; stale writers and physical source forks fail closed.
+     * This is local cooperative-file atomicity, not a distributed sender
+     * debit, durable remote acknowledgment, or multi-region transaction.
+     */
+    public synchronized int receiveBatch(
+            Map<HydrologyTransferLedgerV2.Key,Double> incoming)
+            throws IOException {
+        Objects.requireNonNull(incoming);
+        for (var key : incoming.keySet()) {
+            Objects.requireNonNull(key);
+            if (key.epoch() <= last.epoch())
+                throw new IllegalArgumentException(
+                    "Transfer targets committed epoch");
+        }
         ensureFresh();
-        var staged=HydrologyEpochInboxV2.restore(inbox.snapshot());
-        if(!staged.receive(key,flow))return false;
-        var checkpoint=HydrologyCheckpointV2.capture(last.epoch(),last.worldState(),staged);
+        var staged = HydrologyEpochInboxV2.restore(inbox.snapshot());
+        int added = staged.receiveBatch(incoming);
+        if (added == 0) return 0;
+        var checkpoint = HydrologyCheckpointV2.capture(
+            last.epoch(),last.worldState(),staged);
         HydrologyCheckpointStoreV2.saveIncoming(checkpointPath,checkpoint);
-        inbox=staged;
-        last=checkpoint;
-        return true;
+        inbox = staged;
+        last = checkpoint;
+        return added;
     }
 
     /**
