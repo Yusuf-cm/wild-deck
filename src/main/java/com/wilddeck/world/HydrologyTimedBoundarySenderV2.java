@@ -181,7 +181,10 @@ public final class HydrologyTimedBoundarySenderV2 {
     public static List<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> missingAtReceiver(
             Path senderFile, Path receiverFile,
             HydrologySphericalRouteAtlasV2 atlas) throws IOException {
-        var sender = decode(HydrologyCheckpointStoreV2.load(senderFile).worldState());
+        var senderCheckpoint = HydrologyCheckpointStoreV2.load(senderFile);
+        var sender = decode(senderCheckpoint.worldState());
+        if (sender.epoch() != senderCheckpoint.epoch())
+            throw new IllegalArgumentException("Sender recovery checkpoint epoch mismatch");
         var receiverCheckpoint = HydrologyCheckpointStoreV2.load(receiverFile);
         var receiver = HydrologyTimedTransitLedgerV2.decode(
             HydrologyTimedSeasonalEpochV2.decode(
