@@ -60,13 +60,11 @@ public final class HydrologySeasonalSedimentCandidateV2 {
 
         var previousLandscape = HydrologySeasonalLandscapeStateV2.decode(stored.world());
         var owners = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
-        var loaded = new HashSet<GlobalHydrologyAddressV2.Sample>();
         for (var address : addresses) {
             Objects.requireNonNull(address);
             if (!HydrologySphericalTopologyV2.isCanonical(address) ||
                 !owners.add(HydrologyGlobalCatchmentsV2.coordinate(address)))
                 throw new IllegalArgumentException("Duplicate or noncanonical sediment window owner");
-            loaded.add(address);
         }
         var claimed = HydrologySedimentReceiptInboxV2.claimAvailable(
             sediment, nextEpoch, addresses);
@@ -74,8 +72,8 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             seed, previousLandscape.terrain());
         for (var receipt : claimed.snapshot().delivered()) {
             if (sediment.delivered().contains(receipt)) continue;
-            if (loaded.contains(receipt.from()) ||
-                !loaded.contains(receipt.to()) ||
+            if (owners.contains(HydrologyGlobalCatchmentsV2.coordinate(receipt.from())) ||
+                !owners.contains(HydrologyGlobalCatchmentsV2.coordinate(receipt.to())) ||
                 !(oldHeights.at(receipt.from()) > oldHeights.at(receipt.to())))
                 throw new IllegalArgumentException("Imported sediment lacks external downhill landing");
         }
