@@ -3199,3 +3199,41 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Conservation and endurance:** Water addition guards catch complete loss of a positive input, not all floating-point error. Planetary multi-season water/sediment audits, remote crash/fault injection and safe journal compaction remain unfinished.
 
 **Safety:** No merge, PR, `main`/other-branch write, production change or paid infrastructure operation. Continue hydrology before other world layers.
+
+
+## 2026-11-03 — Future-boundary route safety and independent coupled receipt audit
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Started from `69f2e9c5fe068a02e543e704dc6a77f0b9123a9d` with [baseline Java CI 41631143735](https://github.com/Yusuf-cm/wild-deck/actions/runs/41631143735) **PASSED** (1,323 tests). No baseline failure.
+
+### Implemented and verified
+
+1. `HydrologySeasonalSedimentCandidateV2` now protects **future and not-yet-delivered boundary water and sediment** at currently owned vertices, not only receipts due during the current season. It validates external physical source ownership, canonical same-resolution landing, and downhill elevation before and after erosion. Cross-resolution physical-state landings fail closed pending explicit remapping. Unloaded destinations remain pending with original receipt identities and quantities.
+2. Every outstanding in-window water **and sediment** landing is now included in the pre/post-erosion `HydrologyRouteMigrationV2` audit. A changed downstream path to a verified outlet rejects staging instead of silently stranding a future receipt. This is deliberately conservative and does **not** implement migration, authenticate the global atlas, or prove safe routing through unknown unloaded terrain.
+3. Added `HydrologySeasonalReceiptAuditV2`, a separate read-only audit automatically required for coupled water/sediment staging. It independently checks monotonic receipt delivery, unchanged receipt identities and amounts, next-epoch water/sediment markers, unique canonical external physical ownership, and exact-decimal incoming water (m³) and sediment (kg) totals against the erosion preview. The preview reconciliation uses the existing double-valued tolerance; it is **not** exact planetary mass conservation.
+4. Forged prior checkpoints that claim a future water epoch already consumed or delivered are rejected. The sediment audit uses the source epoch (not the arrival epoch) for physical-source identity. Neither this audit nor the candidate API authorizes committing a world checkpoint: remote sender journals, global outlet accounting, and topology activation remain external requirements.
+
+### Tests and CI evidence
+
+- Added **9 JUnit test methods**: future interior water/sediment source rejection (2), future cross-resolution water/sediment landing rejection (2), independent combined water/sediment import audit (1), forged water amount and sediment import budget rejection (2), forged future-delivered checkpoint rejection (1), and preservation of unloaded water/sediment pending receipts (1).
+- [Final code/test Actions 41639579807](https://github.com/Yusuf-cm/wild-deck/actions/runs/41639579807) **PASSED** on `427990a2e0a83c52e5836a6d52c93489754d0b08`: **1,332 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. The world experiment, finite resource replay, browser save verification, planet atlas export, and real-browser atlas verification passed. This evidence applies to the code/test commit; the documentation-only commit requires its own CI verification.
+
+### Commits
+
+- `d5fbc5aaed1dbc42df9c216e668c9e571260bc12` — future water/sediment landing and route protection.
+- `ac0d6b3d90ed8249741014af6afd0ffe0eedb46e` — four future ownership/remapping regressions.
+- `d678777f43944d6cb1e196a5f0aeb430579fdf62` — independent receipt and physical budget audit.
+- `6313c804a5268903aae8e9d7cc87ab0f8bfcabec` — require audit for coupled staging.
+- `4c1aaad8a25fea7b4b8e4fc42bcbcc77e7817bc0` — audit and tampering regressions.
+- `468a01ebefca6d146248e876fb3a741ada819cc5` — sediment source-epoch identity fix.
+- `f531f0714e1c94ff591a0d1f4f2acd44dce17a75` — reject future-consumed prior water checkpoint.
+- `32ac8fa450c3370177bcd39ed3f79144b0745a5a` — forged future-delivered checkpoint regression.
+- `427990a2e0a83c52e5836a6d52c93489754d0b08` — unloaded receipt preservation regression.
+
+### Remaining hydrology acceptance gaps (NOT COMPLETE)
+
+1. **Authoritative transactions:** No globally atomic sender/receiver settlement, durable distributed acknowledgments, or verified one-epoch commit of water receipts, sediment receipts, snow/soil/lake stores, riverbed/terrain changes, ocean and sediment exports. This candidate is still noncommitting. Local file locks and CAS are not distributed consensus.
+2. **Changing terrain and streaming:** Changed routes are rejected, not migrated. Unknown unloaded-region drainage, mixed-resolution physical water/sediment remapping, in-flight transfer topology migration, and globally authoritative catchment/river identities still require implementation.
+3. **Physical fidelity:** Multiple lake spillways, groundwater, backwater, calibrated river velocities, flood-wave hydraulics, and calibrated erosion/sediment physics remain unfinished.
+4. **Conservation at scale:** Exact-decimal receipt totals are checked against double-valued physical previews with tolerance; full-planet long-horizon budgets, remote fault injection, journal compaction, and crash-safe multi-writer replay remain unproven.
+
+**Safety:** Only `feature/world-engine-v2` was changed. No PR, merge, `main`/other-branch write, production operation, or paid infrastructure change. Continue unfinished hydrology before other world layers.
