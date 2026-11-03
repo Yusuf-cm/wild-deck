@@ -299,4 +299,34 @@ class HydrologySeasonalSnowSoilWaterEpochV2Test {
         assertEquals(arrived.checkpoint(),HydrologyCheckpointStoreV2.load(file));
     }
 
+
+    @Test void unloadedSeasonalRunoffCannotDisappearInHugePendingFrontier() {
+        var routes=atlas();
+        var first=initial(routes,Map.of(),
+            Map.of(M,new HydrologySnowSoilStateV2.Cell(0,0)));
+        var snow=HydrologySeasonalSnowSoilWaterEpochV2.decode(first.worldState());
+        var bound=HydrologySeasonalTopologyEpochV2.decode(snow.topologyState());
+        var outlet=HydrologySeasonalOutletSettlementV2.decode(bound.waterState());
+        var lakes=outlet.lakes();
+        var large=new HydrologySeasonalLakeCarryoverStateV2.State(
+            lakes.world(),lakes.season(),lakes.lakeStorageM3(),Map.of(M,1e16));
+        var changedTopology=HydrologySeasonalTopologyEpochV2.encode(
+            new HydrologySeasonalTopologyEpochV2.Bound(bound.snapshotId(),
+                HydrologySeasonalOutletSettlementV2.encode(
+                    new HydrologySeasonalOutletSettlementV2.State(
+                        large,outlet.dischargedM3()))));
+        var changed=new HydrologyCheckpointV2.Checkpoint(first.epoch(),
+            HydrologySeasonalSnowSoilWaterEpochV2.encode(
+                new HydrologySeasonalSnowSoilWaterEpochV2.State(
+                    snow.radiusMeters(),changedTopology,snow.snowState())),
+            first.inboxState());
+        assertThrows(IllegalArgumentException.class,()->streaming(
+            changed,routes,Map.of(B,weather(B,0,10,0),
+                M,weather(M,1,10,0)),Set.of(B)));
+        var accepted=streaming(changed,routes,
+            Map.of(B,weather(B,0,10,0),M,weather(M,128,10,0)),Set.of(B));
+        assertEquals(1e16+128,
+            accepted.water().water().state().lakes().pendingM3().get(M),0);
+    }
+
 }
