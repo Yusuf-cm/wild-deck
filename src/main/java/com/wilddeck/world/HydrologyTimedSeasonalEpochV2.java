@@ -30,6 +30,10 @@ public final class HydrologyTimedSeasonalEpochV2 {
             var queue = HydrologyTimedTransitLedgerV2.decode(transit);
             if (!snow.world().equals(queue.world()))
                 throw new IllegalArgumentException("Transit and seasonal worlds differ");
+            var topology = HydrologySeasonalTopologyEpochV2.decode(water.topologyState());
+            var outlet = HydrologySeasonalOutletSettlementV2.decode(topology.waterState());
+            if (queue.tick() != outlet.lakes().season())
+                throw new IllegalArgumentException("Transit tick and seasonal lake season differ");
         }
     }
 
@@ -95,6 +99,34 @@ public final class HydrologyTimedSeasonalEpochV2 {
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             Collection<HydrologyTimedTransitLedgerV2.Transfer> incoming,
             int slices, double durationSeconds) {
+        return prepareStreaming(expected,atlas,forcing,lakes,loaded,incoming,
+            slices,null,durationSeconds);
+    }
+
+    /** Chronological lake forcing with the same durable absolute-tick transit settlement. */
+    public static Prepared prepareStreamingScheduled(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyTimedTransitLedgerV2.Transfer> incoming,
+            double durationSeconds) {
+        return prepareStreaming(expected,atlas,forcing,lakes,loaded,incoming,
+            0,Objects.requireNonNull(schedules),durationSeconds);
+    }
+
+    private static Prepared prepareStreaming(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyTimedTransitLedgerV2.Transfer> incoming,
+            int slices,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            double durationSeconds) {
         Objects.requireNonNull(expected);
         Objects.requireNonNull(atlas);
         Objects.requireNonNull(loaded);
@@ -143,8 +175,11 @@ public final class HydrologyTimedSeasonalEpochV2 {
                 new HydrologySeasonalSnowSoilWaterEpochV2.State(
                     oldSeasonal.radiusMeters(),updatedTopology,oldSeasonal.snowState())),
             expected.inboxState());
-        var seasonal = HydrologySeasonalSnowSoilWaterEpochV2.prepareStreamingUniform(
-            inner,atlas,forcing,lakes,loaded,slices,durationSeconds);
+        var seasonal = schedules == null ?
+            HydrologySeasonalSnowSoilWaterEpochV2.prepareStreamingUniform(
+                inner,atlas,forcing,lakes,loaded,slices,durationSeconds) :
+            HydrologySeasonalSnowSoilWaterEpochV2.prepareStreamingScheduled(
+                inner,atlas,forcing,lakes,schedules,loaded,durationSeconds);
         if (seasonal.checkpoint().epoch() != next ||
             transit.state().tick() != next)
             throw new IllegalArgumentException("Nonatomic seasonal/transit tick");
@@ -169,4 +204,21 @@ public final class HydrologyTimedSeasonalEpochV2 {
         HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
         return result;
     }
+
+    /** Persist chronological lake forcing and timed transit in one local CAS checkpoint. */
+    public static Prepared commitStreamingScheduled(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyTimedTransitLedgerV2.Transfer> incoming,
+            double durationSeconds) throws IOException {
+        var result = prepareStreamingScheduled(expected,atlas,forcing,lakes,
+            schedules,loaded,incoming,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
+        return result;
+    }
+
 }
