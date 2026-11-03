@@ -229,4 +229,37 @@ class HydrologyTimedSeasonalEpochV2Test {
                     HydrologyTimedTransitLedgerV2.empty("world"))));
     }
 
+    @Test void rejectsPrecisionLossWhenTransitJoinsLargeExistingPendingWater() {
+        var atlas=atlas();
+        var first=initial(atlas);
+        var outer=HydrologyTimedSeasonalEpochV2.decode(first.worldState());
+        var snow=HydrologySeasonalSnowSoilWaterEpochV2.decode(outer.seasonal());
+        var topology=HydrologySeasonalTopologyEpochV2.decode(snow.topologyState());
+        var outlet=HydrologySeasonalOutletSettlementV2.decode(topology.waterState());
+        var lake=outlet.lakes();
+        var enlarged=new HydrologySeasonalLakeCarryoverStateV2.State(
+            lake.world(),lake.season(),lake.lakeStorageM3(),Map.of(M,1e16));
+        var rebuilt=HydrologySeasonalTopologyEpochV2.encode(
+            new HydrologySeasonalTopologyEpochV2.Bound(topology.snapshotId(),
+                HydrologySeasonalOutletSettlementV2.encode(
+                    new HydrologySeasonalOutletSettlementV2.State(
+                        enlarged,outlet.dischargedM3()))));
+        var forgedSeasonal=HydrologySeasonalSnowSoilWaterEpochV2.encode(
+            new HydrologySeasonalSnowSoilWaterEpochV2.State(
+                snow.radiusMeters(),rebuilt,snow.snowState()));
+        var candidate=new HydrologyCheckpointV2.Checkpoint(first.epoch(),
+            HydrologyTimedSeasonalEpochV2.encode(
+                new HydrologyTimedSeasonalEpochV2.State(
+                    forgedSeasonal,outer.transit())),first.inboxState());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedSeasonalEpochV2.prepareStreamingUniform(
+                candidate,atlas,Map.of(M,weather(M,0)),Map.of(),
+                Set.of(M),List.of(transfer("tiny",1,1)),2,86400));
+        // A sufficiently large transfer must still be accepted.
+        var accepted=HydrologyTimedSeasonalEpochV2.prepareStreamingUniform(
+            candidate,atlas,Map.of(M,weather(M,0)),Map.of(),
+            Set.of(M),List.of(transfer("visible",1,100)),2,86400);
+        assertEquals(100,accepted.transit().releasedTotalM3().doubleValue(),1e-9);
+    }
+
 }
