@@ -98,8 +98,7 @@ public final class HydrologyTimedBoundaryNetworkAuditV2 {
                 observedPending.add(transfer.id());
             }
             for (var transfer : transit.settled().values()) {
-                verifyReceiverTransfer(entry.getKey(),transfer,destinationOwner,
-                    receiver.assigned());
+                verifyReceiverTransfer(entry.getKey(),transfer,destinationOwner);
                 if (observed.putIfAbsent(transfer.id(),transfer) != null)
                     throw new IllegalArgumentException("Transfer duplicated across receivers");
                 observedSettled.add(transfer.id());
