@@ -2774,3 +2774,32 @@ The first integration-test CI runs failed because two **test fixtures** stopped 
 - **[GitHub Actions 41548263435](https://github.com/Yusuf-cm/wild-deck/actions/runs/41548263435) PASSED** on `f2e668f68720aa0cabe804a8ebc2097619962d92`: **1,234 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS**. All **5/5** new `HydrologyTimedSeasonalEpochV2Test` methods passed. The full workflow concluded success, including non-Maven world/browser steps. This verifies the new opt-in bridge and test corrections; it does not establish the unfinished acceptance criteria above.
 
 The documentation-only follow-up commit must be checked separately before calling its own HEAD green.
+
+
+## 2026-11-03 — Timed transit with chronological lake forcing and precision-safe settlement
+
+**Scope:** `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2` only. Starting commit `0d974addd1f07a9e3659eef81e1993f69c20532d`. Baseline [GitHub Actions 41548461515](https://github.com/Yusuf-cm/wild-deck/actions/runs/41548461515) was **PASSED** before changes.
+
+### Implemented and verified
+
+1. `HydrologyTimedSeasonalEpochV2` now supports `prepareStreamingScheduled` and `commitStreamingScheduled`. Authenticated absolute-tick water transfers are released into prior pending water, **not precipitation**, before the existing chronological lake integrator advances. The transit ledger, snow/soil, lake storage, pending spill, ocean discharge and inbox receipts share one local compare-and-swap checkpoint.
+2. Timed-seasonal state decoding now verifies the transit tick equals the nested lake season, preventing inconsistent internal clocks from being accepted as a valid checkpoint.
+3. Timed transit settlement now rejects double-precision additions that would silently discard part of an arriving transfer when joining an existing large pending-water volume. This is a **fail-closed precision guard**, not an arbitrary-precision hydraulic solver.
+4. Four JUnit tests added: scheduled/no-lake equivalence and durable stale-writer recovery; timed lake overflow with water arriving as carryover rather than rain and missing-schedule rejection; transit/season mismatch rejection; high-volume confluence precision-loss rejection and representable-transfer acceptance.
+
+**Commit and workflow evidence:**
+
+- `603bf748a2203214721233b75b716c202a2d465c` — chronological timed-seasonal integration and season/tick guard; [Actions 41555340756](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555340756) **PASSED**.
+- `b3e4209e85a146057c1214904080a56b12d7f56a` — scheduled lake/restart and clock-consistency tests; [Actions 41555370973](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555370973) **PASSED**.
+- `39ef070d92e4deda4c82c9d8c3139a087289ad48` — fail-closed pending-water precision guard; [Actions 41555394385](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555394385) was **in progress** at documentation preparation, so no pass claimed for that individual workflow.
+- `7fd4def13089ab03127fba92488fe7bf22494ec4` — precision-loss integration regression; [Actions 41555410813](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555410813) **PASSED** with both implementation and regression tests. This is the verified code HEAD before the documentation-only commit.
+
+### Remaining hydrology acceptance gaps
+
+1. **Not globally atomic:** Local checkpoint CAS does not cover distributed senders, sediment outboxes, riverbed evolution, or terrain overlay changes. No authoritative single water/sediment/terrain epoch.
+2. **Travel-time physics:** Timed transfers still use caller-authenticated due ticks rather than calibrated velocity or hydrographs. The lake integrator uses caller-defined slices and does not retain exact residual travel time between seasons.
+3. **Unloaded geography:** Complete route atlas and global outlets remain caller-verified; arbitrary unknown terrain, incremental global depression filling, and mixed-resolution water-store migration are unfinished.
+4. **Lake and river physics:** Multiple spillways, groundwater, backwater, flood hydraulics, and calibrated seasonal erosion/sediment deposition remain unfinished.
+5. **Scale and durability:** Planet-scale multi-season water/sediment endurance, distributed fault injection, bounded settled-ID history compaction and cross-process atomic acknowledgement are unverified. Precision guard rejects some valid tiny confluences rather than silently losing their water.
+
+**Safety:** Only the feature branch changed; no main/other-branch writes, PRs, merges, production operations or paid infrastructure changes. Hydrology remains the priority.
