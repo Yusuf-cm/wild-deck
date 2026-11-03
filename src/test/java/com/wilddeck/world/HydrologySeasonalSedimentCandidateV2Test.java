@@ -241,4 +241,32 @@ class HydrologySeasonalSedimentCandidateV2Test {
         assertThrows(IllegalArgumentException.class, () -> coupled(before));
         assertTrue(inbox.snapshot().delivered().isEmpty());
     }
+
+    @Test void rejectsForkedWaterDischargeFromSameSourceEpoch() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(1), 20);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,3,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,5)), 30);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertTrue(inbox.snapshot().delivered().isEmpty());
+    }
+
+    @Test void rejectsCrossResolutionAliasOfWaterSender() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,2,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,3,4)), 20);
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(1,4,1,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,1,3)), 30);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertTrue(inbox.snapshot().delivered().isEmpty());
+    }
 }
