@@ -220,4 +220,27 @@ class HydrologyTimedBoundarySenderV2Test {
         assertEquals(1,HydrologyTimedBoundaryTravelV2.plan(
             polarAtlas,List.of(b),RADIUS,100000).edges().get(0).dueTick());
     }
+    @Test void geodesicSenderCommitPersistsComputedDueTickAndPreventsDoubleDebit()
+            throws IOException {
+        var atlas=atlas(M);
+        var source=inlet(atlas,M);
+        var journey=new HydrologyTimedBoundaryTravelV2.Journey(
+            "geodesic-1",source,M,4,2,3);
+        Path file=directory.resolve("geodesic-sender.chk");
+        var initial=HydrologyTimedBoundarySenderV2.initialize(file,
+            HydrologyTimedBoundarySenderV2.empty("world",Map.of(source,5.0)));
+        var committed=HydrologyTimedBoundarySenderV2.commitJourneys(
+            file,initial,atlas,List.of(journey),RADIUS,100);
+        var expected=HydrologyTimedBoundaryTravelV2.plan(
+            atlas,List.of(journey),RADIUS,100).edges().get(0);
+        assertEquals(expected,committed.step().newlyIssued().get(0));
+        assertEquals(3,committed.step().state().availableM3().get(source),1e-9);
+        assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+        var replay=HydrologyTimedBoundarySenderV2.commitJourneys(
+            file,HydrologyCheckpointStoreV2.load(file),atlas,
+            List.of(journey),RADIUS,100);
+        assertTrue(replay.step().newlyIssued().isEmpty());
+        assertEquals(3,replay.step().state().availableM3().get(source),1e-9);
+    }
+
 }
