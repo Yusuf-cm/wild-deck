@@ -2980,3 +2980,36 @@ This final verification paragraph is documentation-only and its own new commit w
 4. Multiple lake spillways, groundwater, backwater, calibrated river velocity/flood hydraulics/climate, planet-scale multi-season conservation and crash fault injection, and safe receipt-history compaction remain unaccepted.
 
 **Safety:** No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Hydrology remains the priority.
+
+
+## 2026-11-03 — Durable multi-receiver timed-water recovery and physical ownership fencing
+
+**Scope and baseline:** Exclusively `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Starting HEAD `73e3ad8db5e86d3d541ee2d1335238f468c2aa75`; baseline [GitHub Actions 41586009385](https://github.com/Yusuf-cm/wild-deck/actions/runs/41586009385) **PASSED**. No baseline CI failure required correction.
+
+### Implemented and verified
+
+1. Added `HydrologyTimedBoundaryNetworkRecoveryV2` to derive a **deterministic, read-only per-receiver missing-transfer plan** from the complete caller-authenticated sender fleet and receiver ownership map. It reconciles all journals with `HydrologyTimedBoundaryNetworkAuditV2`, fails closed on foreign, conflicting, duplicate or unassigned transfers, and groups missing IDs by canonical **physical** destination without counting one spherical vertex twice across resolutions. Missing volumes are audited with `BigDecimal` and the plan constructor checks its total against the network audit.
+2. `planCheckpoints` loads durable sender and timed-seasonal receiver snapshots, validates embedded epochs, rejects normalized-path and physical hard-link/symlink aliases across **all** sender and receiver files, and returns the exact receiver snapshots used for planning. State-only planning is also available without disk I/O.
+3. `prepareUniform` and `prepareScheduled` prepare **one receiver** from the globally audited plan, reusing the verified seasonal timed-water integration. `commitUniform` and `commitScheduled` replan from durable files and use the existing receiver-local `saveNext` CAS to persist transit IDs and snow/soil/lake/water state together. **Only the selected receiver file is written**; sender journals and other receivers are not modified. Recovered water is not rainfall and is not debited again.
+4. Added an explicit receiver **geography fence**: loaded cells, weather forcing, lake forcing and scheduled lake inlets must belong to that receiver's exact assigned samples. A cross-resolution alias is **not** silently treated as a safe water-store migration.
+5. Added **four** JUnit regression/integration methods covering two-receiver recovery and exact missing-volume totals, already-pending IDs and unassigned destinations, durable one-receiver CAS/restart with the other receiver untouched, chronological scheduled recovery, hard-link aliases, stale receiver CAS, and cross-receiver forcing/loaded-cell rejection.
+
+### Commits and verification
+
+- `0b4f17718093c0003e0c4bbbbd0a1110925ca1ea` — initial network recovery planner.
+- `c3c194228aea51f344a594dcf651dd08f08245b1` — permit in-memory plans without durable snapshots.
+- `4875568746dee0a0647731248e99bae042baceaf` — four multi-receiver recovery tests. [Actions 41592339400](https://github.com/Yusuf-cm/wild-deck/actions/runs/41592339400) **PASSED**.
+- `1e3cb19370c001302dfa760a7b4e5419a248ef0c` — receiver-local CAS entrypoints with complete network preflight.
+- `1925ecc6fb3824e5e65f7b375491282240649302` — CAS and scheduled integration tests.
+- `b55f92f19acb24227cdbec90caea5deae2df7b82` — receiver physical-geography fence.
+- `f73f2906f1eccba7e39c64d581763a9f980698a1` — ownership rejection regression. **[Actions 41592454090](https://github.com/Yusuf-cm/wild-deck/actions/runs/41592454090) PASSED** on this full implementation/test HEAD: **1,280 Maven/JUnit tests, zero failures, errors or skips, BUILD SUCCESS**. World experiment, resource replay, browser save controls, planet atlas export and real-browser verification also passed.
+- The documentation commit itself must receive its own successful CI conclusion before its HEAD can be called green.
+
+### Remaining hydrology acceptance gaps
+
+1. **No distributed atomicity:** Each receiver-local CAS is independent. Sender and other receiver checkpoints can change between the complete-fleet preflight and the local commit. There is no distributed lock, durable sender acknowledgement, multi-file rollback, global consensus, or safe journal compaction. Callers must authenticate the **complete** fleet, route atlas and ownership, and serialize writers externally.
+2. **Physical world conservation:** The network audit reconciles sender journals with receiver transit records, **not** settled water's subsequent movement through lakes, rivers, oceans, sediment and riverbeds. Sender initial inventory remains caller-authenticated; it is not yet coupled to the live river's source inventory.
+3. **Terrain/topology:** Water, snow/soil, lake, sediment, riverbed, erosion and terrain edits are not one globally atomic epoch. Safe migration of in-flight water/sediment after arbitrary drainage edits, mixed-resolution **water-store remapping**, and incremental priority-flood through arbitrary unknown unloaded terrain remain unfinished.
+4. **Physics and scale:** Multiple lake spillways, groundwater/backwater, calibrated travel velocities and flood hydraulics, climate calibration, long-horizon planet-scale conservation/fault injection, and safe transfer-history compaction remain unaccepted.
+
+**Safety:** No PR, merge, `main` or other-branch write, production operation or paid infrastructure change. Continue outstanding hydrology work before other world layers.
