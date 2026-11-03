@@ -78,13 +78,16 @@ class HydrologySedimentReceiptInboxV2Test {
         assertEquals(-1,inbox.lastClaimedEpoch());
     }
 
-    @Test void routesToLoadedOwnerAtDifferentResolution() {
+    @Test void crossResolutionSedimentRequiresExplicitPhysicalMigration() {
         var inbox=HydrologySedimentReceiptInboxV2.receive(
             HydrologySedimentReceiptInboxV2.empty(),receipt(0,1,A,B),6);
         var alias=at(2,2,2,4);
-        var claimed=HydrologySedimentReceiptInboxV2.claimAvailable(inbox,1,List.of(alias));
-        assertEquals(6,claimed.imported().get(alias),1e-12);
-        assertFalse(claimed.imported().containsKey(B));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySedimentReceiptInboxV2.claimAvailable(inbox,1,List.of(alias)));
+        assertTrue(inbox.delivered().isEmpty());
+        assertEquals(-1,inbox.lastClaimedEpoch());
+        var exact=HydrologySedimentReceiptInboxV2.claimAvailable(inbox,1,List.of(B));
+        assertEquals(6,exact.imported().get(B),1e-12);
     }
 
     @Test void invalidEpochEdgeMassAndLateNewArrivalFailClosed() {
