@@ -92,8 +92,7 @@ public final class HydrologyTimedBoundaryNetworkAuditV2 {
                     throw new IllegalArgumentException("Duplicate physical receiver ownership");
             }
             for (var transfer : transit.pending().values()) {
-                verifyReceiverTransfer(entry.getKey(),transfer,destinationOwner,
-                    receiver.assigned());
+                verifyReceiverTransfer(entry.getKey(),transfer,destinationOwner);
                 if (observed.putIfAbsent(transfer.id(),transfer) != null)
                     throw new IllegalArgumentException("Transfer duplicated across receivers");
                 observedPending.add(transfer.id());
@@ -163,18 +162,11 @@ public final class HydrologyTimedBoundaryNetworkAuditV2 {
 
     private static void verifyReceiverTransfer(String receiver,
             HydrologyTimedTransitLedgerV2.Transfer transfer,
-            Map<HydrologyGlobalCatchmentsV2.Coordinate,String> owners,
-            Set<GlobalHydrologyAddressV2.Sample> assigned) {
-        // Ownership must be local to THIS receiver, not just to some other
-        // receiver in the supplied network.
-        boolean local = false;
-        for (var address : assigned)
-            if (HydrologyGlobalCatchmentsV2.coordinate(address)
-                    .equals(transfer.destination())) {
-                local = true;
-                break;
-            }
-        if (!local)
+            Map<HydrologyGlobalCatchmentsV2.Coordinate,String> owners) {
+        // Physical ownership must be local to this receiver, not merely
+        // somewhere in the network. Constant-time lookup avoids quadratic
+        // scans for large streaming receiver journals.
+        if (!receiver.equals(owners.get(transfer.destination())))
             throw new IllegalArgumentException("Transfer held by wrong physical receiver");
     }
 
