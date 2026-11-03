@@ -2942,7 +2942,7 @@ This final verification paragraph is documentation-only and its own new commit w
 - `4e26d6c612107b5b30ca9625f497f855d220bd0b` — physical checkpoint alias guard.
 - `5ae2a2cef0654dae280b9318ea4149b6f29c8352` — hard-link alias test.
 - `2c560ac4788adadb198a7343a49a690af011a3ac` — correct two-sender integration fixture to select two verified edges that both terminate at the subsequently loaded outlet. Intermediate [Actions 41580137196](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580137196) failed one test because the original fixture chose different downstream destinations; this correction addresses that failure.
-- [Actions 41580175693](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580175693) had completed Maven tests, world experiment, resource replay, browser save and atlas export successfully when this section was written; **the complete workflow and final documentation HEAD require independent verification**. Do not call the entire run green from an in-progress workflow.
+- **[Actions 41580175693](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580175693) PASSED** on corrected implementation/test HEAD `2c560ac4788adadb198a7343a49a690af011a3ac`: **1,270 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**, including **4/4 fleet recovery tests** and **8/8 fleet audit tests**. World experiment, finite resource replay, browser save controls, atlas export and real-browser verification all passed. This verifies the local recovery and alias guard under tested cases, **not** the globally atomic water/terrain acceptance gaps below. The documentation-only HEAD must be checked separately before claiming its CI green.
 
 ### Explicit remaining acceptance gaps
 
