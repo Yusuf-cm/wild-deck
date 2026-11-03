@@ -2865,3 +2865,14 @@ The documentation HEAD `397939e7c331cbe9ec7f2dc014ed06546e781411` had its own [w
 4. **Scale and recovery:** Planet-scale multi-season mass/sediment acceptance, distributed crash recovery, safe history compaction, and multi-process CAS remain unverified. Existing finite-double precision guards reject some otherwise valid very small transfers rather than losing mass.
 
 **Safety:** Only the requested feature branch was modified. No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. Continue hydrology before other layers.
+
+
+### Follow-up: sender-backed missing-receiver replay plan
+
+`HydrologyTimedBoundarySenderV2.missingAtReceiver` now compares the **persisted sender journal** with the receiver's persisted timed-transit ledger (pending **and** settled). It returns only transfers absent from the receiver, rejects conflicting IDs or mismatched worlds, and verifies all retained source edges against the supplied atlas. The file-based overload reads both local checkpoints without mutating them. A caller can then submit these missing transfers through the existing verified seasonal receiver path. This narrows the crash gap when sender debit commits but receiver delivery does not, without pretending the two files are one distributed transaction.
+
+- `669870ce89e419bc2478df288b0de2dba5fbea97` — read-only durable sender-to-receiver recovery plan.
+- `2c6319bccc755d61beffb7c494caae2b1706fb7f` — tenth regression method for conflicting receiver ID/world, plus sender-to-receiver file recovery assertions in the existing durable integration test.
+- Earlier complete workflows [41568383282](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568383282) and [41568432069](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568432069) **PASSED**, verifying the first eight tests and geodesic sender integration respectively. **Latest recovery code/test CI pending** at this documentation write. Do not infer a pass for the latest HEAD from those earlier workflows.
+
+**Still not provided:** automatic network transmission, authenticated remote sender ownership, receiver acknowledgment persisted back to the sender, distributed atomic settlement, or an authoritative sediment/terrain transaction. This helper only identifies replay candidates.
