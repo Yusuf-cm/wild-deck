@@ -16,12 +16,12 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.StandardOpenOption.*;
 
 /**
- * Single-writer local-file checkpoint store. World state and hydrology inbox
+ * Cooperatively locked local-file checkpoint store. World state and hydrology inbox
  * are serialized in ONE checksummed file and replaced with an atomic rename.
  * A crash before the rename leaves the old checkpoint authoritative.
  *
  * Requires a filesystem supporting atomic moves and durable file/directory
- * sync. This is not a distributed transaction, cloud object-store adapter,
+ * sync. Sidecar file locks serialize this store's local writers, but other\n * checkpoint implementations must cooperate. This is not a distributed transaction, cloud object-store adapter,
  * multiplayer lock, or transactional integration with an external database.
  */
 public final class HydrologyCheckpointStoreV2 {
@@ -32,6 +32,14 @@ public final class HydrologyCheckpointStoreV2 {
     private static final int MAX_FILE_BYTES=2*MAX_FIELD_BYTES+128;
 
     public static void save(Path destination,HydrologyCheckpointV2.Checkpoint checkpoint)
+            throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            saveUnlocked(destination,checkpoint);
+            return null;
+        });
+    }
+
+    private static void saveUnlocked(Path destination,HydrologyCheckpointV2.Checkpoint checkpoint)
             throws IOException {
         Objects.requireNonNull(destination);
         Objects.requireNonNull(checkpoint);
@@ -65,13 +73,22 @@ public final class HydrologyCheckpointStoreV2 {
     public static void saveNext(Path destination,
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            saveNextUnlocked(destination,expected,next);
+            return null;
+        });
+    }
+
+    private static void saveNextUnlocked(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
         Objects.requireNonNull(expected);
         Objects.requireNonNull(next);
         if(next.epoch()!=Math.addExact(expected.epoch(),1))
             throw new IllegalArgumentException("Expected exactly one epoch advance");
         if(!load(destination).equals(expected))
             throw new IOException("Checkpoint changed since runner loaded it");
-        save(destination,next);
+        saveUnlocked(destination,next);
     }
 
     /**
@@ -80,9 +97,18 @@ public final class HydrologyCheckpointStoreV2 {
      * change. This allows bounded discovery to survive a restart without
      * consuming water before its destination is settled.
      *
-     * Single-writer optimistic freshness only, NOT an interprocess CAS.
+     * Cooperating local writers are serialized; NOT a distributed CAS.
      */
     static void saveFloodDiscovery(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            saveFloodDiscoveryUnlocked(destination,expected,next);
+            return null;
+        });
+    }
+
+    private static void saveFloodDiscoveryUnlocked(Path destination,
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologyCheckpointV2.Checkpoint next) throws IOException {
         Objects.requireNonNull(destination);
@@ -114,6 +140,14 @@ public final class HydrologyCheckpointStoreV2 {
      */
     public static void saveIncoming(Path destination,HydrologyCheckpointV2.Checkpoint checkpoint)
             throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            saveIncomingUnlocked(destination,checkpoint);
+            return null;
+        });
+    }
+
+    private static void saveIncomingUnlocked(Path destination,HydrologyCheckpointV2.Checkpoint checkpoint)
+            throws IOException {
         Objects.requireNonNull(destination);
         Objects.requireNonNull(checkpoint);
         Path target=destination.toAbsolutePath();
@@ -141,9 +175,18 @@ public final class HydrologyCheckpointStoreV2 {
      * Narrow same-epoch append for the opt-in sediment checkpoint envelope.
      * Preserves the existing water inbox, underlying world, delivery markers
      * and last claimed epoch. Only future sediment receipts may be added.
-     * Single-writer optimistic freshness, NOT an interprocess CAS.
+     * Cooperating local writers are serialized; NOT a distributed CAS.
      */
     static void saveSedimentIncoming(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            saveSedimentIncomingUnlocked(destination,expected,next);
+            return null;
+        });
+    }
+
+    private static void saveSedimentIncomingUnlocked(Path destination,
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologyCheckpointV2.Checkpoint next) throws IOException {
         Objects.requireNonNull(destination);
