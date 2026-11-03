@@ -246,11 +246,15 @@ class HydrologySeasonalSedimentCandidateV2Test {
         var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
         var inbox = new HydrologyEpochInboxV2();
         inbox.receive(water(1), 20);
-        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+        var fork = new HydrologyTransferLedgerV2.Key(1,
             new GlobalHydrologyAddressV2.Sample(2,4,3,4),
-            new GlobalHydrologyAddressV2.Sample(2,4,4,5)), 30);
+            new GlobalHydrologyAddressV2.Sample(2,4,4,5));
+        assertThrows(IllegalArgumentException.class, () -> inbox.receive(fork, 30));
+        // A forged historical checkpoint is also rejected during staging.
+        var forged = new HydrologyEpochInboxV2.Snapshot(
+            Map.of(water(1),20.0,fork,30.0),Set.of(),Set.of());
         var before = new HydrologyCheckpointV2.Checkpoint(
-            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+            0, original.worldState(), HydrologyInboxCodecV2.encode(forged));
         assertThrows(IllegalArgumentException.class, () -> coupled(before));
         assertTrue(inbox.snapshot().delivered().isEmpty());
     }
@@ -258,14 +262,18 @@ class HydrologySeasonalSedimentCandidateV2Test {
     @Test void rejectsCrossResolutionAliasOfWaterSender() {
         var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
         var inbox = new HydrologyEpochInboxV2();
-        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+        var fine = new HydrologyTransferLedgerV2.Key(1,
             new GlobalHydrologyAddressV2.Sample(2,4,2,4),
-            new GlobalHydrologyAddressV2.Sample(2,4,3,4)), 20);
-        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,3,4));
+        var alias = new HydrologyTransferLedgerV2.Key(1,
             new GlobalHydrologyAddressV2.Sample(1,4,1,2),
-            new GlobalHydrologyAddressV2.Sample(1,4,1,3)), 30);
+            new GlobalHydrologyAddressV2.Sample(1,4,1,3));
+        inbox.receive(fine, 20);
+        assertThrows(IllegalArgumentException.class, () -> inbox.receive(alias, 30));
+        var forged = new HydrologyEpochInboxV2.Snapshot(
+            Map.of(fine,20.0,alias,30.0),Set.of(),Set.of());
         var before = new HydrologyCheckpointV2.Checkpoint(
-            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+            0, original.worldState(), HydrologyInboxCodecV2.encode(forged));
         assertThrows(IllegalArgumentException.class, () -> coupled(before));
         assertTrue(inbox.snapshot().delivered().isEmpty());
     }
