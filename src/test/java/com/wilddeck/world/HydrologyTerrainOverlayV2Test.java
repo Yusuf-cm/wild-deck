@@ -161,4 +161,48 @@ class HydrologyTerrainOverlayV2Test {
                 broken,5,5,seed(),new double[25],new double[25],
                 1,0,0,new double[25],Set.of(24)));
     }
+
+    @Test void importedSedimentCanBeCheckpointedWithTerrainWithoutCountingLocalErosion()
+            throws IOException {
+        double[] rain=new double[25],area=new double[25],
+            capacity=new double[25],imported=new double[25];
+        Arrays.fill(area,1);
+        imported[0]=2_000;
+        var initial=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var evolved=HydrologyTerrainOverlayV2.evolveWindow(
+            initial,addresses(),5,5,seed(),rain,area,2_000,0,0,
+            capacity,imported,Set.of(24));
+        assertEquals(0,evolved.landscape().erodedMass(),0);
+        assertEquals(2_000,evolved.landscape().importedMass(),0);
+        assertEquals(2_000,evolved.landscape().depositedMass(),0);
+        assertEquals(0,evolved.landscape().exportedMass(),0);
+        assertEquals(21,evolved.state().elevations().get(addresses().get(0)),0);
+        assertTrue(initial.elevations().isEmpty());
+        var path=directory.resolve("imported-sediment.chk");
+        var runner=HydrologyWorldRunnerV2.open(
+            path,0,HydrologyTerrainOverlayV2.encode(initial));
+        var outlet=addresses().get(24);
+        runner.advance(HydrologyTerrainOverlayV2.encode(evolved.state()),
+            List.of(List.of(new HydrologyFlowGraphV2.Node(outlet,0,null,true))));
+        var restored=HydrologyWorldRunnerV2.open(path,0,"ignored");
+        assertEquals(evolved.state(),
+            HydrologyTerrainOverlayV2.decode(restored.worldState()));
+    }
+
+    @Test void rejectsInvalidImportedSedimentWithoutMutatingPreviousTerrain() {
+        var previous=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        double[] rain=new double[25],area=new double[25],capacity=new double[25];
+        Arrays.fill(area,1);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTerrainOverlayV2.evolveWindow(
+                previous,addresses(),5,5,seed(),rain,area,2_000,0,0,
+                capacity,new double[24],Set.of(24)));
+        var negative=new double[25];
+        negative[0]=-1;
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTerrainOverlayV2.evolveWindow(
+                previous,addresses(),5,5,seed(),rain,area,2_000,0,0,
+                capacity,negative,Set.of(24)));
+        assertTrue(previous.elevations().isEmpty());
+    }
 }
