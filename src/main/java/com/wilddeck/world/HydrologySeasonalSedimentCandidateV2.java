@@ -15,6 +15,9 @@ import java.util.*;
 public final class HydrologySeasonalSedimentCandidateV2 {
     private HydrologySeasonalSedimentCandidateV2() {}
 
+    private record WaterOrigin(long epoch,
+            HydrologyGlobalCatchmentsV2.Coordinate source) {}
+
     public record Candidate(HydrologyCheckpointV2.Checkpoint next,
                             HydrologySeasonalLandscapeStateV2.Prepared landscape,
                             HydrologySedimentReceiptInboxV2.Claimed claimed) {
@@ -112,12 +115,19 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             for (int i = 0; i < addresses.size(); i++)
                 indices.put(HydrologyGlobalCatchmentsV2.coordinate(addresses.get(i)), i);
             var loaded = Set.copyOf(addresses);
+            var uniqueSources = new HashMap<WaterOrigin,HydrologyTransferLedgerV2.Key>();
             for (var key : waterInbox.receipts().keySet()) {
-                if (waterInbox.delivered().contains(key) || key.epoch() > nextEpoch)
-                    continue;
                 if (!HydrologySphericalTopologyV2.isCanonical(key.from()) ||
                     !HydrologySphericalTopologyV2.isCanonical(key.to()))
-                    throw new IllegalArgumentException("Noncanonical pending water transfer");
+                    throw new IllegalArgumentException("Noncanonical water transfer");
+                var source = new WaterOrigin(key.epoch(),
+                    HydrologyGlobalCatchmentsV2.coordinate(key.from()));
+                var prior = uniqueSources.putIfAbsent(source, key);
+                if (prior != null && !prior.equals(key))
+                    throw new IllegalArgumentException(
+                        "Multiple water transfers from one physical source and epoch");
+                if (waterInbox.delivered().contains(key) || key.epoch() > nextEpoch)
+                    continue;
                 var landing = HydrologyGlobalCatchmentsV2.coordinate(key.to());
                 if (owners.contains(landing) && !loaded.contains(key.to()))
                     throw new IllegalArgumentException("Cross-resolution water receipt needs explicit remapping");
