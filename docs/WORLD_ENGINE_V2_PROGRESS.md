@@ -2836,3 +2836,32 @@ The final implementation/test HEAD `dc9624dacb3323ab58ef8b0d4ae4c738061597ed` co
 The successful workflow explicitly includes: **Run tests**, smallest world experiment, finite resource extraction/replay, browser save controls, Java-generated planet atlas export, and real-browser atlas verification. All five new regression methods are part of the passing Maven test step. This establishes the opt-in verified-edge transfer gate and seasonal checkpoint integration under the tested scenarios, **not** a globally atomic sender/receiver transaction or a finished planetary hydrology subsystem.
 
 The documentation HEAD `397939e7c331cbe9ec7f2dc014ed06546e781411` had its own [workflow 41562594999](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562594999) in progress when checked; verify the final documentation follow-up workflow independently before claiming it passed.
+
+
+## 2026-11-03 — Geodesic boundary travel and durable sender debit (opt-in)
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Starting HEAD `8096d865234ada698cb5eeafa1188e681a7b7ad5` passed [Actions 41562690403](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562690403) before this work. The previous verified-edge timed receiver does **not** by itself debit a sender.
+
+### Implementation
+
+1. `HydrologyTimedBoundaryTravelV2` computes deterministic absolute due ticks for caller-supplied river velocities, planetary radius, and seconds per tick, using great-circle edge distances. It validates the exact authoritative downstream edge, longitude seams/polar connections, duplicate transfer IDs, nonfinite parameters and tick overflow. The rounded-up travel time is at least one tick. This is a **parameterized geometric model**, not calibrated channel hydraulics or a hydrograph.
+2. `HydrologyTimedBoundarySenderV2` adds a separate opt-in **single-writer local sender checkpoint** with a finite water inventory, an append-only issued-transfer journal containing original source-edge provenance, and deterministic replay-safe debits. It rejects duplicate physical owners across resolutions, unowned/overdrawn sources, forged or changed-atlas edges, altered IDs, and debits that would lose water to floating-point rounding. The sender debit and journal are saved together using `HydrologyCheckpointStoreV2.saveNext`. The original receiver checkpoint can consume those journaled transfers through `HydrologyTimedSeasonalEpochV2.commitStreamingUniformVerified`. `commitJourneys` combines geodesic planning and durable local sender debit.
+3. Added `HydrologyTimedBoundarySenderV2Test` with nine JUnit tests for sender/receiver restart and replay, source debit conservation, stale writer, journal codec, cross-resolution duplicate ownership, overdraft, precision loss, topology changes, deterministic geodesic travel, invalid timing/edges, seam/pole routing and geodesic checkpoint persistence.
+
+### Commits and verification
+
+- `b0071d78d3719782e4210f4b576dc666d7d1d0f9` — geodesic edge travel planner. [Actions 41568296186](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568296186) **PASSED**.
+- `84e2ce9e9425dbda62c1eb76c2e66f8963d04874` — durable local sender journal and debit. [Actions 41568342810](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568342810) **PASSED**.
+- `548ff1a8b927a53d2fb1b84e36500a182217f172` — initial eight integration/regression tests; [Actions 41568383282](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568383282) **in progress** at this write (Maven and world experiment steps passed, final workflow not yet complete).
+- `fcbe0e8cc669cfa8cdeb0f68ea00500227e7f89b` — integrated geodesic sender commit.
+- `f5de383c4a1663dddb8f79c33cce544e145a4231` — ninth regression test.
+- **Latest implementation/test HEAD CI must be verified separately.** No complete CI pass is claimed for the last two commits at this write.
+
+### Still unfinished: water subsystem NOT complete
+
+1. **Distributed sender/receiver atomicity:** The sender debit and receiver settlement reside in *different* local checkpoints. If the sender commits but the receiver fails, the transfer must be replayed from the sender journal; no distributed transaction, automatic acknowledgment coordinator, or authenticated transport has been added. Initial sender inventory is caller-authenticated and not proven to be deducted from the authoritative live river state.
+2. **Sediment/terrain coupling:** No atomic tick spanning sender water, receiver water, snow/soil, lake storage, sediment outboxes, riverbed evolution, and terrain. Seasonal erosion remains a noncommitting preview or separate local workflow.
+3. **Geography and physics:** The complete atlas and true outlets remain caller-verified. Arbitrary unknown unloaded terrain, mixed-resolution water-store migration, in-flight topology migration, multiple spillways, groundwater/backwater, calibrated velocities and transient flood hydraulics remain unfinished. Travel uses caller-supplied velocity and coarse rounded ticks.
+4. **Scale and recovery:** Planet-scale multi-season mass/sediment acceptance, distributed crash recovery, safe history compaction, and multi-process CAS remain unverified. Existing finite-double precision guards reject some otherwise valid very small transfers rather than losing mass.
+
+**Safety:** Only the requested feature branch was modified. No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. Continue hydrology before other layers.
