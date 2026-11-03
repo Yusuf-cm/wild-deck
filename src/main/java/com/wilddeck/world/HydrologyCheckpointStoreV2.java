@@ -227,6 +227,57 @@ public final class HydrologyCheckpointStoreV2 {
         writeAtomic(target,parent,next);
     }
 
+    /**
+     * One local compare-and-swap for simultaneous future water and sediment
+     * receipt additions. The underlying world and both delivery histories
+     * are immutable; only new receipts may be appended. The expected state
+     * is checked while the sidecar lock is held, including no-op replays.
+     * This does not authenticate or acknowledge any remote sender.
+     */
+    static void saveCoupledIncoming(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        HydrologyCheckpointFileLockV2.withLock(destination, () -> {
+            Objects.requireNonNull(expected);
+            Objects.requireNonNull(next);
+            if (expected.epoch() != next.epoch())
+                throw new IllegalArgumentException("Coupled receipt append changed epoch");
+            var beforeWorld = HydrologySedimentCheckpointV2.decode(expected.worldState());
+            var afterWorld = HydrologySedimentCheckpointV2.decode(next.worldState());
+            var beforeWater = HydrologyInboxCodecV2.decode(expected.inboxState());
+            var afterWater = HydrologyInboxCodecV2.decode(next.inboxState());
+            if (!beforeWorld.world().equals(afterWorld.world()) ||
+                beforeWorld.sediment().lastClaimedEpoch() !=
+                    afterWorld.sediment().lastClaimedEpoch() ||
+                !beforeWorld.sediment().delivered().equals(
+                    afterWorld.sediment().delivered()) ||
+                !afterWorld.sediment().receipts().entrySet().containsAll(
+                    beforeWorld.sediment().receipts().entrySet()) ||
+                !beforeWater.consumedEpochs().equals(afterWater.consumedEpochs()) ||
+                !beforeWater.delivered().equals(afterWater.delivered()) ||
+                !afterWater.receipts().entrySet().containsAll(
+                    beforeWater.receipts().entrySet()))
+                throw new IllegalArgumentException("Coupled append modified committed state");
+            for (var receipt : afterWorld.sediment().receipts().keySet())
+                if (!beforeWorld.sediment().receipts().containsKey(receipt) &&
+                    receipt.arrivalEpoch() <= expected.epoch())
+                    throw new IllegalArgumentException("Late sediment in coupled append");
+            for (var key : afterWater.receipts().keySet())
+                if (!beforeWater.receipts().containsKey(key) &&
+                    key.epoch() <= expected.epoch())
+                    throw new IllegalArgumentException("Late water in coupled append");
+            if (!load(destination).equals(expected))
+                throw new IOException("Stale coupled receipt checkpoint writer");
+            if (expected.equals(next)) return null;
+            Path target = destination.toAbsolutePath();
+            Path parent = target.getParent();
+            if (parent == null || !Files.isDirectory(parent))
+                throw new IOException("Checkpoint parent directory must exist");
+            writeAtomic(target,parent,next);
+            return null;
+        });
+    }
+
     private static void writeAtomic(Path target,Path parent,
                                     HydrologyCheckpointV2.Checkpoint checkpoint)
             throws IOException {

@@ -127,22 +127,9 @@ public final class HydrologySedimentCheckpointV2 {
             Path path,HydrologyCheckpointV2.Checkpoint expected,
             HydrologySedimentReceiptInboxV2.Receipt receipt,double mass)
             throws IOException {
-        Objects.requireNonNull(path);
-        Objects.requireNonNull(expected);
-        var before = decode(expected.worldState());
-        var after = HydrologySedimentReceiptInboxV2.receive(
-            before.sediment(),receipt,mass);
-        if (after == before.sediment()) {
-            if (!HydrologyCheckpointStoreV2.load(path).equals(expected))
-                throw new IOException("Stale sediment receipt writer");
-            return expected;
-        }
-        if (receipt.arrivalEpoch() <= expected.epoch())
-            throw new IllegalArgumentException("Sediment receipt must arrive after committed epoch");
-        var next = new HydrologyCheckpointV2.Checkpoint(expected.epoch(),
-            encode(before.world(),after),expected.inboxState());
-        HydrologyCheckpointStoreV2.saveSedimentIncoming(path,expected,next);
-        return next;
+        Objects.requireNonNull(receipt);
+        // The indexed batch path also handles exact historical replays.
+        return receiveBatch(path,expected,Map.of(receipt,mass));
     }
 
     /**
