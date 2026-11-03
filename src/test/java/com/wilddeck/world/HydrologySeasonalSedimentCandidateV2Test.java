@@ -411,4 +411,41 @@ class HydrologySeasonalSedimentCandidateV2Test {
         assertEquals(0, audit.waterReceipts());
         assertEquals(0, audit.sedimentReceipts());
     }
+
+    @Test void independentAuditRejectsOmittedDueOwnedWaterEvenWithMatchingZeroImport() {
+        var empty = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var zeroImport = coupled(empty);
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(1), 20);
+        var previous = new HydrologyCheckpointV2.Checkpoint(
+            0, empty.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var omitted = new HydrologyEpochInboxV2.Snapshot(
+            inbox.snapshot().receipts(), Set.of(1L), Set.of());
+        var next = new HydrologyCheckpointV2.Checkpoint(
+            1, zeroImport.next().worldState(), HydrologyInboxCodecV2.encode(omitted));
+        var forged = new HydrologySeasonalSedimentCandidateV2.Candidate(
+            next, zeroImport.landscape(), zeroImport.claimed());
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalReceiptAuditV2.verify(previous, forged, window()));
+    }
+
+    @Test void independentAuditRejectsOmittedDueOwnedSedimentWithZeroImport() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(1), 100);
+        var previous = checkpoint(sediment);
+        var zeroImport = coupled(checkpoint(HydrologySedimentReceiptInboxV2.empty()));
+        var omitted = new HydrologySedimentReceiptInboxV2.Snapshot(
+            sediment.receipts(), Set.of(), 1);
+        var nextWorld = HydrologySedimentCheckpointV2.encode(
+            HydrologySeasonalLandscapeStateV2.encode(zeroImport.landscape().state()),
+            omitted);
+        var next = new HydrologyCheckpointV2.Checkpoint(
+            1, nextWorld, zeroImport.next().inboxState());
+        var claimed = new HydrologySedimentReceiptInboxV2.Claimed(
+            omitted, Map.of(), 0);
+        var forged = new HydrologySeasonalSedimentCandidateV2.Candidate(
+            next, zeroImport.landscape(), claimed);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalReceiptAuditV2.verify(previous, forged, window()));
+    }
 }
