@@ -128,4 +128,48 @@ class HydrologyCheckpointLocalCasV2Test {
             assertEquals(initial, HydrologyCheckpointStoreV2.load(file));
         }
     }
+
+    @Test void reversedFleetLockOrdersSerializeWithoutDeadlock() throws Exception {
+        Path a = directory.resolve("a.chk");
+        Path b = directory.resolve("b.chk");
+        Files.writeString(a, "0");
+        Files.writeString(b, "0");
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var start = new CountDownLatch(1);
+            var futures = new ArrayList<Future<?>>();
+            for (var order : List.of(List.of(a,b), List.of(b,a)))
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    for (int i = 0; i < 32; i++)
+                        HydrologyCheckpointFileLockV2.withLocks(order, () -> {
+                            int old = Integer.parseInt(Files.readString(a));
+                            Files.writeString(a, Integer.toString(old + 1));
+                            return null;
+                        });
+                    return null;
+                }));
+            start.countDown();
+            for (var future : futures) future.get(20, TimeUnit.SECONDS);
+            assertEquals("64", Files.readString(a));
+            assertTrue(Files.exists(directory.resolve(".a.chk.hydrology.lock")));
+            assertTrue(Files.exists(directory.resolve(".b.chk.hydrology.lock")));
+            assertThrows(IOException.class, () ->
+                HydrologyCheckpointFileLockV2.withLocks(List.of(a,a), () -> null));
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test void fleetLockRejectsSameCheckpointThroughSymlinkedParent() throws Exception {
+        Path real = Files.createDirectory(directory.resolve("real"));
+        Path file = real.resolve("water.chk");
+        Files.writeString(file, "water");
+        Path alias = directory.resolve("alias-parent");
+        Files.createSymbolicLink(alias, real);
+        assertThrows(IOException.class, () ->
+            HydrologyCheckpointFileLockV2.withLocks(
+                List.of(file,alias.resolve("water.chk")), () -> null));
+        assertEquals("water", Files.readString(file));
+    }
 }
