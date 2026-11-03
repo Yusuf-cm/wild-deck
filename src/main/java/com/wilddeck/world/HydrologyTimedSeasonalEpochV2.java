@@ -118,6 +118,39 @@ public final class HydrologyTimedSeasonalEpochV2 {
             0,Objects.requireNonNull(schedules),durationSeconds);
     }
 
+    /**
+     * Route-verified counterpart for cross-region boundary transfers. Only a
+     * real downstream edge in the supplied complete atlas may enter transit.
+     * Sender-side debit and cross-process acknowledgement remain external.
+     */
+    public static Prepared prepareStreamingUniformVerified(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> incoming,
+            int slices, double durationSeconds) {
+        return prepareStreamingUniform(expected,atlas,forcing,lakes,loaded,
+            HydrologyVerifiedTimedBoundaryV2.verify(atlas,incoming),
+            slices,durationSeconds);
+    }
+
+    /** Chronological lake forcing with independently verified boundary edges. */
+    public static Prepared prepareStreamingScheduledVerified(
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> incoming,
+            double durationSeconds) {
+        return prepareStreamingScheduled(expected,atlas,forcing,lakes,schedules,
+            loaded,HydrologyVerifiedTimedBoundaryV2.verify(atlas,incoming),
+            durationSeconds);
+    }
+
     private static Prepared prepareStreaming(
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologySphericalRouteAtlasV2 atlas,
@@ -199,6 +232,37 @@ public final class HydrologyTimedSeasonalEpochV2 {
                 HydrologyTimedTransitLedgerV2.encode(transit.state()))),
             seasonal.checkpoint().inboxState());
         return new Prepared(transit,seasonal,checkpoint);
+    }
+
+    /** Commit a route-verified timed boundary delivery and water epoch in one local CAS. */
+    public static Prepared commitStreamingUniformVerified(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> incoming,
+            int slices, double durationSeconds) throws IOException {
+        var result = prepareStreamingUniformVerified(expected,atlas,forcing,lakes,
+            loaded,incoming,slices,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
+        return result;
+    }
+
+    /** Commit chronological lake forcing and verified boundary water in one local CAS. */
+    public static Prepared commitStreamingScheduledVerified(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            Collection<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> incoming,
+            double durationSeconds) throws IOException {
+        var result = prepareStreamingScheduledVerified(expected,atlas,forcing,lakes,
+            schedules,loaded,incoming,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(file,expected,result.checkpoint());
+        return result;
     }
 
     /** Compare-and-swap persistence of BOTH transit settlement and water state. */
