@@ -137,6 +137,8 @@ public final class HydrologySedimentReceiptInboxV2 {
             GlobalHydrologyAddressV2.Sample>();
         for (var address : loaded) {
             Objects.requireNonNull(address);
+            if (!HydrologySphericalTopologyV2.isCanonical(address))
+                throw new IllegalArgumentException("Noncanonical sediment receiver owner");
             var location = HydrologyGlobalCatchmentsV2.coordinate(address);
             if (owners.putIfAbsent(location,address) != null)
                 throw new IllegalArgumentException("Duplicate geographic sediment receiver ownership");
@@ -154,6 +156,9 @@ public final class HydrologySedimentReceiptInboxV2 {
             if (receipt.arrivalEpoch() > epoch || delivered.contains(receipt)) continue;
             var owner = owners.get(HydrologyGlobalCatchmentsV2.coordinate(receipt.to()));
             if (owner == null) continue;
+            if (!owner.equals(receipt.to()))
+                throw new IllegalArgumentException(
+                    "Sediment receipt requires physical resolution migration");
             BigDecimal mass = checkMass(entry.getValue());
             totals.merge(owner,mass,BigDecimal::add);
             represented.put(owner, SedimentMassAdditionV2.add(
