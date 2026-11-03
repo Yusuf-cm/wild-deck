@@ -187,10 +187,14 @@ class HydrologyTimedBoundaryNetworkAuditV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyTimedBoundaryNetworkAuditV2.auditCheckpoints(
                 Map.of("sender",sender,"alias",alias),receivers,atlas,true));
-        HydrologyCheckpointStoreV2.save(receiver,receiverInitial(atlas,1));
+        var wetReceiver = directory.resolve("wet-receiver.chk");
+        HydrologyCheckpointStoreV2.save(wetReceiver,receiverInitial(atlas,1));
+        var wetReceivers = Map.of("receiver",
+            new HydrologyTimedBoundaryNetworkAuditV2.ReceiverFile(
+                wetReceiver,Set.of(at(5,2))));
         assertThrows(IllegalStateException.class,()->
             HydrologyTimedBoundaryNetworkAuditV2.requireDryForTopologyChange(
-                files,receivers,atlas));
+                files,wetReceivers,atlas));
     }
 
     @Test void receiverCheckpointEpochForgeryIsRejected() throws IOException {
