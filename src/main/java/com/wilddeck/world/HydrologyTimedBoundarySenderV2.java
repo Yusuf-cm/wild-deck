@@ -164,6 +164,20 @@ public final class HydrologyTimedBoundarySenderV2 {
         return new Committed(step,next);
     }
 
+    /**
+     * Geodesic travel planning and local sender debit share one checked call.
+     * Caller-supplied velocity remains an uncalibrated physical assumption.
+     */
+    public static Committed commitJourneys(Path file,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologySphericalRouteAtlasV2 atlas,
+            Collection<HydrologyTimedBoundaryTravelV2.Journey> journeys,
+            double radiusMeters, double secondsPerTick) throws IOException {
+        var planned = HydrologyTimedBoundaryTravelV2.plan(
+            atlas,journeys,radiusMeters,secondsPerTick);
+        return commit(file,expected,atlas,planned.edges());
+    }
+
     public static HydrologyCheckpointV2.Checkpoint initialize(Path file,State initial)
             throws IOException {
         Objects.requireNonNull(initial);
