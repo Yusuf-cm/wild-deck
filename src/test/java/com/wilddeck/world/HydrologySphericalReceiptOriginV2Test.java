@@ -18,25 +18,35 @@ class HydrologySphericalReceiptOriginV2Test {
         return new GlobalHydrologyAddressV2.Sample(1, 2, x, y);
     }
 
-    @Test void sphericalSchedulerRejectsAliasedSourceBeforeLoadingRegions() {
+    @Test void ingressRejectsAliasedSourceWithoutDoubleCountingWater() {
         var destination = at(7, 2);
         var canonical = at(0, 2);
         var aliasedSeam = at(8, 2);
         var inbox = new HydrologyEpochInboxV2();
-        // Both source addresses refer to the same geographic vertex, but
-        // Key historically accepts local adjacency for noncanonical aliases.
         assertTrue(inbox.receive(
             new HydrologyTransferLedgerV2.Key(1, canonical, destination), 3));
-        assertTrue(inbox.receive(
+        // A physical origin is now protected at receipt ingress. The old
+        // fixture expected both receipts to be accepted and rejected later.
+        assertThrows(IllegalArgumentException.class, () -> inbox.receive(
             new HydrologyTransferLedgerV2.Key(1, aliasedSeam, destination), 3));
+        assertEquals(1, inbox.snapshot().receipts().size());
+        assertEquals(3, HydrologyReceiptBudgetV2.summarize(
+            inbox.snapshot()).pendingVolume(), 1e-12);
+    }
+
+    @Test void sphericalSchedulerRejectsForgedSourceForkBeforeLoadingRegions() {
+        var source = at(0, 2);
+        var first = new HydrologyTransferLedgerV2.Key(1, source, at(7, 2));
+        var fork = new HydrologyTransferLedgerV2.Key(1, source, at(1, 2));
+        // Construct an untrusted snapshot without passing through the ledger.
+        var forged = new HydrologyEpochInboxV2.Snapshot(
+            java.util.Map.of(first, 3.0, fork, 4.0), Set.of(), Set.of());
         var loaded = new AtomicInteger();
         assertThrows(IllegalArgumentException.class, () ->
             HydrologySphericalRegionSchedulerV2.loadWithPending(
-                List.of(), inbox.snapshot(), 1, 0, 8,
+                List.of(), forged, 1, 0, 8,
                 region -> { loaded.incrementAndGet(); return List.of(); }));
         assertEquals(0, loaded.get());
-        assertEquals(6, HydrologyReceiptBudgetV2.summarize(
-            inbox.snapshot()).pendingVolume(), 1e-12);
     }
 
     @Test void sphericalSchedulerAcceptsCanonicalSeamReceipt() {
