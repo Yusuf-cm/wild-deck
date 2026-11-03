@@ -77,10 +77,14 @@ class HydrologyTimedBoundarySenderV2Test {
         assertEquals(debit.checkpoint(),HydrologyCheckpointStoreV2.load(sender));
         var initial=receiverInitial(atlas);
         HydrologyCheckpointStoreV2.save(receiver,initial);
+        assertEquals(List.of(outgoing),
+            HydrologyTimedBoundarySenderV2.missingAtReceiver(sender,receiver,atlas));
         var delivered=HydrologyTimedSeasonalEpochV2.commitStreamingUniformVerified(
             receiver,initial,atlas,Map.of(M,rain(2)),Map.of(),Set.of(M),
             debit.step().newlyIssued(),2,86400);
         assertEquals(3,delivered.transit().releasedTotalM3().doubleValue(),1e-9);
+        assertTrue(HydrologyTimedBoundarySenderV2.missingAtReceiver(
+            sender,receiver,atlas).isEmpty());
         assertEquals(5,delivered.seasonal().water().water().state()
             .dischargedM3().get(M),1e-8);
         assertThrows(IOException.class,()->HydrologyTimedBoundarySenderV2.commit(
@@ -241,6 +245,35 @@ class HydrologyTimedBoundarySenderV2Test {
             List.of(journey),RADIUS,100);
         assertTrue(replay.step().newlyIssued().isEmpty());
         assertEquals(3,replay.step().state().availableM3().get(source),1e-9);
+    }
+
+    @Test void receiverRecoveryRejectsConflictingIdsAndDifferentWorlds() {
+        var atlas=atlas(M);
+        var source=inlet(atlas,M);
+        var outgoing=transfer("recover-1",source,M,2,3);
+        var sender=HydrologyTimedBoundarySenderV2.advance(
+            HydrologyTimedBoundarySenderV2.empty(
+                "world",Map.of(source,5.0)),atlas,List.of(outgoing)).state();
+        var empty=HydrologyTimedTransitLedgerV2.empty("world");
+        assertEquals(List.of(outgoing),
+            HydrologyTimedBoundarySenderV2.missingAtReceiver(sender,empty,atlas));
+        var correct=new HydrologyTimedTransitLedgerV2.Transfer(
+            "recover-1",HydrologyGlobalCatchmentsV2.coordinate(M),2,3);
+        var pending=new HydrologyTimedTransitLedgerV2.State(
+            "world",1,Map.of("recover-1",correct),Map.of());
+        assertTrue(HydrologyTimedBoundarySenderV2.missingAtReceiver(
+            sender,pending,atlas).isEmpty());
+        var conflict=new HydrologyTimedTransitLedgerV2.State(
+            "world",1,Map.of("recover-1",
+                new HydrologyTimedTransitLedgerV2.Transfer(
+                    "recover-1",HydrologyGlobalCatchmentsV2.coordinate(M),2,4)),
+            Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundarySenderV2.missingAtReceiver(
+                sender,conflict,atlas));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundarySenderV2.missingAtReceiver(
+                sender,HydrologyTimedTransitLedgerV2.empty("other"),atlas));
     }
 
 }
