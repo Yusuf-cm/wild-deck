@@ -101,27 +101,17 @@ public final class HydrologySedimentCheckpointV2 {
         Objects.requireNonNull(expected);
         Objects.requireNonNull(incoming);
         var before = decode(expected.worldState());
-        var order = Comparator
-            .comparingLong(HydrologySedimentReceiptInboxV2.Receipt::arrivalEpoch)
-            .thenComparingLong(HydrologySedimentReceiptInboxV2.Receipt::sourceEpoch)
-            .thenComparing(HydrologySedimentReceiptInboxV2.Receipt::from,
-                HydrologyFlowGraphV2.ADDRESS_ORDER)
-            .thenComparing(HydrologySedimentReceiptInboxV2.Receipt::to,
-                HydrologyFlowGraphV2.ADDRESS_ORDER);
-        var sorted = new TreeMap<HydrologySedimentReceiptInboxV2.Receipt,Double>(order);
-        for (var entry : incoming.entrySet())
-            sorted.put(Objects.requireNonNull(entry.getKey()),
-                Objects.requireNonNull(entry.getValue()));
-        var staged = before.sediment();
-        for (var entry : sorted.entrySet()) {
-            var receipt = entry.getKey();
-            // Existing exact replays are legal even after the arrival epoch.
-            if (!staged.receipts().containsKey(receipt) &&
+        // Reject new arrivals into an already committed epoch before staging.
+        // The inbox batch validates physical-source ownership in one pass.
+        for (var receipt : incoming.keySet()) {
+            Objects.requireNonNull(receipt);
+            if (!before.sediment().receipts().containsKey(receipt) &&
                 receipt.arrivalEpoch() <= expected.epoch())
-                throw new IllegalArgumentException("Cannot append sediment to a committed epoch");
-            staged = HydrologySedimentReceiptInboxV2.receive(
-                staged,receipt,entry.getValue());
+                throw new IllegalArgumentException(
+                    "Cannot append sediment to a committed epoch");
         }
+        var staged = HydrologySedimentReceiptInboxV2.receiveBatch(
+            before.sediment(),incoming);
         if (staged == before.sediment()) {
             if (!HydrologyCheckpointStoreV2.load(path).equals(expected))
                 throw new IOException("Stale sediment batch writer");

@@ -110,6 +110,55 @@ public final class HydrologySedimentReceiptInboxV2 {
         return new Snapshot(next,previous.delivered(),previous.lastClaimedEpoch());
     }
 
+
+    /**
+     * Atomically validate and stage an entire unordered arrival batch.
+     * Unlike repeated receive(), this builds the physical-source ownership
+     * index once, so large checkpoint batches do not repeatedly rescan all
+     * historical receipts. No caller snapshot is modified on rejection.
+     * Exact historical replays remain idempotent, including after delivery.
+     */
+    public static Snapshot receiveBatch(Snapshot previous,
+            Map<Receipt,Double> incoming) {
+        Objects.requireNonNull(previous);
+        Objects.requireNonNull(incoming);
+        if (incoming.isEmpty()) return previous;
+        var combined = new TreeMap<Receipt,Double>(ORDER);
+        combined.putAll(previous.receipts());
+        var origins = new HashMap<Origin,Receipt>();
+        for (var receipt : previous.receipts().keySet())
+            origins.put(origin(receipt),receipt);
+        var ordered = new TreeMap<Receipt,Double>(ORDER);
+        for (var entry : incoming.entrySet()) {
+            var receipt = Objects.requireNonNull(entry.getKey());
+            checkMass(entry.getValue());
+            ordered.put(receipt,entry.getValue());
+        }
+        boolean changed = false;
+        for (var entry : ordered.entrySet()) {
+            var receipt = entry.getKey();
+            double mass = entry.getValue();
+            Double existing = combined.get(receipt);
+            if (existing != null) {
+                if (Double.compare(existing,mass) != 0)
+                    throw new IllegalArgumentException("Conflicting sediment receipt replay");
+                continue;
+            }
+            if (receipt.arrivalEpoch() <= previous.lastClaimedEpoch())
+                throw new IllegalStateException(
+                    "New sediment receipt arrives after its epoch closed");
+            var prior = origins.putIfAbsent(origin(receipt),receipt);
+            if (prior != null && !prior.equals(receipt))
+                throw new IllegalArgumentException(
+                    "Physical sediment sender fork or alias replay");
+            combined.put(receipt,mass);
+            changed = true;
+        }
+        return changed
+            ? new Snapshot(combined,previous.delivered(),previous.lastClaimedEpoch())
+            : previous;
+    }
+
     public record Claimed(Snapshot snapshot,
                           Map<GlobalHydrologyAddressV2.Sample,Double> imported,
                           double importedMass) {
