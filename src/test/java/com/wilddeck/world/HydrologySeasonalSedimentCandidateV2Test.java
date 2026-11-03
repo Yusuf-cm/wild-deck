@@ -105,6 +105,16 @@ class HydrologySeasonalSedimentCandidateV2Test {
             stage(checkpoint(received)));
     }
 
+    @Test void rejectsPendingWaterInsteadOfSilentlyDroppingBoundaryReceipts() {
+        var empty = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var water = new HydrologyEpochInboxV2();
+        water.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,3,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4)), 25);
+        var withWater = HydrologyCheckpointV2.capture(0,empty.worldState(),water);
+        assertThrows(IllegalStateException.class, () -> stage(withWater));
+    }
+
     @Test void rejectsDuplicatePhysicalWindowAndWrongPlanetRadius() {
         var before = checkpoint(HydrologySedimentReceiptInboxV2.empty());
         var duplicate = new ArrayList<>(window());
