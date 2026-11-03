@@ -3313,3 +3313,31 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Scale and failure tolerance:** Long-horizon planet-scale conservation, crash/fault injection across independent senders/receivers, distributed consensus, and safe journal compaction remain unverified.
 
 **Safety:** No merge, PR, `main` or other branch changes, production operations, or paid infrastructure changes. Continue hydrology before other world layers.
+
+
+## 2026-11-03 — Verified atomic local water/sediment batch receiving
+
+**Scope:** Exclusively `Yusuf-cm/wild-deck` branch `feature/world-engine-v2`. Baseline HEAD `287e91c230afc2496e7306a6f34b119b62d0f261` had [green Java CI 41658441857](https://github.com/Yusuf-cm/wild-deck/actions/runs/41658441857), **1,342 tests**, zero failures/errors/skips. No baseline repair was needed.
+
+### Implemented
+
+1. `HydrologySedimentReceiptInboxV2.receiveBatch` validates an unordered sediment receipt batch with a single physical-source ownership index and one immutable snapshot rebuild, rather than repeatedly scanning and rebuilding the full historical ledger for each incoming receipt. It rejects changed replay quantities, same-source/epoch forks (including cross-resolution physical aliases), invalid amounts, and arrivals into closed epochs. Rejected batches do not modify the caller's snapshot. Exact historical replays remain idempotent.
+2. `HydrologySedimentCheckpointV2.receiveBatch` now stages the entire sediment batch through that indexed operation before performing its existing single local checksummed checkpoint CAS. A new late receipt cannot be slipped into an already committed epoch; a stale checkpoint writer cannot overwrite another batch.
+3. `HydrologyTransferLedgerV2.acceptBatch` adds a deterministic, prevalidated multi-sender water batch path. It checks amounts, exact replay identities, and one physical discharge per source epoch before changing any receipt. `HydrologyEpochInboxV2.receiveBatch` additionally rejects consumed source epochs before accepting any batch member.
+4. `HydrologyWorldRunnerV2.receiveBatch` persists a validated multi-sender water batch in one same-epoch local checkpoint replacement. The existing single-edge `receive` now delegates to the batch path. Stale writers fail before replacing another writer's receipts; exact replays are no-ops. These are **cooperatively locked local-file** guarantees, not distributed sender debit/acknowledgment or globally atomic cross-region settlement.
+
+### Tests and CI, actually checked
+
+- Added **9 new JUnit test methods** in `HydrologySedimentBatchScaleV2Test` (4) and `HydrologyWaterBatchReceivingV2Test` (5). They exercise 2,048 historical sediment epochs, deterministic 256-entry batch serialization, cross-resolution physical-source forks, rejected late sediment without partial persistence, retained delivered history, multi-sender water confluences, restart/idempotent replay, invalid late water, stale local writers, and atomic rejection of conflicting water batches.
+- [Sediment batch code/test CI 41667673714](https://github.com/Yusuf-cm/wild-deck/actions/runs/41667673714) **PASSED** at `a4b2a019fddf6f5551bd05b09c62aa7f41c7bede`: **1,346 tests**, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS.
+- [Combined water + sediment code/test CI 41667880494](https://github.com/Yusuf-cm/wild-deck/actions/runs/41667880494) **PASSED** at `9b3025dab6d870834dce60fd5f418d30ce01e929`: **1,351 tests**, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS. Both new focused suites passed (4/4 and 5/5). The same workflow completed the world experiment, finite resource replay, browser save controls, atlas export, and real-browser atlas verification. The documentation-only follow-up commit requires separate CI verification.
+- Code commits: `a4b2a019fddf6f5551bd05b09c62aa7f41c7bede` (sediment batch ingress and tests); `9b3025dab6d870834dce60fd5f418d30ce01e929` (water batch ingress, durable runner and tests).
+
+### Explicitly unfinished (hydrology NOT complete)
+
+1. **Distributed atomicity:** Local batch writes do not prove a remote sender debited water/sediment, acknowledge it durably, or coordinate an atomic transaction across sender and receiver files/machines. The combined seasonal water/sediment/terrain candidate is still noncommitting. Authoritative one-epoch water, sediment, snow/soil, lake, erosion, riverbed, terrain and outlet settlement with globally consistent drainage activation remains unfinished.
+2. **Routing/topology:** Arbitrary unknown unloaded terrain, automatic migration of in-flight water/sediment after changed drainage, conservative cross-resolution physical-state remapping, and complete authenticated planetary catchment/river identity remain unfinished. Duplicate shared physical vertices are rejected/owned, not magically resolved at different LODs.
+3. **Physical fidelity:** Multiple lake spillways, groundwater, backwater, calibrated velocities, flood hydraulics, physically calibrated sediment/erosion, and full seasonal planet-scale hydrology remain unfinished.
+4. **Scale and recovery:** The batch tests establish bounded deterministic behavior for the tested inventories, not planetary performance. Single-edge sediment ingestion still rescans history. Full distributed crash recovery, global conservation across authoritative river/lake/ocean stores, journal compaction, and long-horizon multi-region fault injection remain unproven.
+
+**Safety:** No merge, PR, write to `main` or any other branch, production operation, or paid infrastructure change. Continue unfinished water/hydrology tasks before other world layers.
