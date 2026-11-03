@@ -264,6 +264,15 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
                 valid.audit(),valid.missingByReceiver(),
                 Map.of("east",Set.of(a.destination()),
                        "west",Set.of(b.destination(),a.destination())),Map.of()));
+        var alias=new GlobalHydrologyAddressV2.Sample(
+            0,4,a.destination().x(),a.destination().y());
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(a.destination()),
+            HydrologyGlobalCatchmentsV2.coordinate(alias));
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologyTimedBoundaryNetworkRecoveryV2.Plan(
+                valid.audit(),valid.missingByReceiver(),
+                Map.of("east",Set.of(a.destination()),
+                       "west",Set.of(b.destination(),alias)),Map.of()));
     }
 
 }
