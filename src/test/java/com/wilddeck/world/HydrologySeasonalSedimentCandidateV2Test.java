@@ -157,4 +157,88 @@ class HydrologySeasonalSedimentCandidateV2Test {
                 window(),5,5,seed(),weather(),RADIUS+1,2000,.1,.4,
                 capacity(),Set.of(24),Map.of(),Map.of()));
     }
+
+    private static HydrologySeasonalSedimentCandidateV2.Candidate coupled(
+            HydrologyCheckpointV2.Checkpoint checkpoint) {
+        return HydrologySeasonalSedimentCandidateV2.stageWithWaterReceipts(
+            checkpoint, window(), 5, 5, seed(), weather(), RADIUS,
+            2000, .1, .4, capacity(), Set.of(24));
+    }
+
+    private static HydrologyTransferLedgerV2.Key water(long epoch) {
+        return new HydrologyTransferLedgerV2.Key(epoch,
+            new GlobalHydrologyAddressV2.Sample(2,4,3,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4));
+    }
+
+    @Test void stagesBothReceiptKindsInOneDeterministicEpoch() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(1), 100);
+        var original = checkpoint(sediment);
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(1), 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var first = coupled(before);
+        assertEquals(first.next(), coupled(before).next());
+        assertEquals(1, first.next().epoch());
+        var settledWater = HydrologyInboxCodecV2.decode(first.next().inboxState());
+        assertTrue(settledWater.delivered().contains(water(1)));
+        assertTrue(settledWater.consumedEpochs().contains(1L));
+        var settledSediment = HydrologySedimentCheckpointV2.decode(
+            first.next().worldState()).sediment();
+        assertTrue(settledSediment.delivered().contains(receipt(1)));
+        assertEquals(100, first.claimed().importedMass(), 0);
+        assertEquals(first.landscape().preview().erosion().runoffVolume() + 20,
+            first.landscape().preview().erosion().terminalVolume(), 1e-6);
+        assertFalse(HydrologyInboxCodecV2.decode(before.inboxState())
+            .delivered().contains(water(1)));
+        assertFalse(sediment.delivered().contains(receipt(1)));
+    }
+
+    @Test void futureWaterAndSedimentRemainPendingWithOriginalIdentities() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(3), 70);
+        var original = checkpoint(sediment);
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(3), 15);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var next = coupled(before).next();
+        var waterState = HydrologyInboxCodecV2.decode(next.inboxState());
+        var sedimentState = HydrologySedimentCheckpointV2.decode(next.worldState()).sediment();
+        assertEquals(15, waterState.receipts().get(water(3)), 0);
+        assertFalse(waterState.delivered().contains(water(3)));
+        assertTrue(waterState.consumedEpochs().contains(1L));
+        assertEquals(70, sedimentState.receipts().get(receipt(3)), 0);
+        assertFalse(sedimentState.delivered().contains(receipt(3)));
+    }
+
+    @Test void rejectsInteriorWaterSourceWithoutConsumingEitherReceipt() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(1), 100);
+        var original = checkpoint(sediment);
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(2,4,5,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4)), 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertFalse(HydrologyInboxCodecV2.decode(before.inboxState())
+            .delivered().containsAll(inbox.snapshot().receipts().keySet()));
+        assertFalse(sediment.delivered().contains(receipt(1)));
+    }
+
+    @Test void rejectsCrossResolutionWaterLandingRatherThanStrandingDueReceipt() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(new HydrologyTransferLedgerV2.Key(1,
+            new GlobalHydrologyAddressV2.Sample(1,4,1,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,2,2)), 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertTrue(inbox.snapshot().delivered().isEmpty());
+    }
 }
