@@ -105,6 +105,16 @@ class HydrologySeasonalSedimentCandidateV2Test {
             stage(checkpoint(received)));
     }
 
+    @Test void rejectsCrossResolutionAliasAsAnExternalSedimentSource() {
+        var alias = new HydrologySedimentReceiptInboxV2.Receipt(0,1,
+            new GlobalHydrologyAddressV2.Sample(1,4,2,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,3,2));
+        var received = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(),alias,30);
+        assertThrows(IllegalArgumentException.class, () ->
+            stage(checkpoint(received)));
+    }
+
     @Test void rejectsPendingWaterInsteadOfSilentlyDroppingBoundaryReceipts() {
         var empty = checkpoint(HydrologySedimentReceiptInboxV2.empty());
         var water = new HydrologyEpochInboxV2();
