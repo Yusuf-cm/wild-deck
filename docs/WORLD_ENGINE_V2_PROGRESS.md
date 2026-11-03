@@ -2827,3 +2827,12 @@ The documentation-only follow-up commit must be checked separately before callin
 - Multiple lake spillways, groundwater/backwater, flood hydraulics, climate calibration, ledger-history compaction, and planetary endurance/fault-injection acceptance remain incomplete.
 
 **Safety:** No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Continue hydrology before other world layers.
+
+
+### Verified follow-up: full implementation and regression workflow PASSED
+
+The final implementation/test HEAD `dc9624dacb3323ab58ef8b0d4ae4c738061597ed` completed [GitHub Actions 41562549300](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562549300) with **conclusion: success**. The earlier code/test workflows [41562472225](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562472225), [41562491023](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562491023), and [41562521029](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562521029) also completed successfully.
+
+The successful workflow explicitly includes: **Run tests**, smallest world experiment, finite resource extraction/replay, browser save controls, Java-generated planet atlas export, and real-browser atlas verification. All five new regression methods are part of the passing Maven test step. This establishes the opt-in verified-edge transfer gate and seasonal checkpoint integration under the tested scenarios, **not** a globally atomic sender/receiver transaction or a finished planetary hydrology subsystem.
+
+The documentation HEAD `397939e7c331cbe9ec7f2dc014ed06546e781411` had its own [workflow 41562594999](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562594999) in progress when checked; verify the final documentation follow-up workflow independently before claiming it passed.
