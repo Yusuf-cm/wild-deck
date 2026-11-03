@@ -45,4 +45,14 @@ class HydrologyReceiptBudgetV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyReceiptBudgetV2.summarize(inbox.snapshot()));
     }
+    @Test void forgedSourceForkCannotProduceApparentlyConservedBudget() {
+        var source=at(4);
+        var first=new HydrologyTransferLedgerV2.Key(7,source,at(5));
+        var fork=new HydrologyTransferLedgerV2.Key(7,source,at(3));
+        var forged=new HydrologyEpochInboxV2.Snapshot(
+            Map.of(first,3.0,fork,4.0),Set.of(),Set.of());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyReceiptBudgetV2.summarize(forged));
+    }
+
 }
