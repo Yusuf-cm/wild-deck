@@ -3278,3 +3278,38 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Physical fidelity:** Multiple lake spillways, groundwater, backwater, calibrated velocities and erosion, transient flood hydraulics, and planet-scale long-horizon conservation/fault-injection tests remain unfinished.
 
 **Safety:** No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. Continue hydrology before other world layers.
+
+
+## 2026-11-03 — Verified repair of receipt-source CI regression and stronger water accounting
+
+**Scope:** Only `Yusuf-cm/wild-deck`, `feature/world-engine-v2`. Started at `8c7842bb9900cd8245a9ad3e85774d8acf090abe`. The starting [Java CI run 41648888596](https://github.com/Yusuf-cm/wild-deck/actions/runs/41648888596) was **FAILED**: 1,339 JUnit tests executed, 0 assertion failures, 1 error. `HydrologySphericalReceiptOriginV2Test.sphericalSchedulerRejectsAliasedSourceBeforeLoadingRegions` still expected an aliased second discharge to enter the inbox; the newly introduced physical-source guard correctly rejected it earlier at ingestion.
+
+### Changes and verified acceptance
+
+1. Updated the stale seam-source test to assert **ingress-time rejection** and preservation of exactly one pending water volume. Added a separate forged canonical source-fork snapshot test verifying that `HydrologySphericalRegionSchedulerV2.loadWithPending` rejects it **before loading any region**. The scheduler now validates the full supplied receipt ledger with `HydrologyTransferLedgerV2.restore` before dispatching providers. This is untrusted-inventory validation, not proof that remote sender debit occurred.
+2. `HydrologyTransferLedgerV2` now indexes normalized physical source coordinates together with source epoch. This preserves exact-replay idempotence, fork rejection, and cross-resolution/polar alias detection while avoiding quadratic source scans during large journal restoration. Added a 2,048-epoch replay test confirming restored ownership, same-epoch fork rejection, and valid next-epoch discharge.
+3. `HydrologyReceiptBudgetV2.summarize` now rejects forged snapshots containing two transfers from one physical source in the same epoch rather than reporting their duplicated amounts as a conserved budget. Added an independent forged-budget regression test. It remains a receipt-only accounting tool, not a global lake/river/ocean mass audit.
+
+### CI and tests
+
+- [CI 41657880023](https://github.com/Yusuf-cm/wild-deck/actions/runs/41657880023): **PASSED** after correcting the original failing test and adding scheduler source-fork validation; 1,340 JUnit tests, zero failures/errors/skips.
+- [CI 41658105881](https://github.com/Yusuf-cm/wild-deck/actions/runs/41658105881): **PASSED** for final code/test HEAD `4a3dcf2e4194107b27a3123023340f37cc1501d5`; **1,342 JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. World experiment, finite resource replay, browser save controls, Java planet atlas export and real-browser atlas verification completed successfully.
+- Three net-new test methods relative to the 1,339-test failed baseline. The old failing test was updated rather than removed. No claim is made of new physical lake or erosion functionality.
+
+### Feature-branch commits
+
+- `6029ff0bde4bd8dada24f4fb489da80a2e31afc0` — update obsolete ingress test and add forged scheduler fixture.
+- `d9ad2f218598ce38d85f74af227ba40097accd9c` — validate physical receipt origins before spherical region loading.
+- `7128f29f82353e9fbc2472914eff70b8b8d301b8` — index physical water source ownership for linear journal replay.
+- `32b49d4a99b2a52503418a32a2e1b1b5ca8bba77` — large journal replay and source-fork regression.
+- `adb38b11042cce7a5808325493aef0699cc9f4ed` — prevent forged source duplication in water budget auditing.
+- `4a3dcf2e4194107b27a3123023340f37cc1501d5` — forged receipt-budget regression.
+
+### Outstanding hydrology acceptance gaps (NOT COMPLETE)
+
+1. **Authoritative settlement:** No globally atomic sender/receiver water and sediment transaction, durable distributed sender acknowledgments, or fully authorized single-epoch commit of water receipts, sediment receipts, seasonal stores, lake/river flow, terrain erosion, and terminal exports. The coupled seasonal candidate remains noncommitting.
+2. **Streaming and changing topology:** No general routing through unknown unloaded terrain, automatic in-flight drainage migration, conservative mixed-resolution water/sediment state migration, or independently authenticated global catchment/river mouth authority. Rejection rather than migration remains the safe behavior.
+3. **Physical models:** Multiple spillways, groundwater, backwater, calibrated river velocity, transient floods, and physically calibrated erosion are still incomplete. This run changed receipt safety and replay performance, not those models.
+4. **Scale and failure tolerance:** Long-horizon planet-scale conservation, crash/fault injection across independent senders/receivers, distributed consensus, and safe journal compaction remain unverified.
+
+**Safety:** No merge, PR, `main` or other branch changes, production operations, or paid infrastructure changes. Continue hydrology before other world layers.
