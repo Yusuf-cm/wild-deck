@@ -3341,3 +3341,30 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Scale and recovery:** The batch tests establish bounded deterministic behavior for the tested inventories, not planetary performance. Single-edge sediment ingestion still rescans history. Full distributed crash recovery, global conservation across authoritative river/lake/ocean stores, journal compaction, and long-horizon multi-region fault injection remain unproven.
 
 **Safety:** No merge, PR, write to `main` or any other branch, production operation, or paid infrastructure change. Continue unfinished water/hydrology tasks before other world layers.
+
+
+## 2026-11-03 — Verified coupled local water + sediment ingress (not global settlement)
+
+**Scope:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Starting HEAD `a087c78d511036ad3bf3577ef7a6bcd9dc6af614` had green [CI 41668203961](https://github.com/Yusuf-cm/wild-deck/actions/runs/41668203961), **1,351 JUnit tests, zero failures/errors/skips**. No baseline CI failures needed fixing.
+
+### Implemented and limitations
+
+1. Added `HydrologyCoupledReceiptBatchV2.receive` to stage water and sediment arrivals together and persist both receipt histories in **one** local, checksummed, atomic-replacement checkpoint. The returned counts distinguish newly recorded transfers from exact replays. Historical exact receipts can be replayed without duplicating water or sediment; previously unseen arrivals into a committed epoch fail closed. No sender debits are inferred.
+2. Added `HydrologyCheckpointStoreV2.saveCoupledIncoming`, a cooperating-local-writer sidecar-locked compare-and-swap that requires the **exact expected checkpoint** (including on no-op replays), preserves the underlying world, both delivered histories and claimed epochs, and permits only monotonic future receipt additions. Invalid water/sediment batches, stale writers and incompatible changes abort without a partial checkpoint write. **This is one local receiver file, not a distributed sender/receiver transaction.**
+3. Changed `HydrologySedimentCheckpointV2.receive` to use the already indexed `receiveBatch` validation path rather than a separate historical linear source scan for single-edge sediment ingress. Exact historical replays and stale-writer rejection remain covered by existing tests.
+4. Added nine JUnit acceptance tests in `HydrologyCoupledReceiptBatchV2Test`: simultaneous durable ingress and restart/idempotent replay; sediment-source and water-source fork rollback; stale writer rejection (including no-op); rejection of new late arrivals; deterministic receipt ordering/identical checkpoint bytes; conflicting historical replays; coupled receipts feeding seasonal snow/soil and erosion staging with independent water/sediment audit and no premature disk consumption; and cross-resolution water-source alias rollback. The coupled seasonal candidate remains **noncommitting**.
+
+### Verified CI
+
+- [Code + initial seven tests CI 41677534643](https://github.com/Yusuf-cm/wild-deck/actions/runs/41677534643): **PASSED** at `d4434ead4851640a893e62ddfab15e48b8af7921`, **1,358 JUnit tests**, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS.
+- [Code + all nine tests CI 41677624898](https://github.com/Yusuf-cm/wild-deck/actions/runs/41677624898): **PASSED** at `068c5a4b002244e4b5cf6b4aef81c9abedcd95dd`, **1,360 JUnit tests**, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS. The nine new coupled-ingress tests all passed; the workflow also completed the world experiment, finite-resource replay, browser-save verification, planet atlas export and real-browser atlas verification.
+- Commits: `d4434ead4851640a893e62ddfab15e48b8af7921` (coupled receipt ingress, local CAS, indexed single-sediment ingress, seven tests); `068c5a4b002244e4b5cf6b4aef81c9abedcd95dd` (two further coupled/seasonal integration tests). The documentation commit must be checked separately for its own CI result.
+
+### Outstanding hydrology acceptance gaps (NOT COMPLETE)
+
+1. **Global authority:** This run guarantees atomic local *receipt recording*, not atomic **sender debit, receiver credit, sender acknowledgment, seasonal consumption, river/lake storage, terminal export or erosion/terrain update**. The independently audited `HydrologySeasonalSedimentCandidateV2` still requires authenticated sender journals, outlet/export accounting, and globally consistent drainage activation before any authoritative epoch commit.
+2. **Topology/streaming:** No automatic migration of in-flight water/sediment after erosion changes drainage; no arbitrary unknown-unloaded-terrain routing, conservative mixed-resolution physical-state remapping, or complete independently authenticated planetary catchment and river identity authority. Shared geographic vertices are guarded against duplicate ownership rather than silently remapped.
+3. **Physics:** Multiple lake spillways, groundwater, backwater, calibrated river velocities, transient floods and physically calibrated erosion remain unfinished. No new lake or flood model was implemented here.
+4. **Resilience:** No distributed transaction coordinator or durable remote acknowledgments, global crash-recovery/fault-injection proof, journal compaction with replay barrier, or planet-scale long-horizon conservation/throughput acceptance. The tests verify bounded local-file behavior, not distributed exactly-once semantics.
+
+**Safety:** No merges, pull requests, writes to `main` or any other branch, production changes or paid infrastructure changes. Continue hydrology before any other world layer.
