@@ -51,4 +51,28 @@ class HydrologyEpochInboxV2Test {
         assertTrue(inbox.snapshot().delivered().isEmpty());
         assertEquals(2,inbox.snapshot().receipts().size());
     }
+
+    @Test void rejectsTwoLoadedSamplesClaimingOnePhysicalWaterVertex() {
+        var inbox=new HydrologyEpochInboxV2();
+        var fine=new GlobalHydrologyAddressV2.Sample(2,4,4,4);
+        var coarse=new GlobalHydrologyAddressV2.Sample(1,4,2,2);
+        assertThrows(IllegalArgumentException.class,()->
+            inbox.claimAvailable(1,java.util.Set.of(fine,coarse)));
+        assertFalse(inbox.snapshot().consumedEpochs().contains(1L));
+    }
+
+    @Test void rejectsDueCrossResolutionReceiptInsteadOfStrandingIt() {
+        var inbox=new HydrologyEpochInboxV2();
+        var source=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        var fine=new GlobalHydrologyAddressV2.Sample(2,4,4,4);
+        var coarse=new GlobalHydrologyAddressV2.Sample(1,4,2,2);
+        var key=new HydrologyTransferLedgerV2.Key(1,source,fine);
+        inbox.receive(key,25);
+        assertThrows(IllegalArgumentException.class,()->
+            inbox.claimAvailable(1,java.util.Set.of(coarse)));
+        assertFalse(inbox.snapshot().consumedEpochs().contains(1L));
+        assertFalse(inbox.snapshot().delivered().contains(key));
+        assertEquals(java.util.Map.of(fine,25.0),
+            inbox.claimAvailable(1,java.util.Set.of(fine)));
+    }
 }
