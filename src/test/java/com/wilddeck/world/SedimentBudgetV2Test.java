@@ -48,4 +48,51 @@ class SedimentBudgetV2Test {
         for(double value:sediment.outletExport())accounted+=value;
         assertEquals(erodedTotal,accounted,1e-8);
     }
+
+    @Test void importedSedimentIsRoutedSeparatelyFromLocalIncision() {
+        var spill=new LakeSpillV2.Result(3,1,new double[]{3,2,1},
+                                         new int[]{1,2,-1});
+        var result=SedimentBudgetV2.route(spill,
+            new double[]{2,0,0},new double[]{3,0,0},
+            new double[]{4,10,10});
+        assertArrayEquals(new double[]{1,0,0},result.deposited(),0);
+        assertArrayEquals(new double[]{0,0,4},result.outletExport(),0);
+        assertArrayEquals(new double[]{4,4,4},result.transported(),0);
+    }
+
+    @Test void rejectsLostMassAtConfluenceAndAtImportedCell() {
+        var confluence=new LakeSpillV2.Result(3,1,
+            new double[]{3,2,3},new int[]{1,-1,1});
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(confluence,
+                new double[]{1e16,0,1},new double[]{0,0,0},
+                new double[]{Double.MAX_VALUE,Double.MAX_VALUE,Double.MAX_VALUE}));
+        var chain=new LakeSpillV2.Result(2,1,
+            new double[]{2,1},new int[]{1,-1});
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(chain,
+                new double[]{1e16,0},new double[]{1,0},
+                new double[]{Double.MAX_VALUE,Double.MAX_VALUE}));
+        var represented=SedimentBudgetV2.route(chain,
+            new double[]{1e16,0},new double[]{128,0},
+            new double[]{Double.MAX_VALUE,Double.MAX_VALUE});
+        assertEquals(1e16+128,represented.outletExport()[1],0);
+    }
+
+    @Test void rejectsInvalidImportedSedimentAndOverflow() {
+        var spill=new LakeSpillV2.Result(1,1,
+            new double[]{1},new int[]{-1});
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(spill,new double[]{0},new double[]{-1},
+                new double[]{1}));
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(spill,new double[]{0},new double[]{Double.NaN},
+                new double[]{1}));
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(spill,new double[]{0},new double[]{},
+                new double[]{1}));
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentBudgetV2.route(spill,new double[]{Double.MAX_VALUE},
+                new double[]{Double.MAX_VALUE},new double[]{Double.MAX_VALUE}));
+    }
 }
