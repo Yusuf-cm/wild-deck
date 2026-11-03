@@ -64,4 +64,50 @@ class SedimentLandscapeV2Test {
             SedimentLandscapeV2.advanceToVerifiedOutlets(
                 5,5,original,rain,area,2000,.1,.4,new double[25],Set.of()));
     }
+
+    @Test void importedSedimentDepositsIntoPhysicalBedWithoutInventingErosion() {
+        double[] original=terrain(),rain=new double[25],area=new double[25],
+            imported=new double[25],capacity=new double[25];
+        Arrays.fill(area,1);
+        imported[0]=2_000;
+        var first=SedimentLandscapeV2.advanceToVerifiedOutlets(
+            5,5,original,rain,area,2_000,0,0,capacity,imported,Set.of(24));
+        assertEquals(0,first.erodedMass(),0);
+        assertEquals(2_000,first.importedMass(),0);
+        assertEquals(2_000,first.depositedMass(),0);
+        assertEquals(0,first.exportedMass(),0);
+        assertEquals(1,first.depositionHeight()[0],0);
+        assertEquals(original[0]+1,first.terrain()[0],0);
+        assertEquals(0,first.discharge().flow()[24],0);
+        assertEquals(20,original[0],0);
+        var replay=SedimentLandscapeV2.advanceToVerifiedOutlets(
+            5,5,original,rain,area,2_000,0,0,capacity,imported,Set.of(24));
+        assertArrayEquals(first.terrain(),replay.terrain(),0);
+    }
+
+    @Test void importedSedimentCanExitAnUnloadedWindowAtVerifiedOutlet() {
+        double[] original=terrain(),rain=new double[25],area=new double[25],
+            imported=new double[25],capacity=new double[25];
+        Arrays.fill(area,1);
+        Arrays.fill(capacity,1_000);
+        imported[0]=10;
+        var first=SedimentLandscapeV2.advanceToVerifiedOutlets(
+            5,5,original,rain,area,2_000,0,0,capacity,imported,Set.of(24));
+        assertEquals(10,first.importedMass(),0);
+        assertEquals(0,first.erodedMass(),0);
+        assertEquals(0,first.depositedMass(),0);
+        assertEquals(10,first.exportedMass(),0);
+        assertArrayEquals(original,first.terrain(),0);
+    }
+
+    @Test void rejectsInvisibleSedimentDepositionInsteadOfLosingMass() {
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentLandscapeV2.depositionHeight(1e16,1,1,1));
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentLandscapeV2.depositionHeight(-1e16,1,1,1));
+        assertThrows(IllegalArgumentException.class,()->
+            SedimentLandscapeV2.depositionHeight(0,Double.MIN_VALUE,1e200,1e100));
+        assertEquals(1, SedimentLandscapeV2.depositionHeight(20,2_000,1,2_000),0);
+        assertEquals(0, SedimentLandscapeV2.depositionHeight(20,0,1,2_000),0);
+    }
 }
