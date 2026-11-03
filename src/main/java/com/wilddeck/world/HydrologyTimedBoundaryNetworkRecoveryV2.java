@@ -171,6 +171,48 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             plan.missingByReceiver().get(receiver),durationSeconds);
     }
 
+    /**
+     * Re-audit the complete durable fleet, then commit only the selected
+     * receiver's transit and seasonal state with its own local CAS. Other
+     * receivers and senders are NEVER written. This is not a distributed
+     * transaction or an acknowledgement of a sender journal.
+     */
+    public static HydrologyTimedSeasonalEpochV2.Prepared commitUniform(
+            Map<String,Path> senderFiles,
+            Map<String,HydrologyTimedBoundaryNetworkAuditV2.ReceiverFile> receiverFiles,
+            String receiver,HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,
+            int slices,double durationSeconds) throws IOException {
+        var plan = planCheckpoints(senderFiles,receiverFiles,atlas);
+        var prepared = prepareUniform(plan,receiver,atlas,forcing,lakes,loaded,
+            slices,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(
+            receiverFiles.get(receiver).checkpoint(),
+            plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
+        return prepared;
+    }
+
+    /** One-receiver CAS with chronological lake forcing and full-fleet preflight. */
+    public static HydrologyTimedSeasonalEpochV2.Prepared commitScheduled(
+            Map<String,Path> senderFiles,
+            Map<String,HydrologyTimedBoundaryNetworkAuditV2.ReceiverFile> receiverFiles,
+            String receiver,HydrologySphericalRouteAtlasV2 atlas,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> forcing,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
+            Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
+            Set<GlobalHydrologyAddressV2.Sample> loaded,double durationSeconds)
+            throws IOException {
+        var plan = planCheckpoints(senderFiles,receiverFiles,atlas);
+        var prepared = prepareScheduled(plan,receiver,atlas,forcing,lakes,schedules,
+            loaded,durationSeconds);
+        HydrologyCheckpointStoreV2.saveNext(
+            receiverFiles.get(receiver).checkpoint(),
+            plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
+        return prepared;
+    }
+
     private static HydrologyCheckpointV2.Checkpoint checkpoint(Plan plan,String receiver) {
         Objects.requireNonNull(plan);
         var expected = plan.expectedCheckpoints().get(receiver);
