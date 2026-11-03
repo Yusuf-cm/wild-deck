@@ -14,7 +14,7 @@ import java.util.*;
  * This does NOT acknowledge senders or commit multiple receiver files. The
  * caller must supply the COMPLETE sender and receiver fleet and a complete,
  * immutable atlas. Each prepared receiver epoch requires its own local CAS;
- * concurrent changes elsewhere still require an external coordination protocol.
+ * cooperating local checkpoint writers are fenced during commit, but\n * remote/noncooperating writers still require an external protocol.
  */
 public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
     private HydrologyTimedBoundaryNetworkRecoveryV2() {}
@@ -187,7 +187,7 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
 
     /**
      * Re-audit the complete durable fleet, then commit only the selected
-     * receiver's transit and seasonal state with its own local CAS. Other
+     * receiver's transit and seasonal state with its own local CAS while\n     * holding all supplied local checkpoint sidecar locks. Other
      * receivers and senders are NEVER written. This is not a distributed
      * transaction or an acknowledgement of a sender journal.
      */
@@ -199,13 +199,17 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             Map<GlobalHydrologyAddressV2.Sample,HydrologySeasonalLaggedLakeNetworkV2.Lake> lakes,
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             int slices,double durationSeconds) throws IOException {
-        var plan = planCheckpoints(senderFiles,receiverFiles,atlas);
-        var prepared = prepareUniform(plan,receiver,atlas,forcing,lakes,loaded,
-            slices,durationSeconds);
-        HydrologyCheckpointStoreV2.saveNext(
-            receiverFiles.get(receiver).checkpoint(),
-            plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
-        return prepared;
+        var senders = Map.copyOf(senderFiles);
+        var receivers = Map.copyOf(receiverFiles);
+        return withFleetLocks(senders,receivers,() -> {
+            var plan = planCheckpoints(senders,receivers,atlas);
+            var prepared = prepareUniform(plan,receiver,atlas,forcing,lakes,loaded,
+                slices,durationSeconds);
+            HydrologyCheckpointStoreV2.saveNextWithLockHeld(
+                receivers.get(receiver).checkpoint(),
+                plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
+            return prepared;
+        });
     }
 
     /** One-receiver CAS with chronological lake forcing and full-fleet preflight. */
@@ -218,13 +222,34 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
             Set<GlobalHydrologyAddressV2.Sample> loaded,double durationSeconds)
             throws IOException {
-        var plan = planCheckpoints(senderFiles,receiverFiles,atlas);
-        var prepared = prepareScheduled(plan,receiver,atlas,forcing,lakes,schedules,
-            loaded,durationSeconds);
-        HydrologyCheckpointStoreV2.saveNext(
-            receiverFiles.get(receiver).checkpoint(),
-            plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
-        return prepared;
+        var senders = Map.copyOf(senderFiles);
+        var receivers = Map.copyOf(receiverFiles);
+        return withFleetLocks(senders,receivers,() -> {
+            var plan = planCheckpoints(senders,receivers,atlas);
+            var prepared = prepareScheduled(plan,receiver,atlas,forcing,lakes,
+                schedules,loaded,durationSeconds);
+            HydrologyCheckpointStoreV2.saveNextWithLockHeld(
+                receivers.get(receiver).checkpoint(),
+                plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
+            return prepared;
+        });
+    }
+
+
+    /**
+     * Serializes the complete local sender/receiver snapshot preflight and
+     * the selected receiver's CAS against cooperating checkpoint writers.
+     * This is still only ONE receiver-local atomic file replacement.
+     * Remote writers and noncooperating processes require external fencing.
+     */
+    private static <T> T withFleetLocks(
+            Map<String,Path> senders,
+            Map<String,HydrologyTimedBoundaryNetworkAuditV2.ReceiverFile> receivers,
+            HydrologyCheckpointFileLockV2.Operation<T> operation) throws IOException {
+        var paths = new ArrayList<Path>(senders.values());
+        for (var receiver : receivers.values())
+            paths.add(receiver.checkpoint());
+        return HydrologyCheckpointFileLockV2.withLocks(paths,operation);
     }
 
     @SafeVarargs
