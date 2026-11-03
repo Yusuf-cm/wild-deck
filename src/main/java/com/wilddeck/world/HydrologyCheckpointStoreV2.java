@@ -66,9 +66,8 @@ public final class HydrologyCheckpointStoreV2 {
      * In particular, an independently persisted incoming receipt must not be
      * erased by a runner advancing from its old in-memory checkpoint.
      *
-     * This is a defensive optimistic check for a single-writer local store.
-     * It is NOT an interprocess compare-and-swap: another process could
-     * write between this read and the atomic replacement.
+     * A sidecar lock serializes the freshness check and atomic replacement
+     * across cooperating local JVM writers. It is NOT a distributed CAS.
      */
     public static void saveNext(Path destination,
             HydrologyCheckpointV2.Checkpoint expected,
