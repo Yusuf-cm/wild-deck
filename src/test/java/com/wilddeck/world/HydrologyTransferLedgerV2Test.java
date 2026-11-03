@@ -45,4 +45,28 @@ class HydrologyTransferLedgerV2Test {
         assertThrows(IllegalArgumentException.class,()->ledger.incoming(5));
         assertEquals(2,ledger.snapshot().size());
     }
+
+    @Test void rejectsTwoDischargesFromOnePhysicalSourceInSameEpoch() {
+        var ledger=new HydrologyTransferLedgerV2();
+        var first=new HydrologyTransferLedgerV2.Key(7,at(4,4),at(5,4));
+        var fork=new HydrologyTransferLedgerV2.Key(7,at(4,4),at(4,5));
+        assertTrue(ledger.accept(first,12));
+        assertThrows(IllegalArgumentException.class,()->ledger.accept(fork,8));
+        assertEquals(1,ledger.snapshot().size());
+        assertEquals(12,ledger.incoming(7).get(at(5,4)));
+        assertTrue(ledger.accept(new HydrologyTransferLedgerV2.Key(
+            8,at(4,4),at(4,5)),8));
+    }
+
+    @Test void rejectsCrossResolutionPhysicalSenderAliasAndForgedRestore() {
+        var fine=new HydrologyTransferLedgerV2.Key(7,at(4,4),at(5,4));
+        var coarse=new HydrologyTransferLedgerV2.Key(7,
+            new GlobalHydrologyAddressV2.Sample(1,4,2,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,3,2));
+        var ledger=new HydrologyTransferLedgerV2();
+        ledger.accept(fine,12);
+        assertThrows(IllegalArgumentException.class,()->ledger.accept(coarse,8));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTransferLedgerV2.restore(java.util.Map.of(fine,12.0,coarse,8.0)));
+    }
 }
