@@ -47,6 +47,12 @@ public final class HydrologySeasonalReceiptAuditV2 {
                 throw new IllegalArgumentException("Duplicate or noncanonical receipt owner");
         }
         var oldWater = HydrologyInboxCodecV2.decode(previous.inboxState());
+        for (long epoch : oldWater.consumedEpochs())
+            if (epoch > previous.epoch())
+                throw new IllegalArgumentException("Previous checkpoint consumed a future water epoch");
+        for (var key : oldWater.delivered())
+            if (key.epoch() > previous.epoch())
+                throw new IllegalArgumentException("Previous checkpoint delivered future water");
         var newWater = HydrologyInboxCodecV2.decode(next.inboxState());
         var expectedEpochs = new HashSet<>(oldWater.consumedEpochs());
         expectedEpochs.add(next.epoch());
