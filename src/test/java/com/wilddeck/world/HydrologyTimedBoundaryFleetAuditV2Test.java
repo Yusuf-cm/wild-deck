@@ -1,11 +1,15 @@
 package com.wilddeck.world;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.math.BigDecimal;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HydrologyTimedBoundaryFleetAuditV2Test {
+    @TempDir Path directory;
     private static GlobalHydrologyAddressV2.Sample at(long x,long y) {
         return new GlobalHydrologyAddressV2.Sample(1,2,x,y);
     }
@@ -128,5 +132,67 @@ class HydrologyTimedBoundaryFleetAuditV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyTimedBoundaryFleetAuditV2.audit(List.of(sender),
                 HydrologyTimedTransitLedgerV2.empty("w"),changed,true));
+    }
+
+    private static HydrologyCheckpointV2.Checkpoint receiverInitial(
+            HydrologySphericalRouteAtlasV2 atlas) {
+        var raw=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "w",0,Map.of(),Map.of())),new HydrologyEpochInboxV2());
+        var bound=HydrologySeasonalTopologyEpochV2.bindFresh(raw,atlas);
+        var seasonal=HydrologySeasonalSnowSoilWaterEpochV2.bindFresh(
+            bound,new HydrologySnowSoilStateV2.State(
+                "w",Map.of(at(5,2),new HydrologySnowSoilStateV2.Cell(0,0))),1000);
+        return HydrologyTimedSeasonalEpochV2.bindFresh(seasonal);
+    }
+
+    @Test void durableFleetRecoveryReadsTwoIndependentSenderJournals()
+            throws IOException {
+        var atlas=atlas();
+        var routes=atlas.routes().stream().filter(r->!r.terminal()).limit(2).toList();
+        var a=edge("a",routes.get(0),2);
+        var b=edge("b",routes.get(1),3);
+        Path one=directory.resolve("one.chk");
+        Path two=directory.resolve("two.chk");
+        Path receiver=directory.resolve("receiver.chk");
+        var first=HydrologyTimedBoundarySenderV2.initialize(one,
+            HydrologyTimedBoundarySenderV2.empty("w",Map.of(a.source(),10.0)));
+        var second=HydrologyTimedBoundarySenderV2.initialize(two,
+            HydrologyTimedBoundarySenderV2.empty("w",Map.of(b.source(),10.0)));
+        HydrologyTimedBoundarySenderV2.commit(one,first,atlas,List.of(a));
+        HydrologyTimedBoundarySenderV2.commit(two,second,atlas,List.of(b));
+        HydrologyCheckpointStoreV2.save(receiver,receiverInitial(atlas));
+        var audit=HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+            List.of(two,one),receiver,atlas,true);
+        assertEquals(List.of(a,b),audit.missing());
+        same("20.0",audit.accountedM3());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+                List.of(one,one),receiver,atlas,true));
+    }
+
+    @Test void durableFleetRecoveryRejectsInconsistentCheckpointEpochs()
+            throws IOException {
+        var atlas=atlas();
+        Path sender=directory.resolve("sender.chk");
+        Path receiver=directory.resolve("receiver.chk");
+        var initial=HydrologyTimedBoundarySenderV2.empty("w",Map.of(at(2,2),7.0));
+        HydrologyCheckpointStoreV2.save(sender,HydrologyCheckpointV2.capture(
+            2,HydrologyTimedBoundarySenderV2.encode(initial),
+            new HydrologyEpochInboxV2()));
+        HydrologyCheckpointStoreV2.save(receiver,receiverInitial(atlas));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+                List.of(sender),receiver,atlas,true));
+        Path goodSender=directory.resolve("good.chk");
+        HydrologyTimedBoundarySenderV2.initialize(goodSender,initial);
+        Path badReceiver=directory.resolve("badreceiver.chk");
+        var valid=receiverInitial(atlas);
+        HydrologyCheckpointStoreV2.save(badReceiver,HydrologyCheckpointV2.capture(
+            2,valid.worldState(),new HydrologyEpochInboxV2()));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+                List.of(goodSender),badReceiver,atlas,true));
     }
 }
