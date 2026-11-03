@@ -159,22 +159,8 @@ public final class HydrologyTimedBoundarySenderV2 {
         Objects.requireNonNull(sender);
         Objects.requireNonNull(receiver);
         Objects.requireNonNull(atlas);
-        if (!sender.world().equals(receiver.world()))
-            throw new IllegalArgumentException("Sender and receiver worlds differ");
-        HydrologyVerifiedTimedBoundaryV2.verify(atlas,sender.issued().values());
-        var missing = new ArrayList<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer>();
-        for (var transfer : sender.issued().values()) {
-            var expected = new HydrologyTimedTransitLedgerV2.Transfer(
-                transfer.id(),HydrologyGlobalCatchmentsV2.coordinate(
-                    transfer.destination()),transfer.dueTick(),transfer.volumeM3());
-            var pending=receiver.pending().get(transfer.id());
-            var settled=receiver.settled().get(transfer.id());
-            var found=pending == null ? settled : pending;
-            if (found == null) missing.add(transfer);
-            else if (!expected.equals(found))
-                throw new IllegalArgumentException("Receiver transit history conflicts with sender");
-        }
-        return List.copyOf(missing);
+        return HydrologyTimedBoundaryReconciliationV2.audit(
+            sender,receiver,atlas).missing();
     }
 
     /** Read both independent checkpoints without mutating either one. */
