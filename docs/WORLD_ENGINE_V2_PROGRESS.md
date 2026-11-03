@@ -3093,3 +3093,39 @@ This final verification paragraph is documentation-only and its own new commit w
 5. **Acceptance at scale:** No full-planet long-horizon water/sediment conservation, distributed crash/fault injection, safe journal compaction or remote writer fencing.
 
 **Safety:** Only the feature branch was changed. No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Continue unfinished hydrology before other world layers.
+
+
+## 2026-11-03 — Imported sediment, conservation-safe confluences and seasonal erosion bridge
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Started from `a5f260c0ad1440a8a662a0660c1bd375326882ca`; [baseline Actions 41606869045](https://github.com/Yusuf-cm/wild-deck/actions/runs/41606869045) **PASSED**. No baseline CI failure.
+
+### Implemented and verified
+
+1. Added `SedimentMassAdditionV2` and applied its fail-closed arithmetic to `SedimentBudgetV2.route` at local erosion/import convergence and at downstream confluences. A positive sediment contribution may not disappear entirely through floating-point rounding. Added an overload accepting independently owned, caller-authenticated **imported sediment kg per cell**; existing local-erosion-only calls remain supported. The route still rejects cycles, invalid masses and overflow. **This does not authenticate transfer provenance or persist receipt consumption.**
+2. `SedimentLandscapeV2.advanceToVerifiedOutlets` now optionally routes imported sediment separately from newly eroded sediment. The result exposes `importedMass`; the audited mass balance is **eroded + imported = deposited + exported**, using `BigDecimal` for independent aggregate checking with the existing relative tolerance. Deposited sediment raises the bed and the spill network is recomputed. A positive deposit that underflows in height or is rounded away by the bed elevation is rejected, rather than claiming deposition without a terrain change. Existing local-only entry points and the older `Step` constructor remain compatible.
+3. `HydrologyTerrainOverlayV2.evolveWindow` now accepts imported sediment in an optional overload, yielding an overlay that can be encoded and persisted in the existing hydrology world checkpoint. A test demonstrates imported mass depositing in terrain and surviving restart. **The receipt is not consumed by this overload**; callers must atomically pair authenticated sediment inbox consumption with the resulting terrain checkpoint before using it authoritatively.
+4. `HydrologySeasonalErosionPreviewV2` now accepts separate maps of imported water (m³) and imported sediment (kg), both in checked weather-forcing and precomputed-season previews. Imported water drives routing/incision without becoming precipitation; imported sediment participates in deposition/export without being counted as local erosion. Owned seasonal runoff and imported water are combined with `HydrologyWaterVolumeAdditionV2` so an entire positive water contribution cannot silently disappear. This remains **noncommitting** and assumes caller-authenticated receipts and verified outlets.
+5. Added **11 JUnit test methods**: sediment import and confluence/overflow (3), imported deposition/export and unrepresentable bed increments (3), persistent imported terrain and invalid imports (2), simultaneous water/sediment seasonal preview, invalid imports/precision loss, and checked weather forcing (3). Tests include deterministic replay of the same pure candidate, but do **not** prove crash-safe exactly-once receipt consumption.
+
+### Commits and CI evidence
+
+- `93c580f85ce4e7d9f45c9a3067cf7c0da71f24cd` — sediment mass addition guard.
+- `c2c02692449b73a3e8f3d5166f93ac37ea6486c0` — imported sediment routing and conservative confluences.
+- `1298d857b94278ccfafebcc677a4d751c2ce744a` — imported sediment landscape and representable deposition.
+- `9ae0c4c0632f84a4e314d9e31a02235357c126df` — sediment routing tests.
+- `fa2ef904fd22782f049d867c230f48015c3fe6fb` — deposition and sediment import tests.
+- `25cde0c5c3e1a05402c9355e210993a619abcc00` — terrain overlay import bridge.
+- `4d7ece968aa2d768897d34fcbfb367dd938d67c3` — durable terrain import tests.
+- `300b2700aaeb2e80a8adc8ddc9a57e25276bf979` — seasonal water/sediment erosion preview bridge.
+- `ee144c35abf1d90c994574039d695caaecddd45c` — coupled preview regressions.
+- `96407464f8b64180ede5ce75d7e5ff47102d1764` — audited weather-forcing regression.
+- **[Final implementation/test Actions 41614754033](https://github.com/Yusuf-cm/wild-deck/actions/runs/41614754033) PASSED**: **1,306 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. Focused suites: `SedimentBudgetV2Test` **7/7**, `SedimentLandscapeV2Test` **6/6**, `HydrologyTerrainOverlayV2Test` **9/9**, `HydrologySeasonalErosionPreviewV2Test` **13/13**. World experiment, resource extraction/replay, browser save, atlas export and real-browser verification also passed. The documentation-only commit requires its own CI before the final documentation HEAD can be called green.
+
+### Remaining hydrology acceptance gaps (NOT COMPLETE)
+
+1. **Authoritative atomic lifecycle:** Imported sediment is a pure input, not a durable sender-acknowledged transfer. A single authoritative checkpoint must couple sender debit, water/sediment receipt consumption, lake/snow/soil storage, terrain/riverbed change, topology revision, ocean discharge and recovery. Existing local locks and separate sender/receiver checkpoints are not globally atomic or distributed.
+2. **Routing and changing terrain:** The erosion preview recalculates local spill routes but does not safely migrate in-flight water/sediment after topology changes or discover arbitrary unknown unloaded terrain. No mixed-resolution physical state remapping, complete planetary catchment authority or automatic live world tick integration.
+3. **Physics:** Sediment capacity and density, river velocities, precipitation/evaporation and erosion parameters are caller-supplied, not calibrated. Multiple lake spillways, groundwater, backwater, transient flooding and coupled flood-wave sediment hydraulics remain unfinished.
+4. **Numerical and scale:** The guards catch *complete* loss of a positive contribution, not all floating-point rounding. The `BigDecimal` aggregate audit has a relative tolerance and is not an exact physical mass solver. No planetary long-horizon conservation/endurance, distributed fault injection, remote writer fencing, or safe receipt-history compaction.
+
+**Safety:** No merge, PR, main/other-branch write, production operation or paid infrastructure change. Continue hydrology before other layers.
