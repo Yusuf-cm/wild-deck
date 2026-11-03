@@ -147,6 +147,48 @@ public final class HydrologyTimedBoundarySenderV2 {
             newlyIssued,before,debited,sum(available.values()));
     }
 
+    /**
+     * Compare a persisted sender journal with the receiver's durable timed
+     * ledger. Return only missing transfers for idempotent receiver replay.
+     * A conflicting receiver ID fails closed. This is read-only recovery
+     * planning, NOT a distributed acknowledgement or automatic delivery.
+     */
+    public static List<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> missingAtReceiver(
+            State sender, HydrologyTimedTransitLedgerV2.State receiver,
+            HydrologySphericalRouteAtlasV2 atlas) {
+        Objects.requireNonNull(sender);
+        Objects.requireNonNull(receiver);
+        Objects.requireNonNull(atlas);
+        if (!sender.world().equals(receiver.world()))
+            throw new IllegalArgumentException("Sender and receiver worlds differ");
+        HydrologyVerifiedTimedBoundaryV2.verify(atlas,sender.issued().values());
+        var missing = new ArrayList<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer>();
+        for (var transfer : sender.issued().values()) {
+            var expected = new HydrologyTimedTransitLedgerV2.Transfer(
+                transfer.id(),HydrologyGlobalCatchmentsV2.coordinate(
+                    transfer.destination()),transfer.dueTick(),transfer.volumeM3());
+            var pending=receiver.pending().get(transfer.id());
+            var settled=receiver.settled().get(transfer.id());
+            var found=pending == null ? settled : pending;
+            if (found == null) missing.add(transfer);
+            else if (!expected.equals(found))
+                throw new IllegalArgumentException("Receiver transit history conflicts with sender");
+        }
+        return List.copyOf(missing);
+    }
+
+    /** Read both independent checkpoints without mutating either one. */
+    public static List<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer> missingAtReceiver(
+            Path senderFile, Path receiverFile,
+            HydrologySphericalRouteAtlasV2 atlas) throws IOException {
+        var sender = decode(HydrologyCheckpointStoreV2.load(senderFile).worldState());
+        var receiverCheckpoint = HydrologyCheckpointStoreV2.load(receiverFile);
+        var receiver = HydrologyTimedTransitLedgerV2.decode(
+            HydrologyTimedSeasonalEpochV2.decode(
+                receiverCheckpoint.worldState()).transit());
+        return missingAtReceiver(sender,receiver,atlas);
+    }
+
     /** Persist the debit and journal together, before transmitting new IDs. */
     public static Committed commit(Path file,
             HydrologyCheckpointV2.Checkpoint expected,
