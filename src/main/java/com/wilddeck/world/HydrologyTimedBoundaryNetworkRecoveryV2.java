@@ -52,6 +52,27 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
                 throw new IllegalArgumentException("Recovery checkpoint coverage mismatch");
             if (!assignedByReceiver.keySet().equals(ordered.keySet()))
                 throw new IllegalArgumentException("Recovery geography coverage mismatch");
+            // The Plan record is public: even a manually constructed plan must
+            // not park authenticated water under the wrong physical receiver.
+            // Recheck cross-resolution ownership here rather than trusting
+            // only the network audit that normally constructs this record.
+            var globalOwners = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+            for (var entry : assignedByReceiver.entrySet()) {
+                var localOwners = new HashSet<HydrologyGlobalCatchmentsV2.Coordinate>();
+                for (var sample : Objects.requireNonNull(entry.getValue())) {
+                    if (!HydrologySphericalTopologyV2.isCanonical(sample))
+                        throw new IllegalArgumentException("Noncanonical recovery owner");
+                    var coordinate = HydrologyGlobalCatchmentsV2.coordinate(sample);
+                    if (!localOwners.add(coordinate) || !globalOwners.add(coordinate))
+                        throw new IllegalArgumentException(
+                            "Duplicate physical recovery receiver owner");
+                }
+                for (var transfer : ordered.get(entry.getKey()))
+                    if (!localOwners.contains(
+                            HydrologyGlobalCatchmentsV2.coordinate(transfer.destination())))
+                        throw new IllegalArgumentException(
+                            "Recovery transfer assigned to wrong physical receiver");
+            }
             var geography = new TreeMap<String,Set<GlobalHydrologyAddressV2.Sample>>();
             for (var entry : assignedByReceiver.entrySet())
                 geography.put(entry.getKey(),Set.copyOf(entry.getValue()));
