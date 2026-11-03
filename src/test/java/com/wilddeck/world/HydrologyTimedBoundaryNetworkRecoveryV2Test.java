@@ -150,6 +150,11 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
         var plan=HydrologyTimedBoundaryNetworkRecoveryV2.planCheckpoints(
             senders,receivers,atlas);
         assertEquals(2,plan.audit().missing());
+        var foreign=edges.get(1).destination();
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundaryNetworkRecoveryV2.prepareUniform(
+                plan,"r0",atlas,Map.of(foreign,dry(foreign)),Map.of(),
+                Set.of(foreign),2,86400));
         var destination=edges.get(0).destination();
         var prepared=HydrologyTimedBoundaryNetworkRecoveryV2.prepareUniform(
             plan,"r0",atlas,Map.of(destination,dry(destination)),Map.of(),
