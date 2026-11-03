@@ -20,7 +20,7 @@ class HydrologyTimedBoundaryFleetAuditV2Test {
             sources,a->a.equals(outlet)?0:10,Set.of(outlet));
     }
     private static HydrologyVerifiedTimedBoundaryV2.EdgeTransfer edge(
-            String id,HydrologySphericalRouteAtlasV2.Route route,double volume) {
+            String id,HydrologyFlowGraphV2.Node route,double volume) {
         return new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
             id,route.address(),route.downstream(),3,volume);
     }
