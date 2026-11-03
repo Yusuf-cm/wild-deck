@@ -38,4 +38,17 @@ class HydrologyEpochInboxV2Test {
         assertThrows(IllegalArgumentException.class,()->inbox.claim(4));
         assertFalse(inbox.snapshot().consumedEpochs().contains(4L));
     }
+
+    @Test void claimAvailableRejectsPrecisionLossWithoutBurningEpoch(){
+        var inbox=new HydrologyEpochInboxV2();
+        var large=new HydrologyTransferLedgerV2.Key(4,at(4),at(5));
+        var tiny=new HydrologyTransferLedgerV2.Key(4,at(6),at(5));
+        inbox.receive(large,1e20);
+        inbox.receive(tiny,1);
+        assertThrows(IllegalArgumentException.class,()->
+            inbox.claimAvailable(4,java.util.Set.of(at(5))));
+        assertFalse(inbox.snapshot().consumedEpochs().contains(4L));
+        assertTrue(inbox.snapshot().delivered().isEmpty());
+        assertEquals(2,inbox.snapshot().receipts().size());
+    }
 }
