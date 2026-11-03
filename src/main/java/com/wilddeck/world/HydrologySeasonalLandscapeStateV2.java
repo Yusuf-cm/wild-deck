@@ -82,6 +82,32 @@ public final class HydrologySeasonalLandscapeStateV2 {
             preview.erosion().terrain().state(), preview.season().state()), preview);
     }
 
+    /**
+     * Noncommitting landscape candidate with independently authenticated
+     * water (m3) and sediment (kg) boundary inputs. The caller must bind
+     * consumed sediment receipt identities to the eventual checkpoint.
+     */
+    public static Prepared prepareWithIncoming(
+            State previous, List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width, int height, HydrologyGlobalSlopeRouterV2.Elevations seed,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters, double sedimentDensity,
+            double erosionStrength, double maximumCut,
+            double[] transportCapacity, Collection<Integer> verifiedOutlets,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incomingWater,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incomingSedimentKg) {
+        Objects.requireNonNull(previous);
+        if (Double.compare(previous.radiusMeters(), radiusMeters) != 0)
+            throw new IllegalArgumentException("Seasonal landscape planetary radius changed");
+        var preview = HydrologySeasonalErosionPreviewV2.calculateFromForcing(
+            previous.terrain(), addresses, width, height, seed,
+            previous.snowSoil(), weather, radiusMeters, sedimentDensity,
+            erosionStrength, maximumCut, transportCapacity, verifiedOutlets,
+            incomingWater, incomingSedimentKg);
+        return new Prepared(new State(previous.world(), previous.radiusMeters(),
+            preview.erosion().terrain().state(), preview.season().state()), preview);
+    }
+
     public static String encode(State state) {
         Objects.requireNonNull(state);
         byte[] terrain = HydrologyTerrainOverlayV2.encode(state.terrain())
