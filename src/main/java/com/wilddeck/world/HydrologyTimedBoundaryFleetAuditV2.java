@@ -2,6 +2,7 @@ package com.wilddeck.world;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -47,11 +48,21 @@ public final class HydrologyTimedBoundaryFleetAuditV2 {
         Objects.requireNonNull(senderFiles);
         Objects.requireNonNull(receiverFile);
         var uniqueFiles = new HashSet<Path>();
+        var physicalFiles = new ArrayList<Path>();
+        var receiverPath = receiverFile.toAbsolutePath().normalize();
         var senders = new ArrayList<HydrologyTimedBoundarySenderV2.State>();
         for (var file : senderFiles) {
             var normalized = Objects.requireNonNull(file).toAbsolutePath().normalize();
             if (!uniqueFiles.add(normalized))
                 throw new IllegalArgumentException("Duplicate sender checkpoint path");
+            // Distinct paths can still be hard links or symlinks to the same
+            // durable journal. Counting both would fabricate fleet water.
+            if (Files.isSameFile(normalized,receiverPath))
+                throw new IllegalArgumentException("Sender aliases receiver checkpoint");
+            for (var previousFile : physicalFiles)
+                if (Files.isSameFile(normalized,previousFile))
+                    throw new IllegalArgumentException("Duplicate physical sender checkpoint");
+            physicalFiles.add(normalized);
             var checkpoint = HydrologyCheckpointStoreV2.load(normalized);
             var sender = HydrologyTimedBoundarySenderV2.decode(checkpoint.worldState());
             if (sender.epoch() != checkpoint.epoch())
