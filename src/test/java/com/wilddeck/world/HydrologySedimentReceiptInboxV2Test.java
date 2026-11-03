@@ -138,6 +138,18 @@ class HydrologySedimentReceiptInboxV2Test {
         assertEquals(2,claimed.snapshot().delivered().size());
     }
 
+    @Test void rejectsPrecisionLossAcrossDifferentSedimentDestinations() {
+        var large = receipt(0,1,A,B);
+        var small = receipt(0,1,B,C);
+        var inbox = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(),large,1e30);
+        inbox = HydrologySedimentReceiptInboxV2.receive(inbox,small,1);
+        var original = inbox;
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySedimentReceiptInboxV2.claimAvailable(original,1,List.of(B,C)));
+        assertTrue(original.delivered().isEmpty());
+    }
+
     @Test void insertionOrderDoesNotChangeSnapshotOrClaims() {
         var a=receipt(0,2,A,B);
         var d=receipt(0,2,D,B);
