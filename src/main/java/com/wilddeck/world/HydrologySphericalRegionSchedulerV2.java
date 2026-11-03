@@ -58,6 +58,11 @@ public final class HydrologySphericalRegionSchedulerV2 {
             HydrologyRegionSchedulerV2.Provider provider) {
         Objects.requireNonNull(focus);
         Objects.requireNonNull(pending);
+        // Check the entire untrusted receipt inventory before loading any
+        // region. In particular, two canonical outgoing edges can still
+        // claim the same physical source in one epoch if a caller bypassed
+        // HydrologyEpochInboxV2.receive when constructing its snapshot.
+        HydrologyTransferLedgerV2.restore(pending.receipts());
         // Region coordinates are not resolution-qualified. Never load a
         // different-level receipt into a superficially matching tile.
         // Reject noncanonical seam/pole aliases at BOTH ends of a receipt.
