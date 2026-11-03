@@ -205,6 +205,9 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             claimed.snapshot());
         var next = new HydrologyCheckpointV2.Checkpoint(
             nextEpoch, world, nextInbox);
-        return new Candidate(next, prepared, claimed);
+        var candidate = new Candidate(next, prepared, claimed);
+        if (consumeWaterReceipts)
+            HydrologySeasonalReceiptAuditV2.verify(previous, candidate, addresses);
+        return candidate;
     }
 }
