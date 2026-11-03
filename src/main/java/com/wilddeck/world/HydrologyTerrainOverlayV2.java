@@ -120,9 +120,31 @@ public final class HydrologyTerrainOverlayV2 {
             double[] rainfall,double[] cellArea,double density,
             double strength,double maximumCut,double[] transportCapacity,
             Collection<Integer> verifiedOutlets) {
+        Objects.requireNonNull(addresses);
+        return evolveWindow(previous,addresses,width,height,seed,rainfall,
+            cellArea,density,strength,maximumCut,transportCapacity,
+            new double[addresses.size()],verifiedOutlets);
+    }
+
+    /**
+     * Apply an independently authenticated incoming sediment mass to this
+     * physical terrain window. The imported sediment is routed/deposited,
+     * not counted as newly eroded material. This is a pure overlay candidate:
+     * the caller must consume the sender receipt and commit the terrain
+     * checkpoint together to avoid replaying imports after a crash.
+     */
+    public static Evolved evolveWindow(
+            State previous,List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width,int height,HydrologyGlobalSlopeRouterV2.Elevations seed,
+            double[] rainfall,double[] cellArea,double density,
+            double strength,double maximumCut,double[] transportCapacity,
+            double[] importedSedimentKg,Collection<Integer> verifiedOutlets) {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(addresses);
         Objects.requireNonNull(seed);
+        Objects.requireNonNull(importedSedimentKg);
+        if(importedSedimentKg.length!=addresses.size())
+            throw new IllegalArgumentException("Invalid imported sediment window");
         if(width<1||height<1||(long)width*height!=addresses.size())
             throw new IllegalArgumentException("Invalid terrain window dimensions");
         var first=Objects.requireNonNull(addresses.get(0));
@@ -143,7 +165,8 @@ public final class HydrologyTerrainOverlayV2 {
         }
         var result=SedimentLandscapeV2.advanceToVerifiedOutlets(
             width,height,current,rainfall,cellArea,density,
-            strength,maximumCut,transportCapacity,verifiedOutlets);
+            strength,maximumCut,transportCapacity,importedSedimentKg,
+            verifiedOutlets);
         var updated=new TreeMap<GlobalHydrologyAddressV2.Sample,Double>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         updated.putAll(previous.elevations());
