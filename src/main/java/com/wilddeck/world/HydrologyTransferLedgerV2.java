@@ -27,6 +27,16 @@ public final class HydrologyTransferLedgerV2 {
         .thenComparing(Key::from,HydrologyFlowGraphV2.ADDRESS_ORDER)
         .thenComparing(Key::to,HydrologyFlowGraphV2.ADDRESS_ORDER);
 
+    // A geographic vertex may discharge only once per source epoch. Comparing
+    // reduced physical coordinates catches resolution aliases as well as
+    // two different outgoing edges from the same vertex.
+    private record Origin(long epoch,HydrologyGlobalCatchmentsV2.Coordinate vertex) {}
+
+    private static Origin origin(Key key) {
+        return new Origin(key.epoch(), HydrologyGlobalCatchmentsV2.coordinate(
+            HydrologySphericalTopologyV2.canonical(key.from())));
+    }
+
     private final TreeMap<Key,Double> received=new TreeMap<>(ORDER);
 
     public synchronized boolean accept(Key key,double flow) {
@@ -39,6 +49,11 @@ public final class HydrologyTransferLedgerV2 {
                 throw new IllegalArgumentException("Conflicting transfer replay");
             return false;
         }
+        var source=origin(key);
+        for(var known:received.keySet())
+            if(origin(known).equals(source))
+                throw new IllegalArgumentException(
+                    "Physical water source already discharged this epoch");
         received.put(key,flow);
         return true;
     }
