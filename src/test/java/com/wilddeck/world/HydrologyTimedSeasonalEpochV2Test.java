@@ -158,4 +158,75 @@ class HydrologyTimedSeasonalEpochV2Test {
         assertTrue(two.transit().releasedM3().isEmpty());
         assertTrue(two.seasonal().water().water().claimedM3().isEmpty());
     }
+    @Test void scheduledTransitMatchesUniformWithoutLakesAndSurvivesRestart() throws IOException {
+        var atlas=atlas();
+        var first=initial(atlas);
+        var forcing=Map.of(M,weather(M,2));
+        var incoming=List.of(transfer("scheduled-1",1,3));
+        var uniform=HydrologyTimedSeasonalEpochV2.prepareStreamingUniform(
+            first,atlas,forcing,Map.of(),Set.of(M),incoming,2,86400);
+        Path file=directory.resolve("scheduled.chk");
+        HydrologyCheckpointStoreV2.save(file,first);
+        var scheduled=HydrologyTimedSeasonalEpochV2.commitStreamingScheduled(
+            file,first,atlas,forcing,Map.of(),Map.of(),Set.of(M),incoming,86400);
+        assertEquals(uniform.checkpoint(),scheduled.checkpoint());
+        assertEquals(scheduled.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+        assertEquals(5,scheduled.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+        assertThrows(IOException.class,()->HydrologyTimedSeasonalEpochV2.commitStreamingScheduled(
+            file,first,atlas,forcing,Map.of(),Map.of(),Set.of(M),incoming,86400));
+        assertEquals(scheduled.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+    }
+
+    @Test void scheduledLakeReceivesTimedWaterAsCarryoverNotRain() {
+        var atlas=atlas();
+        var base=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalLakeCarryoverStateV2.encode(
+                new HydrologySeasonalLakeCarryoverStateV2.State(
+                    "world",0,Map.of(B,0.0),Map.of())),new HydrologyEpochInboxV2());
+        var bound=HydrologySeasonalTopologyEpochV2.bindFresh(base,atlas);
+        var seasonal=HydrologySeasonalSnowSoilWaterEpochV2.bindFresh(
+            bound,new HydrologySnowSoilStateV2.State(
+                "world",Map.of(B,new HydrologySnowSoilStateV2.Cell(0,0))),RADIUS);
+        var first=HydrologyTimedSeasonalEpochV2.bindFresh(seasonal);
+        var basin=new LakeReservoirV2.Basin(new double[]{0},new double[]{1},2);
+        var lake=new HydrologySeasonalLaggedLakeNetworkV2.Lake(
+            basin,0,0,atlas.routeAt(B).downstream(),1);
+        var schedules=Map.of(B,List.of(
+            new HydrologySeasonalLakeIntegratorV2.Interval(0,0),
+            new HydrologySeasonalLakeIntegratorV2.Interval(0,0)));
+        var timed=new HydrologyTimedTransitLedgerV2.Transfer(
+            "lake-arrival",HydrologyGlobalCatchmentsV2.coordinate(B),1,3);
+        var one=HydrologyTimedSeasonalEpochV2.prepareStreamingScheduled(
+            first,atlas,Map.of(B,weather(B,0)),Map.of(B,lake),
+            schedules,Set.of(B),List.of(timed),86400);
+        assertEquals(3,one.transit().releasedTotalM3().doubleValue(),1e-9);
+        assertEquals(0,one.seasonal().snow().runoffVolume(),1e-9);
+        assertEquals(2,one.seasonal().water().water().state()
+            .lakes().lakeStorageM3().get(B),1e-8);
+        assertEquals(1,one.seasonal().water().water().state()
+            .lakes().pendingM3().values().stream()
+            .mapToDouble(Double::doubleValue).sum(),1e-8);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedSeasonalEpochV2.prepareStreamingScheduled(
+                first,atlas,Map.of(B,weather(B,0)),Map.of(B,lake),
+                Map.of(),Set.of(B),List.of(timed),86400));
+    }
+
+    @Test void rejectsTransitTickInconsistentWithEmbeddedSeason() {
+        var atlas=atlas();
+        var first=initial(atlas);
+        var state=HydrologyTimedSeasonalEpochV2.decode(first.worldState());
+        var future=new HydrologyTimedTransitLedgerV2.State("world",1,Map.of(),Map.of());
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologyTimedSeasonalEpochV2.State(
+                state.seasonal(),HydrologyTimedTransitLedgerV2.encode(future)));
+        var one=advance(first,atlas,Set.of(M),List.of(),0);
+        var later=HydrologyTimedSeasonalEpochV2.decode(one.checkpoint().worldState());
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologyTimedSeasonalEpochV2.State(
+                later.seasonal(),HydrologyTimedTransitLedgerV2.encode(
+                    HydrologyTimedTransitLedgerV2.empty("world"))));
+    }
+
 }
