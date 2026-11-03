@@ -3171,3 +3171,31 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Conservation and scale:** Double precision still rounds representable additions; guards only prevent *complete* loss of positive inputs. Planet-scale long-horizon mass/water audits, distributed fault injection, remote writer fencing, and safe journal/receipt compaction remain unfinished.
 
 **Safety:** No merges, PRs, `main`/other-branch writes, production or paid infrastructure changes. Continue unfinished hydrology before other world layers.
+
+
+## 2026-11-03 — Coupled seasonal water/sediment receipt staging and confluence guards
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Started from `d6cf94c7a4acc48c5bab6219b7e077c3500e5412`; [baseline CI 41622732682](https://github.com/Yusuf-cm/wild-deck/actions/runs/41622732682) **PASSED**. No baseline failures required repair.
+
+### Implemented
+
+1. `HydrologySeasonalSedimentCandidateV2.stageWithWaterReceipts` stages **both** the existing durable water inbox and sediment inbox for one next-epoch seasonal snow/soil and terrain candidate. Due water receipts entering loaded canonical vertices are claimed once from a *restored in-memory* inbox and encoded in the same next checkpoint payload as sediment receipt consumption and evolved terrain/snow/soil. Future and unloaded transfers retain their original identities and remain pending. This method **does not write to disk, authenticate sender journals, or activate global drainage**.
+2. Newly claimed water must come from an external canonical neighboring physical vertex, land at a uniquely owned sample at the same resolution, and remain strictly downhill before and after erosion. The pre/post priority-flood route from every claimed water landing must remain unchanged along its full path to a verified outlet; route changes fail closed rather than pretending that in-flight water was migrated. Cross-resolution water landings require an explicit future remapping mechanism, not silent stranding.
+3. The coupled stage rejects two distinct water receipts claiming the **same physical source in one source epoch**, including cross-resolution source aliases, even if their destination or time differs. This closes a double-discharge path within this candidate API. It is not a global proof that senders debited physical water.
+4. `HydrologyEpochInboxV2.claimAvailable` and `HydrologyTransferLedgerV2.incoming` now use `HydrologyWaterVolumeAdditionV2.add` at confluences. Complete rounding loss of a positive water contribution rejects the claim before consumption; ordinary floating-point rounding remains possible. These are local input guards, not arbitrary-precision planetary water accounting.
+
+### Verification and commits
+
+- [Final implementation/test Actions 41630922424](https://github.com/Yusuf-cm/wild-deck/actions/runs/41630922424) **PASSED** on `c08cf35d14493d53590d35cdd305ef936c15173c`: **1,323 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. Focused suites: `HydrologySeasonalSedimentCandidateV2Test` **13/13**, `HydrologyEpochInboxV2Test` **4/4**, `HydrologyTransferLedgerV2Test` **4/4**. The workflow's world experiment, finite resource replay, browser save controls, planet atlas export, and real-browser atlas verification also passed.
+- Added **8 JUnit test methods** over the prior 1,315-test baseline: coupled water/sediment deterministic staging, future receipts, interior source rejection, cross-resolution landing rejection, two physical-source fork/alias tests, and two precision-loss regressions.
+- Commits: `05d691588890b88aec886ded8f34f646d2ca0e66` (streamed inbox addition); `9dfa185eb50959a99544fa3127d9a18545f51253` (epoch ledger addition); `dbc771e2af758fe54a06380d075385b5df8e3dcc` (coupled candidate); `45838345cf55c09eaf6f00cdb93400745d3b0dee` (coupled tests); `54adad37ec3cd3a06ba42bc5287a6fccadc5cbc8` (inbox precision test); `f44536911abf40f8fa29919994824479b361bfc8` (ledger precision test); `7eeaa3c8a5072935e3879b95bf65e5d94f30e3a6` (source ownership gate); `c08cf35d14493d53590d35cdd305ef936c15173c` (fork/alias regressions).
+- The documentation-only commit following this section requires its own CI result; the passing code/test workflow does not automatically verify a later HEAD.
+
+### Remaining hydrology acceptance gaps (NOT COMPLETE)
+
+1. **Authoritative atomic lifecycle:** The combined receipt/season/terrain object is still a noncommitting candidate. It needs sender-authenticated transfer journals, durable sender acknowledgments, atomic outlet water/sediment export accounting, terrain checkpoint acceptance and global drainage activation. The existing local checkpoint CAS is not a distributed transaction.
+2. **Routing and streaming:** The safe candidate rejects changed imported-water paths rather than migrating them. Unknown unloaded terrain, cross-resolution physical state remapping, arbitrary in-flight topology migration and complete global catchment/river authority remain unfinished.
+3. **Physical fidelity:** Multiple lake spillways, groundwater/backwater, calibrated velocities, transient flood hydraulics and calibrated erosion/sediment transport remain unfinished. This run did not add lake physics.
+4. **Conservation and endurance:** Water addition guards catch complete loss of a positive input, not all floating-point error. Planetary multi-season water/sediment audits, remote crash/fault injection and safe journal compaction remain unfinished.
+
+**Safety:** No merge, PR, `main`/other-branch write, production change or paid infrastructure operation. Continue hydrology before other world layers.
