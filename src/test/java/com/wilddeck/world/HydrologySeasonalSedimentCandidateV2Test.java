@@ -367,4 +367,14 @@ class HydrologySeasonalSedimentCandidateV2Test {
         assertThrows(IllegalArgumentException.class, () ->
             HydrologySeasonalReceiptAuditV2.verify(before, tampered, window()));
     }
+
+    @Test void rejectsCheckpointThatClaimsFutureWaterAlreadyDelivered() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var future = water(3);
+        var forged = new HydrologyEpochInboxV2.Snapshot(
+            Map.of(future, 20.0), Set.of(3L), Set.of(future));
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(forged));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+    }
 }
