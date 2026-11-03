@@ -3237,3 +3237,44 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Conservation at scale:** Exact-decimal receipt totals are checked against double-valued physical previews with tolerance; full-planet long-horizon budgets, remote fault injection, journal compaction, and crash-safe multi-writer replay remain unproven.
 
 **Safety:** Only `feature/world-engine-v2` was changed. No PR, merge, `main`/other-branch write, production operation, or paid infrastructure change. Continue unfinished hydrology before other world layers.
+
+
+## 2026-11-03 — Early physical-source fencing, resolution-safe inbox claims, and complete seasonal receipt auditing
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Started at `a1aa28e0ddb16b5463f9dafd0208805fa43e4851`. The [latest previously recorded Actions run 41639923336](https://github.com/Yusuf-cm/wild-deck/actions/runs/41639923336) was independently checked through its job listing: job `test` completed with conclusion **success**, including Maven tests, world experiment, resource replay, browser save verification, atlas export and real-browser verification. The previous documented test count was **1,332**. No baseline CI failure was observed.
+
+### Implemented
+
+1. **Water receipt ingress fencing:** `HydrologyTransferLedgerV2.accept` now rejects a second transfer from the same reduced physical geographic source in one source epoch, even if the edge or sampling resolution differs. Exact identical replay remains idempotent; the same source may discharge in a later epoch. Physical seam/polar aliases are normalized for source identity. Restoring a forged conflicting transfer map fails rather than silently accepting a double debit. This is receiver-side validation, not authentication of a remote sender's actual debit.
+2. **Water loaded-vertex safety:** `HydrologyEpochInboxV2.claimAvailable` rejects noncanonical or duplicate physical loaded vertices and rejects due receipts whose physical landing is loaded at a *different resolution*. Such transfers cannot be silently parked or converted to a coarse/fine water volume without an explicit conservative migration. Rejection leaves the original inbox unconsumed.
+3. **Sediment loaded-vertex safety:** `HydrologySedimentReceiptInboxV2.claimAvailable` likewise rejects noncanonical loaded vertices and implicit cross-resolution receipt consumption. A prior test that accepted alias routing now explicitly expects rejection and verifies the original receipt remains pending.
+4. **Independent completeness audit:** `HydrologySeasonalReceiptAuditV2.verify` now checks that every due, previously undelivered water or sediment receipt physically owned by the window is actually consumed by the next candidate. It rejects an apparently balanced but forged zero-import candidate that omits due water or sediment. Truly unloaded and future arrivals remain pending. This is a read-only audit and **does not authorize committing the candidate**.
+
+### Tests added or updated
+
+- Added **7 JUnit test methods**: same-epoch water source fork; cross-resolution water source alias and forged restore; polar source alias; duplicate physical loaded water ownership; due cross-resolution water fail-closed with same-resolution retry; forged zero-import omission of due water; forged zero-import omission of due sediment.
+- Updated two pre-existing candidate tests to assert early ingress rejection and retain forged-checkpoint staging rejection; updated one pre-existing sediment test to reject implicit cross-resolution mass migration.
+- Static source review confirmed balanced Java braces in all changed production classes and the candidate test class. **No new Maven/JUnit execution result has been obtained for these commits.** The connected GitHub API exposes previous workflow job results but returns no push-triggered workflow runs or combined statuses for the new HEAD. Consequently the new tests and full suite are **NOT YET VERIFIED**, and no post-change CI success or total test count is claimed.
+- [Branch Actions page](https://github.com/Yusuf-cm/wild-deck/actions?query=branch%3Afeature%2Fworld-engine-v2) must be checked for the new commit's workflow result before considering this run accepted.
+
+### Commits on feature/world-engine-v2
+
+- `5ab35a15f860f058b2f115119ba14d4e3efc25e6` — reject physical water source forks at receipt ingestion.
+- `7a21448274da67c1d85e86965de3c9f1acf0af5a` — protect water claims against alias-loaded vertices and implicit resolution migration.
+- `e33ff810ead7aad8ca9a9b7b5bfa0c903cb6111a` — audit due receipt completeness.
+- `765ea669b7998e3c725c12608d59c85569d68604` — physical water source fork and resolution-alias regressions.
+- `fe42fab78e000344c190dab71c89fe8b8dabeb12` — loaded water ownership and migration regressions.
+- `4167845180ce388f4f333215e8a84cf883b92568` — update forged source-fork candidate tests.
+- `817efdc5328aace942f85e53f886ef56a420a627` — omitted due water/sediment audit regressions.
+- `89f08dcc0bc93a831f2796c274bc513628b6f1fc` — reject implicit sediment resolution migration.
+- `55b74b6aa4e6ecd4bcb77ea3c698cb7c3584ce7d` — update sediment migration regression.
+- `08b3219f624506707820fd8fe5330a36c431c4a6` — polar physical source alias regression.
+
+### Unfinished acceptance criteria and blockers
+
+1. **Verification blocker:** New code and tests have been committed but their push-triggered CI results are not accessible through the connected GitHub workflow lookup. Check the branch Actions page, fix any failures, and record actual Maven counts before claiming acceptance. Do not assume the prior 1,332-test baseline covers these commits.
+2. **Global atomicity:** Still no distributed sender/receiver water/sediment transaction, durable acknowledgments, or authoritative replay-safe one-epoch commit of snow/soil/lake stores, water and sediment receipts, outlet exports, riverbed and terrain updates. The coupled candidate remains noncommitting.
+3. **Streaming and topology:** No automatic in-flight route migration, unknown unloaded-region drainage, conservative cross-resolution physical water/sediment remapping, or globally authenticated catchment/river authority. The new ingress checks deliberately fail closed.
+4. **Physical fidelity:** Multiple lake spillways, groundwater, backwater, calibrated velocities and erosion, transient flood hydraulics, and planet-scale long-horizon conservation/fault-injection tests remain unfinished.
+
+**Safety:** No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. Continue hydrology before other world layers.
