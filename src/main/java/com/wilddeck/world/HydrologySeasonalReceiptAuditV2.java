@@ -67,6 +67,31 @@ public final class HydrologySeasonalReceiptAuditV2 {
             newSediment.lastClaimedEpoch() != next.epoch())
             throw new IllegalArgumentException("Sediment receipt history changed or was dropped");
 
+        // Independently check completeness, not merely that the delivered
+        // subset has valid totals. A candidate must not strand a due receipt
+        // at an owned vertex to make a smaller physical budget appear valid.
+        for (var key : oldWater.receipts().keySet()) {
+            if (oldWater.delivered().contains(key) || key.epoch() > next.epoch())
+                continue;
+            var owner = physical.get(HydrologyGlobalCatchmentsV2.coordinate(
+                HydrologySphericalTopologyV2.canonical(key.to())));
+            if (owner == null) continue; // genuinely unloaded
+            if (!owner.equals(key.to()))
+                throw new IllegalArgumentException("Due water needs explicit resolution migration");
+            if (!newWater.delivered().contains(key))
+                throw new IllegalArgumentException("Due owned water receipt was not consumed");
+        }
+        for (var receipt : oldSediment.receipts().keySet()) {
+            if (oldSediment.delivered().contains(receipt) ||
+                receipt.arrivalEpoch() > next.epoch()) continue;
+            var owner = physical.get(HydrologyGlobalCatchmentsV2.coordinate(receipt.to()));
+            if (owner == null) continue;
+            if (!owner.equals(receipt.to()))
+                throw new IllegalArgumentException("Due sediment needs explicit resolution migration");
+            if (!newSediment.delivered().contains(receipt))
+                throw new IllegalArgumentException("Due owned sediment receipt was not consumed");
+        }
+
         BigDecimal water = BigDecimal.ZERO;
         int waterCount = 0;
         var waterOrigins = new HashSet<Origin>();
