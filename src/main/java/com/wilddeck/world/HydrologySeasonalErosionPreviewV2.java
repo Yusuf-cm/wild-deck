@@ -73,6 +73,25 @@ public final class HydrologySeasonalErosionPreviewV2 {
             double[] transportCapacity,
             Collection<Integer> verifiedOutlets,
             Map<GlobalHydrologyAddressV2.Sample,Double> incoming) {
+        return calculateFromForcing(previous,addresses,width,height,seed,
+            snowSoil,weather,radiusMeters,sedimentDensity,erosionStrength,
+            maximumCut,transportCapacity,verifiedOutlets,incoming,Map.of());
+    }
+
+    /** Noncommitting preview with separate water (m3) and sediment (kg) receipts. */
+    public static ForcedPreview calculateFromForcing(
+            HydrologyTerrainOverlayV2.State previous,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width,int height,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            HydrologySnowSoilStateV2.State snowSoil,
+            Map<GlobalHydrologyAddressV2.Sample,HydrologySnowSoilStateV2.Forcing> weather,
+            double radiusMeters,double sedimentDensity,
+            double erosionStrength,double maximumCut,
+            double[] transportCapacity,
+            Collection<Integer> verifiedOutlets,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incoming,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incomingSedimentKg) {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(addresses);
         Objects.requireNonNull(snowSoil);
@@ -89,7 +108,7 @@ public final class HydrologySeasonalErosionPreviewV2 {
         return new ForcedPreview(season,calculate(
             previous,addresses,width,height,seed,season,radiusMeters,
             sedimentDensity,erosionStrength,maximumCut,
-            transportCapacity,verifiedOutlets,incoming));
+            transportCapacity,verifiedOutlets,incoming,incomingSedimentKg));
     }
 
     public static Preview calculate(
@@ -118,9 +137,32 @@ public final class HydrologySeasonalErosionPreviewV2 {
             double[] transportCapacity,
             Collection<Integer> verifiedOutlets,
             Map<GlobalHydrologyAddressV2.Sample,Double> incoming) {
+        return calculate(previous,addresses,width,height,seed,season,
+            radiusMeters,sedimentDensity,erosionStrength,maximumCut,
+            transportCapacity,verifiedOutlets,incoming,Map.of());
+    }
+
+    /**
+     * Water and sediment imports are independent: imported sediment does not
+     * increase locally eroded mass, and imported water is not new rainfall.
+     * Both maps must come from externally authenticated, once-consumed receipts.
+     */
+    public static Preview calculate(
+            HydrologyTerrainOverlayV2.State previous,
+            List<GlobalHydrologyAddressV2.Sample> addresses,
+            int width,int height,
+            HydrologyGlobalSlopeRouterV2.Elevations seed,
+            HydrologySnowSoilStateV2.Step season,
+            double radiusMeters,double sedimentDensity,
+            double erosionStrength,double maximumCut,
+            double[] transportCapacity,
+            Collection<Integer> verifiedOutlets,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incoming,
+            Map<GlobalHydrologyAddressV2.Sample,Double> incomingSedimentKg) {
         Objects.requireNonNull(previous);
         Objects.requireNonNull(addresses);
         Objects.requireNonNull(season);
+        Objects.requireNonNull(incomingSedimentKg);
         Objects.requireNonNull(incoming);
         requireUniquePhysicalWindow(addresses);
         Objects.requireNonNull(verifiedOutlets);
@@ -157,25 +199,30 @@ public final class HydrologySeasonalErosionPreviewV2 {
             var volume=Objects.requireNonNull(entry.getValue());
             if(!runoff.containsKey(address) || !Double.isFinite(volume) || volume<0)
                 throw new IllegalArgumentException("Invalid imported runoff owner or volume");
-            importedTotal+=volume;
-            if(!Double.isFinite(importedTotal))
-                throw new IllegalArgumentException("Imported runoff overflow");
+            importedTotal=HydrologyWaterVolumeAdditionV2.add(importedTotal,volume);
         }
         if(!season.state().cells().keySet().equals(runoff.keySet()))
             throw new IllegalArgumentException("Seasonal stores and runoff ownership differ");
         double[] rain=new double[addresses.size()];
         double[] areas=new double[addresses.size()];
+        double[] importedSediment=new double[addresses.size()];
+        for(var entry:incomingSedimentKg.entrySet()) {
+            var address=Objects.requireNonNull(entry.getKey());
+            var mass=Objects.requireNonNull(entry.getValue());
+            if(!runoff.containsKey(address)||!Double.isFinite(mass)||mass<0)
+                throw new IllegalArgumentException("Invalid imported sediment owner or mass");
+        }
         double sourceTotal=0;
         for(int i=0;i<rain.length;i++) {
             var address=Objects.requireNonNull(addresses.get(i));
             var volume=runoff.remove(address);
             if(volume==null)
                 throw new IllegalArgumentException("Missing owned seasonal runoff");
-            rain[i]=volume+incoming.getOrDefault(address,0.0);
-            if(!Double.isFinite(rain[i]))
-                throw new IllegalArgumentException("Combined runoff overflow");
+            rain[i]=HydrologyWaterVolumeAdditionV2.add(
+                volume,incoming.getOrDefault(address,0.0));
+            importedSediment[i]=incomingSedimentKg.getOrDefault(address,0.0);
             areas[i]=HydrologySphericalCellAreaV2.areaAt(address,radiusMeters);
-            sourceTotal+=volume;
+            sourceTotal=HydrologyWaterVolumeAdditionV2.add(sourceTotal,volume);
         }
         if(!runoff.isEmpty()||!Double.isFinite(sourceTotal))
             throw new IllegalArgumentException("Unknown seasonal runoff source");
@@ -185,13 +232,14 @@ public final class HydrologySeasonalErosionPreviewV2 {
         var evolved=HydrologyTerrainOverlayV2.evolveWindow(
             previous,addresses,width,height,seed,rain,areas,
             sedimentDensity,erosionStrength,maximumCut,
-            transportCapacity,verifiedOutlets);
+            transportCapacity,importedSediment,verifiedOutlets);
         double terminal=0;
         var downstream=evolved.landscape().drainage().spillTo();
         var flow=evolved.landscape().discharge().flow();
         for(int i=0;i<downstream.length;i++)
-            if(downstream[i]<0)terminal+=flow[i];
-        double expected=sourceTotal+importedTotal;
+            if(downstream[i]<0)
+                terminal=HydrologyWaterVolumeAdditionV2.add(terminal,flow[i]);
+        double expected=HydrologyWaterVolumeAdditionV2.add(sourceTotal,importedTotal);
         if(!Double.isFinite(expected))
             throw new IllegalArgumentException("Combined runoff overflow");
         if(!Double.isFinite(terminal)||
