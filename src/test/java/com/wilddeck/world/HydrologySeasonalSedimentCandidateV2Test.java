@@ -269,4 +269,51 @@ class HydrologySeasonalSedimentCandidateV2Test {
         assertThrows(IllegalArgumentException.class, () -> coupled(before));
         assertTrue(inbox.snapshot().delivered().isEmpty());
     }
+
+    @Test void futureInteriorWaterCannotBeDeferredIntoAnUnsafeTerrainEpoch() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        var future = new HydrologyTransferLedgerV2.Key(3,
+            new GlobalHydrologyAddressV2.Sample(2,4,5,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4));
+        inbox.receive(future, 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertFalse(HydrologyInboxCodecV2.decode(before.inboxState())
+            .delivered().contains(future));
+    }
+
+    @Test void futureInteriorSedimentCannotBypassExternalSourceOwnership() {
+        var future = new HydrologySedimentReceiptInboxV2.Receipt(0,3,
+            new GlobalHydrologyAddressV2.Sample(2,4,5,4),
+            new GlobalHydrologyAddressV2.Sample(2,4,4,4));
+        var received = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), future, 50);
+        var before = checkpoint(received);
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+        assertFalse(HydrologySedimentCheckpointV2.decode(before.worldState())
+            .sediment().delivered().contains(future));
+    }
+
+    @Test void futureCrossResolutionSedimentLandingRequiresExplicitMigration() {
+        var future = new HydrologySedimentReceiptInboxV2.Receipt(0,3,
+            new GlobalHydrologyAddressV2.Sample(1,4,1,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,2,2));
+        var received = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), future, 50);
+        assertThrows(IllegalArgumentException.class, () -> coupled(checkpoint(received)));
+    }
+
+    @Test void futureCrossResolutionWaterLandingRequiresExplicitMigration() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        var future = new HydrologyTransferLedgerV2.Key(3,
+            new GlobalHydrologyAddressV2.Sample(1,4,1,2),
+            new GlobalHydrologyAddressV2.Sample(1,4,2,2));
+        inbox.receive(future, 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        assertThrows(IllegalArgumentException.class, () -> coupled(before));
+    }
 }
