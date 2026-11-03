@@ -45,8 +45,8 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             }
             if (count != audit.missing() || total.compareTo(audit.missingM3()) != 0)
                 throw new IllegalArgumentException("Recovery plan does not conserve missing water");
-            if (!ordered.keySet().containsAll(expectedCheckpoints.keySet()) ||
-                !expectedCheckpoints.keySet().containsAll(ordered.keySet()))
+            if (!expectedCheckpoints.isEmpty() &&
+                !expectedCheckpoints.keySet().equals(ordered.keySet()))
                 throw new IllegalArgumentException("Recovery checkpoint coverage mismatch");
             missingByReceiver = Collections.unmodifiableMap(ordered);
             expectedCheckpoints = Collections.unmodifiableMap(new TreeMap<>(expectedCheckpoints));
