@@ -45,16 +45,30 @@ public final class SedimentBudgetV2 {
 
     public static Result route(LakeSpillV2.Result lakes,double[] erodedMass,
                                double[] transportCapacity) {
+        Objects.requireNonNull(erodedMass);
+        return route(lakes,erodedMass,new double[erodedMass.length],transportCapacity);
+    }
+
+    /**
+     * Include externally authenticated sediment arriving at owned cells.
+     * Imported mass is separate from local incision; callers must persist and
+     * consume boundary receipts exactly once. This calculation does not
+     * authenticate the sending region or commit a terrain checkpoint.
+     */
+    public static Result route(LakeSpillV2.Result lakes,double[] erodedMass,
+                               double[] importedMass,double[] transportCapacity) {
         Objects.requireNonNull(lakes);Objects.requireNonNull(erodedMass);
-        Objects.requireNonNull(transportCapacity);
+        Objects.requireNonNull(importedMass);Objects.requireNonNull(transportCapacity);
         int size=Math.multiplyExact(lakes.width(),lakes.height());
-        if(erodedMass.length!=size||transportCapacity.length!=size)
+        if(erodedMass.length!=size||importedMass.length!=size||
+           transportCapacity.length!=size)
             throw new IllegalArgumentException("Invalid sediment grid");
         int[] next=lakes.spillTo(),remaining=new int[size];
         double[] incoming=new double[size],deposited=new double[size],
                  transported=new double[size],exported=new double[size];
         for(int i=0;i<size;i++){
             if(!Double.isFinite(erodedMass[i])||erodedMass[i]<0||
+               !Double.isFinite(importedMass[i])||importedMass[i]<0||
                !Double.isFinite(transportCapacity[i])||transportCapacity[i]<0||
                next[i]<-1||next[i]>=size||next[i]==i)
                 throw new IllegalArgumentException("Invalid sediment input or route");
@@ -65,15 +79,14 @@ public final class SedimentBudgetV2 {
         int visited=0;
         while(!queue.isEmpty()){
             int i=queue.remove();visited++;
-            double available=incoming[i]+erodedMass[i];
-            if(!Double.isFinite(available))throw new IllegalArgumentException("Sediment overflow");
+            double available=SedimentMassAdditionV2.add(incoming[i],erodedMass[i]);
+            available=SedimentMassAdditionV2.add(available,importedMass[i]);
             transported[i]=Math.min(available,transportCapacity[i]);
             deposited[i]=available-transported[i];
             int downstream=next[i];
             if(downstream>=0){
-                incoming[downstream]+=transported[i];
-                if(!Double.isFinite(incoming[downstream]))
-                    throw new IllegalArgumentException("Sediment overflow");
+                incoming[downstream]=SedimentMassAdditionV2.add(
+                    incoming[downstream],transported[i]);
                 if(--remaining[downstream]==0)queue.add(downstream);
             } else exported[i]=transported[i];
         }
