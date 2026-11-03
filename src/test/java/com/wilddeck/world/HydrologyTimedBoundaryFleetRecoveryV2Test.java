@@ -72,7 +72,7 @@ class HydrologyTimedBoundaryFleetRecoveryV2Test {
     @Test void recoversTwoSendersAcrossUnloadedSeasonsAndDoesNotDoubleRain()
             throws IOException {
         var atlas=atlas();
-        var routes=atlas.routes().stream().filter(n->!n.terminal()).limit(2).toList();
+        var routes=atlas.routes().stream().filter(n->M.equals(n.downstream())).limit(2).toList();
         var a=edge("fleet-a",routes.get(0),1,2);
         var b=edge("fleet-b",routes.get(1),2,3);
         var senders=senders(atlas,a,b);
