@@ -113,7 +113,7 @@ class HydrologyTimedBoundaryFleetAuditV2Test {
 
     @Test void rejectsForeignWorldAndChangedAtlas() {
         var atlas=atlas();
-        var route=atlas.routes().stream().filter(r->!r.terminal()).findFirst().orElseThrow();
+        var route=atlas.routes().stream().filter(r->at(5,2).equals(r.downstream())).findFirst().orElseThrow();
         var transfer=edge("a",route,2);
         var sender=HydrologyTimedBoundarySenderV2.advance(
             HydrologyTimedBoundarySenderV2.empty("w",Map.of(transfer.source(),5.0)),
