@@ -276,4 +276,23 @@ class HydrologyTimedBoundarySenderV2Test {
                 sender,HydrologyTimedTransitLedgerV2.empty("other"),atlas));
     }
 
+    @Test void receiverRecoveryRejectsForgedSenderCheckpointEpoch()
+            throws IOException {
+        var atlas=atlas(M);
+        var source=inlet(atlas,M);
+        var issued=HydrologyTimedBoundarySenderV2.advance(
+            HydrologyTimedBoundarySenderV2.empty("world",Map.of(source,5.0)),
+            atlas,List.of(transfer("epoch-1",source,M,1,2))).state();
+        Path sender=directory.resolve("forged-sender.chk");
+        Path receiver=directory.resolve("intact-receiver.chk");
+        HydrologyCheckpointStoreV2.save(sender,
+            HydrologyCheckpointV2.capture(issued.epoch()+1,
+                HydrologyTimedBoundarySenderV2.encode(issued),
+                new HydrologyEpochInboxV2()));
+        HydrologyCheckpointStoreV2.save(receiver,receiverInitial(atlas));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundarySenderV2.missingAtReceiver(
+                sender,receiver,atlas));
+    }
+
 }
