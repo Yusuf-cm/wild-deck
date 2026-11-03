@@ -67,7 +67,7 @@ public final class HydrologySeasonalReceiptAuditV2 {
         for (var key : newWater.delivered()) {
             if (oldWater.delivered().contains(key)) continue;
             requireExternalLanding(key.from(), key.to(), key.epoch(),
-                next.epoch(), physical, waterOrigins);
+                key.epoch(), next.epoch(), physical, waterOrigins);
             water = water.add(BigDecimal.valueOf(oldWater.receipts().get(key)));
             waterCount++;
         }
@@ -77,7 +77,8 @@ public final class HydrologySeasonalReceiptAuditV2 {
         for (var receipt : newSediment.delivered()) {
             if (oldSediment.delivered().contains(receipt)) continue;
             requireExternalLanding(receipt.from(), receipt.to(),
-                receipt.arrivalEpoch(), next.epoch(), physical, sedimentOrigins);
+                receipt.sourceEpoch(), receipt.arrivalEpoch(), next.epoch(),
+                physical, sedimentOrigins);
             sediment = sediment.add(BigDecimal.valueOf(oldSediment.receipts().get(receipt)));
             sedimentCount++;
         }
@@ -101,7 +102,7 @@ public final class HydrologySeasonalReceiptAuditV2 {
     private static void requireExternalLanding(
             GlobalHydrologyAddressV2.Sample from,
             GlobalHydrologyAddressV2.Sample to,
-            long arrival, long nextEpoch,
+            long originEpoch, long arrival, long nextEpoch,
             Map<HydrologyGlobalCatchmentsV2.Coordinate,
                 GlobalHydrologyAddressV2.Sample> physical,
             Set<Origin> origins) {
@@ -111,7 +112,7 @@ public final class HydrologySeasonalReceiptAuditV2 {
         var destination = physical.get(HydrologyGlobalCatchmentsV2.coordinate(to));
         if (!to.equals(destination) ||
             physical.containsKey(HydrologyGlobalCatchmentsV2.coordinate(from)) ||
-            !origins.add(new Origin(arrival, HydrologyGlobalCatchmentsV2.coordinate(from))))
+            !origins.add(new Origin(originEpoch, HydrologyGlobalCatchmentsV2.coordinate(from))))
             throw new IllegalArgumentException("Invalid or duplicated physical receipt ownership");
     }
 
