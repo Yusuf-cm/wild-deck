@@ -30,6 +30,10 @@ public final class HydrologyReceiptBudgetV2 {
 
     public static Summary summarize(HydrologyEpochInboxV2.Snapshot snapshot) {
         Objects.requireNonNull(snapshot);
+        // A fabricated snapshot can bypass the inbox's ingress checks.
+        // Never report a conserved receipt total for two discharges from
+        // the same physical source and epoch.
+        HydrologyTransferLedgerV2.restore(snapshot.receipts());
         var pending=new TreeMap<GlobalHydrologyAddressV2.Sample,BigDecimal>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         BigDecimal waiting=BigDecimal.ZERO,delivered=BigDecimal.ZERO;
