@@ -2876,3 +2876,12 @@ The documentation HEAD `397939e7c331cbe9ec7f2dc014ed06546e781411` had its own [w
 - Earlier complete workflows [41568383282](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568383282) and [41568432069](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568432069) **PASSED**, verifying the first eight tests and geodesic sender integration respectively. **Latest recovery code/test CI pending** at this documentation write. Do not infer a pass for the latest HEAD from those earlier workflows.
 
 **Still not provided:** automatic network transmission, authenticated remote sender ownership, receiver acknowledgment persisted back to the sender, distributed atomic settlement, or an authoritative sediment/terrain transaction. This helper only identifies replay candidates.
+
+
+### Recovery checkpoint epoch hardening (follow-up)
+
+The file-based sender recovery read now verifies that the embedded journal epoch equals the outer durable checkpoint epoch; otherwise recovery fails closed rather than trusting inconsistent histories.
+
+- `8b1ffdafb871cd8f1ee1236cf0535f99ec1dab30` — recovery epoch consistency guard.
+- `939af24bee13c4e914e554d8668ddef009f293b8` — eleventh JUnit regression method for forged sender checkpoint epochs.
+- [Actions 41568444030](https://github.com/Yusuf-cm/wild-deck/actions/runs/41568444030) **PASSED** for the earlier geodesic sender test HEAD. The new recovery guard and eleventh test require their own completed CI before acceptance.
