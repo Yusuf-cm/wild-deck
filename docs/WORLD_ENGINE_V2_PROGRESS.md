@@ -2951,3 +2951,32 @@ This final verification paragraph is documentation-only and its own new commit w
 - Snow/soil, lakes, riverbed, sediment, terrain and all receivers are **not** one globally atomic world epoch. Mixed-resolution store migration, multiple spillways, groundwater/backwater, flood hydraulics, climate calibration, planet-scale conservation/fault injection and distributed CAS remain unfinished.
 
 **Safety:** No merge, PR, other-branch/main write, production or paid infrastructure change. Continue hydrology before other layers.
+
+
+## 2026-11-03 — Multi-receiver timed-water audit and dry topology preflight (hydrology only)
+
+**Scope:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Starting HEAD `87f8caccb2c817fec7f0c28936af204e5641b9b2`; baseline [Actions 41580301774](https://github.com/Yusuf-cm/wild-deck/actions/runs/41580301774) PASSED. No CI failure at baseline.
+
+### Implemented and verified
+
+1. Added `HydrologyTimedBoundaryNetworkAuditV2` to reconcile **multiple independently checkpointed sender journals against multiple independently checkpointed receiver transit ledgers**. The audit authenticates each issued edge using the supplied complete atlas, rejects transfer-ID collisions, wrong physical receiver ownership, shared physical receiver vertices even across resolutions, duplicate physical sender sources, inconsistent worlds, and altered received transfers. Pending, settled and missing transfer volumes are accounted with `BigDecimal` without treating delivered water as rainfall or proving its later physical fate.
+2. Durable `auditCheckpoints` reads the actual checksummed sender/receiver files, checks embedded epochs, and rejects symlink/hard-link aliases of any sender or receiver checkpoint before totaling water. Strict coverage rejects unjournaled receiver transfers; permissive coverage counts them separately and excludes them from authenticated sender totals.
+3. Added `requireQuiescent` to fail closed on pending, missing, unassigned, or foreign timed transfers before a caller-controlled route revision. Added the stricter `requireDryForTopologyChange` to additionally reject standing lake water, frontier water, snow/soil stores, and unconsumed water inbox receipts. Cumulative historical ocean discharge is not considered standing water. These are **read-only preflight gates**, not an automatic topology migration, lock, or distributed transaction. Callers must quiesce every producer and authenticate the complete network.
+4. Added six JUnit methods covering two-receiver conservation, missing/unassigned water, cross-resolution duplicate ownership, wrong-receiver water, foreign receipts and duplicate sender IDs, durable file aliases, dry-vs-wet topology preflight, and forged receiver epoch.
+
+### Commits and CI evidence
+
+- `d3c45338ee92ed37c7ab8053b497b3a14c49e4f5` — network-wide timed water audit and dry gate. [Actions 41585699262](https://github.com/Yusuf-cm/wild-deck/actions/runs/41585699262) PASSED for the implementation-only HEAD.
+- `ce44ef770af830cf8da99f272e33dbc12a18bcab` — six integration/regression tests. [Actions 41585737486](https://github.com/Yusuf-cm/wild-deck/actions/runs/41585737486) FAILED one test: it attempted to overwrite a different same-epoch checkpoint.
+- `4fd22503adf8fc19f6e34b8d9c6e1709dde140d5` — correct immutable checkpoint test fixture. [Actions 41585754225](https://github.com/Yusuf-cm/wild-deck/actions/runs/41585754225) **PASSED: 1,276 Maven/JUnit tests, 0 failures/errors/skips, BUILD SUCCESS**, including **6/6 new network audit tests**; world experiment, resource replay, browser save, atlas export, and real-browser verification passed.
+- `5eac41fd11a23a4a6e1593a07e3bb0b2b4c7d353` — optimize receiver ownership validation to constant-time physical-coordinate lookup. [Actions 41585800836](https://github.com/Yusuf-cm/wild-deck/actions/runs/41585800836) FAILED at compilation due to one stale four-argument call site.
+- `b677143be8f314a421349e63d1693633a11efd74` — correct the remaining call site. **[Actions 41585860363](https://github.com/Yusuf-cm/wild-deck/actions/runs/41585860363) PASSED** for the corrected code and tests, including the full workflow. This documentation commit requires its own workflow conclusion before claiming final documentation HEAD green.
+
+### Remaining hydrology acceptance gaps
+
+1. The new multi-receiver audit checks **journal conservation only**. Settled water is not traced through actual downstream river, lake, ocean, terrain or sediment inventories. Sender initial inventory, receiver geography and atlas remain caller-authenticated.
+2. There is **no globally atomic sender/receiver/sediment/terrain/erosion world epoch**, cross-process lock, distributed acknowledgement, or durable consensus. Dry preflight is intentionally restrictive and is not integrated with live riverbed terrain commits; a race after inspection remains possible without external serialization.
+3. Arbitrary topology migration of in-flight water and sediment, unknown/unloaded-terrain priority flood, and mixed-resolution physical state remapping remain unfinished. The gate blocks unsafe cases; it does not solve them.
+4. Multiple lake spillways, groundwater, backwater, calibrated river velocity/flood hydraulics/climate, planet-scale multi-season conservation and crash fault injection, and safe receipt-history compaction remain unaccepted.
+
+**Safety:** No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Hydrology remains the priority.
