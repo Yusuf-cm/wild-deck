@@ -79,6 +79,17 @@ public final class HydrologyCheckpointStoreV2 {
         });
     }
 
+    /**
+     * Use ONLY while the destination's sidecar lock is already held by
+     * HydrologyCheckpointFileLockV2.withLocks. Avoids nested file locks
+     * during a complete-fleet preflight and single-receiver commit.
+     */
+    static void saveNextWithLockHeld(Path destination,
+            HydrologyCheckpointV2.Checkpoint expected,
+            HydrologyCheckpointV2.Checkpoint next) throws IOException {
+        saveNextUnlocked(destination, expected, next);
+    }
+
     private static void saveNextUnlocked(Path destination,
             HydrologyCheckpointV2.Checkpoint expected,
             HydrologyCheckpointV2.Checkpoint next) throws IOException {
