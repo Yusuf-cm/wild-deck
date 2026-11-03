@@ -108,9 +108,11 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             seed, previousLandscape.terrain());
         Map<GlobalHydrologyAddressV2.Sample,Double> incomingWater = authenticatedWater;
         String nextInbox = previous.inboxState();
-        var waterLandings = new HashSet<Integer>();
-        var newlyDeliveredWater = new ArrayList<HydrologyTransferLedgerV2.Key>();
-        if (consumeWaterReceipts) {
+        // Any outstanding boundary receipt may land after this terrain change,
+        // including a future arrival that is not claimed during this epoch.
+        // Keep its in-window route stable until an explicit migration exists.
+        var protectedLandings = new HashSet<Integer>();
+         if (consumeWaterReceipts) {
             var indices = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,Integer>();
             for (int i = 0; i < addresses.size(); i++)
                 indices.put(HydrologyGlobalCatchmentsV2.coordinate(addresses.get(i)), i);
@@ -126,14 +128,16 @@ public final class HydrologySeasonalSedimentCandidateV2 {
                 if (prior != null && !prior.equals(key))
                     throw new IllegalArgumentException(
                         "Multiple water transfers from one physical source and epoch");
-                if (waterInbox.delivered().contains(key) || key.epoch() > nextEpoch)
-                    continue;
+                if (waterInbox.delivered().contains(key)) continue;
                 var landing = HydrologyGlobalCatchmentsV2.coordinate(key.to());
-                if (owners.contains(landing) && !loaded.contains(key.to()))
+                if (!owners.contains(landing)) continue; // unloaded destination
+                if (!loaded.contains(key.to()))
                     throw new IllegalArgumentException("Cross-resolution water receipt needs explicit remapping");
-                if (owners.contains(landing) &&
-                    owners.contains(HydrologyGlobalCatchmentsV2.coordinate(key.from())))
+                if (owners.contains(HydrologyGlobalCatchmentsV2.coordinate(key.from())))
                     throw new IllegalArgumentException("Water source already owned by receiver");
+                if (!(oldHeights.at(key.from()) > oldHeights.at(key.to())))
+                    throw new IllegalArgumentException("Pending water lacks external downhill landing");
+                protectedLandings.add(indices.get(landing));
             }
             var active = HydrologyEpochInboxV2.restore(waterInbox);
             incomingWater = active.claimAvailable(nextEpoch, loaded);
@@ -144,19 +148,24 @@ public final class HydrologySeasonalSedimentCandidateV2 {
                 if (landing == null ||
                     !(oldHeights.at(key.from()) > oldHeights.at(key.to())))
                     throw new IllegalArgumentException("Incoming water lacks external downhill landing");
-                newlyDeliveredWater.add(key);
-                waterLandings.add(landing);
             }
             nextInbox = HydrologyInboxCodecV2.encode(consumed);
         }
         var claimed = HydrologySedimentReceiptInboxV2.claimAvailable(
             sediment, nextEpoch, addresses);
-        for (var receipt : claimed.snapshot().delivered()) {
+        var indices = new HashMap<HydrologyGlobalCatchmentsV2.Coordinate,Integer>();
+        for (int i = 0; i < addresses.size(); i++)
+            indices.put(HydrologyGlobalCatchmentsV2.coordinate(addresses.get(i)), i);
+        for (var receipt : sediment.receipts().keySet()) {
             if (sediment.delivered().contains(receipt)) continue;
+            var landing = HydrologyGlobalCatchmentsV2.coordinate(receipt.to());
+            if (!owners.contains(landing)) continue; // unloaded destination
+            if (!addresses.contains(receipt.to()))
+                throw new IllegalArgumentException("Cross-resolution sediment receipt needs explicit remapping");
             if (owners.contains(HydrologyGlobalCatchmentsV2.coordinate(receipt.from())) ||
-                !owners.contains(HydrologyGlobalCatchmentsV2.coordinate(receipt.to())) ||
                 !(oldHeights.at(receipt.from()) > oldHeights.at(receipt.to())))
-                throw new IllegalArgumentException("Imported sediment lacks external downhill landing");
+                throw new IllegalArgumentException("Pending sediment lacks external downhill landing");
+            protectedLandings.add(indices.get(landing));
         }
         var prepared = HydrologySeasonalLandscapeStateV2.prepareWithIncoming(
             previousLandscape, addresses, width, height, seed, weather,
@@ -165,15 +174,19 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             claimed.imported());
         var newHeights = HydrologyTerrainOverlayV2.elevations(
             seed, prepared.state().terrain());
-        for (var receipt : claimed.snapshot().delivered()) {
-            if (sediment.delivered().contains(receipt)) continue;
+        for (var receipt : sediment.receipts().keySet()) {
+            if (sediment.delivered().contains(receipt) ||
+                !owners.contains(HydrologyGlobalCatchmentsV2.coordinate(receipt.to()))) continue;
             if (!(newHeights.at(receipt.from()) > newHeights.at(receipt.to())))
-                throw new IllegalArgumentException("Erosion reversed imported sediment landing");
+                throw new IllegalArgumentException("Erosion reversed pending sediment landing");
         }
-        for (var key : newlyDeliveredWater)
+        for (var key : waterInbox.receipts().keySet()) {
+            if (waterInbox.delivered().contains(key) ||
+                !owners.contains(HydrologyGlobalCatchmentsV2.coordinate(key.to()))) continue;
             if (!(newHeights.at(key.from()) > newHeights.at(key.to())))
-                throw new IllegalArgumentException("Erosion reversed imported water landing");
-        if (!waterLandings.isEmpty()) {
+                throw new IllegalArgumentException("Erosion reversed pending water landing");
+        }
+        if (!protectedLandings.isEmpty()) {
             double[] oldBed = new double[addresses.size()];
             for (int i = 0; i < oldBed.length; i++)
                 oldBed[i] = oldHeights.at(addresses.get(i));
@@ -182,10 +195,10 @@ public final class HydrologySeasonalSedimentCandidateV2 {
             var newRoute = prepared.preview().erosion().terrain()
                 .landscape().drainage().spillTo();
             if (!HydrologyRouteMigrationV2.verify(
-                oldRoute, newRoute, verifiedOutlets, waterLandings)
+                oldRoute, newRoute, verifiedOutlets, protectedLandings)
                 .changedVertices().isEmpty())
                 throw new IllegalStateException(
-                    "Imported water path changed during erosion; migration required");
+                    "Pending boundary water/sediment path changed during erosion; migration required");
         }
         String world = HydrologySedimentCheckpointV2.encode(
             HydrologySeasonalLandscapeStateV2.encode(prepared.state()),
