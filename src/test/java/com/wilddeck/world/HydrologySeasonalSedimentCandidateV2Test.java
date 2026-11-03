@@ -316,4 +316,55 @@ class HydrologySeasonalSedimentCandidateV2Test {
             0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
         assertThrows(IllegalArgumentException.class, () -> coupled(before));
     }
+
+    @Test void independentlyAuditsWaterAndSedimentImportsWithoutRainfallDoubleCount() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(1), 100);
+        var original = checkpoint(sediment);
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(1), 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var candidate = coupled(before);
+        var audit = HydrologySeasonalReceiptAuditV2.verify(before, candidate, window());
+        assertEquals(1, audit.epoch());
+        assertEquals(0, audit.waterCubicMeters().compareTo(
+            java.math.BigDecimal.valueOf(20)));
+        assertEquals(0, audit.sedimentKilograms().compareTo(
+            java.math.BigDecimal.valueOf(100)));
+        assertEquals(1, audit.waterReceipts());
+        assertEquals(1, audit.sedimentReceipts());
+    }
+
+    @Test void independentAuditRejectsMutatedWaterReceiptAmounts() {
+        var original = checkpoint(HydrologySedimentReceiptInboxV2.empty());
+        var inbox = new HydrologyEpochInboxV2();
+        inbox.receive(water(1), 20);
+        var before = new HydrologyCheckpointV2.Checkpoint(
+            0, original.worldState(), HydrologyInboxCodecV2.encode(inbox.snapshot()));
+        var candidate = coupled(before);
+        var waterState = HydrologyInboxCodecV2.decode(candidate.next().inboxState());
+        var forged = new HydrologyEpochInboxV2.Snapshot(
+            Map.of(water(1), 999.0), waterState.consumedEpochs(), waterState.delivered());
+        var altered = new HydrologyCheckpointV2.Checkpoint(
+            candidate.next().epoch(), candidate.next().worldState(),
+            HydrologyInboxCodecV2.encode(forged));
+        var tampered = new HydrologySeasonalSedimentCandidateV2.Candidate(
+            altered, candidate.landscape(), candidate.claimed());
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalReceiptAuditV2.verify(before, tampered, window()));
+    }
+
+    @Test void independentAuditRejectsForgedSedimentMassBudget() {
+        var sediment = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(), receipt(1), 100);
+        var before = checkpoint(sediment);
+        var candidate = coupled(before);
+        var forgedClaim = new HydrologySedimentReceiptInboxV2.Claimed(
+            candidate.claimed().snapshot(), Map.of(), 0);
+        var tampered = new HydrologySeasonalSedimentCandidateV2.Candidate(
+            candidate.next(), candidate.landscape(), forgedClaim);
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySeasonalReceiptAuditV2.verify(before, tampered, window()));
+    }
 }
