@@ -207,4 +207,34 @@ class HydrologySeasonalWaterEpochV2Test {
                 file,first,runoff(5,2),lakes(0),2,edges(),loaded(),Set.of(M)));
         assertEquals(appended,HydrologyCheckpointStoreV2.load(file));
     }
+
+    @Test void oldFrontierAndNewRunoffMustBothSurviveOceanConfluence() {
+        // Previously a one-cubic-metre seasonal source could vanish inside
+        // 1e16 cubic metres of previously conserved boundary water.
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalWaterEpochV2.prepareUniform(
+                initial(1e16,0),runoff(0,1),lakes(0),2,
+                edges(),loaded(),Set.of(M)));
+        // The reverse order is equally unsafe: old water must not vanish
+        // when the new runoff is vastly larger.
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalWaterEpochV2.prepareUniform(
+                initial(1,0),runoff(0,1e16),lakes(0),2,
+                edges(),loaded(),Set.of(M)));
+    }
+
+    @Test void cumulativeOceanLedgerCannotEraseOldDischarge() {
+        var first=initial(0,0);
+        var old=HydrologySeasonalLakeCarryoverStateV2.decode(first.worldState());
+        var withOcean=HydrologyCheckpointV2.capture(0,
+            HydrologySeasonalOutletSettlementV2.encode(
+                new HydrologySeasonalOutletSettlementV2.State(
+                    old,Map.of(M,1.0))),
+            HydrologyCheckpointV2.restoreInbox(first));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalWaterEpochV2.prepareUniform(
+                withOcean,runoff(0,1e16),lakes(0),2,
+                edges(),loaded(),Set.of(M)));
+    }
+
 }
