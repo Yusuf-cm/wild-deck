@@ -21,10 +21,12 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
 
     public record Plan(HydrologyTimedBoundaryNetworkAuditV2.Report audit,
             Map<String,List<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer>> missingByReceiver,
+            Map<String,Set<GlobalHydrologyAddressV2.Sample>> assignedByReceiver,
             Map<String,HydrologyCheckpointV2.Checkpoint> expectedCheckpoints) {
         public Plan {
             Objects.requireNonNull(audit);
             Objects.requireNonNull(missingByReceiver);
+            Objects.requireNonNull(assignedByReceiver);
             Objects.requireNonNull(expectedCheckpoints);
             var ordered = new TreeMap<String,List<HydrologyVerifiedTimedBoundaryV2.EdgeTransfer>>();
             var ids = new HashSet<String>();
@@ -48,7 +50,13 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             if (!expectedCheckpoints.isEmpty() &&
                 !expectedCheckpoints.keySet().equals(ordered.keySet()))
                 throw new IllegalArgumentException("Recovery checkpoint coverage mismatch");
+            if (!assignedByReceiver.keySet().equals(ordered.keySet()))
+                throw new IllegalArgumentException("Recovery geography coverage mismatch");
+            var geography = new TreeMap<String,Set<GlobalHydrologyAddressV2.Sample>>();
+            for (var entry : assignedByReceiver.entrySet())
+                geography.put(entry.getKey(),Set.copyOf(entry.getValue()));
             missingByReceiver = Collections.unmodifiableMap(ordered);
+            assignedByReceiver = Collections.unmodifiableMap(geography);
             expectedCheckpoints = Collections.unmodifiableMap(new TreeMap<>(expectedCheckpoints));
         }
     }
@@ -92,7 +100,10 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
         }
         // State-only plans have no durable checkpoints. Preserve an explicit
         // null-free key set by passing no snapshots and allowing it here.
-        return new Plan(report,missing,expected);
+        var assigned = new TreeMap<String,Set<GlobalHydrologyAddressV2.Sample>>();
+        for (var entry : receivers.entrySet())
+            assigned.put(entry.getKey(),entry.getValue().assigned());
+        return new Plan(report,missing,assigned,expected);
     }
 
     /**
@@ -153,6 +164,7 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             Set<GlobalHydrologyAddressV2.Sample> loaded,
             int slices,double durationSeconds) {
         var expected = checkpoint(plan,receiver);
+        requireOwned(plan,receiver,forcing.keySet(),lakes.keySet(),loaded);
         return HydrologyTimedSeasonalEpochV2.prepareStreamingUniformVerified(
             expected,atlas,forcing,lakes,loaded,plan.missingByReceiver().get(receiver),
             slices,durationSeconds);
@@ -166,6 +178,8 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             Map<GlobalHydrologyAddressV2.Sample,List<HydrologySeasonalLakeIntegratorV2.Interval>> schedules,
             Set<GlobalHydrologyAddressV2.Sample> loaded,double durationSeconds) {
         var expected = checkpoint(plan,receiver);
+        requireOwned(plan,receiver,forcing.keySet(),lakes.keySet(),loaded);
+        requireOwned(plan,receiver,schedules.keySet());
         return HydrologyTimedSeasonalEpochV2.prepareStreamingScheduledVerified(
             expected,atlas,forcing,lakes,schedules,loaded,
             plan.missingByReceiver().get(receiver),durationSeconds);
@@ -211,6 +225,21 @@ public final class HydrologyTimedBoundaryNetworkRecoveryV2 {
             receiverFiles.get(receiver).checkpoint(),
             plan.expectedCheckpoints().get(receiver),prepared.checkpoint());
         return prepared;
+    }
+
+    @SafeVarargs
+    private static void requireOwned(Plan plan,String receiver,
+            Collection<GlobalHydrologyAddressV2.Sample>... geographicInputs) {
+        var assigned = plan.assignedByReceiver().get(receiver);
+        if (assigned == null)
+            throw new IllegalArgumentException("Unknown receiver geography");
+        for (var inputs : geographicInputs) {
+            Objects.requireNonNull(inputs);
+            // Exact sample ownership is intentional: accepting a different
+            // resolution here would require a physical water-store remap.
+            if (!assigned.containsAll(inputs))
+                throw new IllegalArgumentException("Recovery forcing or loaded cell is owned by another receiver");
+        }
     }
 
     private static HydrologyCheckpointV2.Checkpoint checkpoint(Plan plan,String receiver) {
