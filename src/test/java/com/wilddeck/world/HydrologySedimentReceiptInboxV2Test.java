@@ -117,6 +117,27 @@ class HydrologySedimentReceiptInboxV2Test {
         assertEquals(-1,saved.lastClaimedEpoch());
     }
 
+    @Test void rejectsPrecisionLosingSedimentReceiptConfluencesWithoutClaiming() {
+        var huge = receipt(0,1,A,B);
+        var tiny = receipt(0,1,D,B);
+        var inbox = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(),huge,1e30);
+        inbox = HydrologySedimentReceiptInboxV2.receive(inbox,tiny,1);
+        var original = inbox;
+        assertThrows(IllegalArgumentException.class, () ->
+            HydrologySedimentReceiptInboxV2.claimAvailable(original,1,List.of(B)));
+        assertEquals(-1, original.lastClaimedEpoch());
+        assertTrue(original.delivered().isEmpty());
+        var representable = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(),huge,1e30);
+        representable = HydrologySedimentReceiptInboxV2.receive(
+            representable,tiny,1e16);
+        var claimed = HydrologySedimentReceiptInboxV2.claimAvailable(
+            representable,1,List.of(B));
+        assertTrue(claimed.imported().get(B) > 1e30);
+        assertEquals(2,claimed.snapshot().delivered().size());
+    }
+
     @Test void insertionOrderDoesNotChangeSnapshotOrClaims() {
         var a=receipt(0,2,A,B);
         var d=receipt(0,2,D,B);
