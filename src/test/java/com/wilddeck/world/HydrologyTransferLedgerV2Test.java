@@ -78,4 +78,23 @@ class HydrologyTransferLedgerV2Test {
         assertThrows(IllegalArgumentException.class,()->ledger.accept(alias,5));
         assertEquals(1,ledger.snapshot().size());
     }
+    @Test void largeJournalRestorePreservesPhysicalSourceOwnership() {
+        var source=at(4,4);
+        var mouth=at(5,4);
+        var ledger=new HydrologyTransferLedgerV2();
+        for(int epoch=0;epoch<2048;epoch++)
+            assertTrue(ledger.accept(
+                new HydrologyTransferLedgerV2.Key(epoch,source,mouth),1));
+        var restored=HydrologyTransferLedgerV2.restore(ledger.snapshot());
+        assertEquals(2048,restored.snapshot().size());
+        assertFalse(restored.accept(
+            new HydrologyTransferLedgerV2.Key(2047,source,mouth),1));
+        assertThrows(IllegalArgumentException.class,()->restored.accept(
+            new HydrologyTransferLedgerV2.Key(2047,source,at(4,5)),1));
+        assertEquals(2048,restored.snapshot().size());
+        assertTrue(restored.accept(
+            new HydrologyTransferLedgerV2.Key(2048,source,at(4,5)),1));
+        assertEquals(2049,restored.snapshot().size());
+    }
+
 }
