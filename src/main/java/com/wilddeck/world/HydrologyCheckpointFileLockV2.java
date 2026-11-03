@@ -40,8 +40,17 @@ final class HydrologyCheckpointFileLockV2 {
         var ordered = new TreeSet<Path>(Comparator.comparing(Path::toString));
         for (var file : files) {
             Path normalized = Objects.requireNonNull(file).toAbsolutePath().normalize();
-            if (!ordered.add(normalized))
-                throw new IOException("Duplicate checkpoint in local lock fleet");
+            if (Files.isSymbolicLink(normalized))
+                throw new IOException("Checkpoint file symlinks are not supported");
+            Path parent = normalized.getParent();
+            if (parent == null || !Files.isDirectory(parent))
+                throw new IOException("Checkpoint directory missing");
+            // Canonicalize parent aliases BEFORE sorting: otherwise two
+            // differently spelled paths could invert a cross-process order.
+            Path canonical = Files.exists(normalized) ? normalized.toRealPath()
+                : parent.toRealPath().resolve(normalized.getFileName());
+            if (!ordered.add(canonical))
+                throw new IOException("Duplicate physical checkpoint in lock fleet");
         }
         return withLocksOrdered(new ArrayList<>(ordered), 0, operation);
     }
