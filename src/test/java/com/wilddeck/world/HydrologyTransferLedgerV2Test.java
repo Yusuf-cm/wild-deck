@@ -69,4 +69,13 @@ class HydrologyTransferLedgerV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyTransferLedgerV2.restore(java.util.Map.of(fine,12.0,coarse,8.0)));
     }
+
+    @Test void polarAliasesCannotDischargeSamePhysicalWaterTwice() {
+        var first=new HydrologyTransferLedgerV2.Key(9,at(0,0),at(0,1));
+        var alias=new HydrologyTransferLedgerV2.Key(9,at(7,0),at(7,1));
+        var ledger=new HydrologyTransferLedgerV2();
+        ledger.accept(first,5);
+        assertThrows(IllegalArgumentException.class,()->ledger.accept(alias,5));
+        assertEquals(1,ledger.snapshot().size());
+    }
 }
