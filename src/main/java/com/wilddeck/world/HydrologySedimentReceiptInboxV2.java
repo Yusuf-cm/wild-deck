@@ -144,6 +144,10 @@ public final class HydrologySedimentReceiptInboxV2 {
         var totals = new TreeMap<GlobalHydrologyAddressV2.Sample,BigDecimal>(
             HydrologyFlowGraphV2.ADDRESS_ORDER);
         var delivered = new HashSet<>(previous.delivered());
+        // Audit representability before exact-decimal totals are narrowed to
+        // double-valued erosion inputs. No positive arrival may vanish.
+        var represented = new HashMap<GlobalHydrologyAddressV2.Sample,Double>();
+        double representedTotal = 0;
         BigDecimal imported = BigDecimal.ZERO;
         for (var entry : previous.receipts().entrySet()) {
             var receipt = entry.getKey();
@@ -152,6 +156,10 @@ public final class HydrologySedimentReceiptInboxV2 {
             if (owner == null) continue;
             BigDecimal mass = checkMass(entry.getValue());
             totals.merge(owner,mass,BigDecimal::add);
+            represented.put(owner, SedimentMassAdditionV2.add(
+                represented.getOrDefault(owner,0.0), entry.getValue()));
+            representedTotal = SedimentMassAdditionV2.add(
+                representedTotal,entry.getValue());
             imported = imported.add(mass);
             delivered.add(receipt);
         }
