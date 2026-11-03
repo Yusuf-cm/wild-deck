@@ -3051,3 +3051,45 @@ This final verification paragraph is documentation-only and its own new commit w
 5. **Locking caveats:** A sidecar lock requires a local filesystem with working advisory locks and atomic rename/directory sync. This run did not execute a separate cross-process fault-injection or distributed-network acceptance suite. Read-only audits outside the fenced commit remain snapshots, not globally synchronized observations.
 
 **Safety:** No merge, PR, main/other-branch write, production change or paid infrastructure operation. Continue hydrology before other world layers.
+
+
+## 2026-11-03 — Conservation-safe water confluences and recovery-plan ownership
+
+**Scope and baseline:** Only `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Started from `e748b9f5fb466debd2d8382acf6620d765ab6518`; [baseline Actions 41599245272](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599245272) **PASSED**. No baseline failure to repair.
+
+### Implemented
+
+1. Added `HydrologyWaterVolumeAdditionV2.add`: a finite, nonnegative SI-volume addition guard that rejects overflow and a double-valued confluence that **completely erases either positive input**. Ordinary floating-point rounding is tolerated. This is NOT arbitrary-precision water storage.
+2. Applied that guard to `HydrologySeasonalLakeInboxCommitV2.combined`, shared by durable boundary receipt merging, old frontier carryover and deferred runoff from unloaded snow/soil cells. A tiny newly generated runoff volume can no longer disappear inside a much larger old pending frontier, and a tiny existing frontier cannot disappear inside a huge incoming receipt. The existing canonical spherical owner checks remain in force.
+3. Applied the same guard to both `HydrologySeasonalWaterEpochV2.add` (where old routed water and new runoff converge at an ocean mouth) and the cumulative ocean discharge ledger (where historical discharge meets new discharge). Neither independent positive contribution may be completely rounded away.
+4. Hardened the public `HydrologyTimedBoundaryNetworkRecoveryV2.Plan` constructor: its missing transfers must belong to their assigned physical receiver; every assigned vertex must be canonical; and physical ownership must be unique within and across receivers, including across sampling resolutions. The regular full-network audit remains the required sender/route authentication; the public record constructor alone cannot authenticate forged but geographically valid transfer histories.
+
+### Tests and verification
+
+- Added `HydrologyWaterVolumeAdditionV2Test`: **5/5** methods passed (ordinary/zero water, tiny incoming loss, tiny existing loss, independent destinations, invalid/overflow inputs).
+- Added **1** streaming snow/soil regression: unloaded runoff into an enormous pre-existing frontier fails closed, while a representable 128 m³ increment is retained.
+- Added **2** ocean regressions: both directions of precision-losing ocean confluence and cumulative outlet-history loss.
+- Added **2** network recovery tests: forged cross-receiver transfer assignment, duplicate ownership, and a cross-resolution alias check. The alias case is an assertion within an existing new test, not a separately counted test method.
+- **[Final code/test Actions 41606635128](https://github.com/Yusuf-cm/wild-deck/actions/runs/41606635128) PASSED**: **1,295 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including `HydrologyWaterVolumeAdditionV2Test` **5/5**, `HydrologySeasonalSnowSoilWaterEpochV2Test` **15/15**, `HydrologySeasonalWaterEpochV2Test` **12/12**, and `HydrologyTimedBoundaryNetworkRecoveryV2Test` **6/6**. The same workflow's world experiment, resource extraction/replay, browser save, atlas export and real-browser verification steps passed. This evidence applies to the code/test HEAD `fb767eb290070d7bb6d457e4079012c68144a31a`; the documentation-only follow-up requires its own CI result.
+
+### Commits
+
+- `2fbbd19f3c4eb8df5431fb589a2ab959d025da3a` — conservative double-volume addition guard.
+- `0b70d71c94bb39c5351f3f9b29e751082055c6d0` — receipt/frontier and unloaded-runoff merge guard.
+- `aac3290aa9b3fff6193f073278fabe4455a9074a` — ocean confluence and cumulative outlet ledger guard.
+- `eb876dccdee7e2b20d30aa4618550b59725739fc` — five arithmetic and receipt-merge regressions.
+- `95d4edeaef720f707a671be38ed5e28d8df784c4` — unloaded snow/soil runoff integration regression.
+- `80c4339367de764a212ed0330fa12efbaf30da7c` — two ocean conservation regressions.
+- `a2e8343630a3185ce9d5e759b4664bfeb4ce37ed` — recovery plan physical ownership checks.
+- `76781695ac0d11bef9bdbff8568f770cb2c187d6` — forged recovery plan and shared ownership regressions.
+- `fb767eb290070d7bb6d457e4079012c68144a31a` — cross-resolution receiver alias regression.
+
+### Remaining hydrology acceptance gaps
+
+1. **Precision and physical budgets:** This guard detects only *complete* loss of a positive addend. It does not guarantee exact decimal conservation through all double-valued lake, river, ocean, snow/soil and erosion operations; no arbitrary-precision physical stores or planet-scale independently measured budget exists.
+2. **Distributed lifecycle:** Sender inventory is not automatically debited from authoritative live river water. There is no globally atomic sender/receiver acknowledgement, durable distributed transaction or global water/sediment/terrain epoch. Local file locks protect cooperating writers only.
+3. **Changing topology and streaming:** No safe general migration of in-flight water and sediment after arbitrary drainage edits, mixed-resolution **physical water-state** remapping, or incremental routing through unknown unloaded terrain. Existing global catchment/river identities require a complete authenticated atlas.
+4. **Hydraulics and lakes:** Multiple spillways, groundwater, backwater, calibrated velocities, transient flood dynamics and physically calibrated erosion are unfinished. The new precision guard does not implement new lake physics.
+5. **Acceptance at scale:** No full-planet long-horizon water/sediment conservation, distributed crash/fault injection, safe journal compaction or remote writer fencing.
+
+**Safety:** Only the feature branch was changed. No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Continue unfinished hydrology before other world layers.
