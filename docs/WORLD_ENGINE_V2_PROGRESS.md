@@ -2803,3 +2803,27 @@ The documentation-only follow-up commit must be checked separately before callin
 5. **Scale and durability:** Planet-scale multi-season water/sediment endurance, distributed fault injection, bounded settled-ID history compaction and cross-process atomic acknowledgement are unverified. Precision guard rejects some valid tiny confluences rather than silently losing their water.
 
 **Safety:** Only the feature branch changed; no main/other-branch writes, PRs, merges, production operations or paid infrastructure changes. Hydrology remains the priority.
+
+
+## 2026-11-03 — Verified-edge timed water transfers across unloaded region boundaries
+
+**Scope and baseline:** `Yusuf-cm/wild-deck`, `feature/world-engine-v2` only. Baseline HEAD `ef26643259499c021c333e77ee807e32b9186e47` completed [Actions 41555619042](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555619042) successfully before this change.
+
+### Implemented
+
+1. `HydrologyVerifiedTimedBoundaryV2` is an **opt-in** authentication gate for water transferred across one **actual authoritative downstream edge** of a complete, independently verified spherical atlas. It rejects invented destinations, terminal sources, noncanonical seam/polar aliases, unknown endpoints, incompatible global catchments, and conflicting duplicate transfer IDs. Identical duplicates in one batch are collapsed. It produces the existing durable `HydrologyTimedTransitLedgerV2.Transfer` records without creating water.
+2. `HydrologyTimedSeasonalEpochV2` now exposes `prepareStreamingUniformVerified`, `prepareStreamingScheduledVerified`, `commitStreamingUniformVerified`, and `commitStreamingScheduledVerified`. The verified transfers enter the existing transit ledger and local CAS checkpoint, not rainfall. The original caller-authenticated API remains available for backwards compatibility.
+3. Added five integration/regression tests for durable exactly-once boundary receipt with rainfall and stale-writer recovery; forged/terminal/aliased edges and conflicting IDs; scheduled forcing; overdue delivery at an unloaded receiver across several ticks; and longitude seam/polar boundary edges.
+
+**Commits:** `cc676bbd5229ef026b529f1b4f5cbf1e87c2b34e` (verified-edge gate), `80fc9dbdbe563c6d392b078ded1fe7914faef3f0` (seasonal checkpoint integration), `52d00a80ed8a0b3da7ae6988053165d5abc37d2e` (first three regressions), `dc9624dacb3323ab58ef8b0d4ae4c738061597ed` (unloaded and seam/polar regressions).
+
+**CI status at documentation write:** The last independently confirmed complete workflow is the baseline [41555619042](https://github.com/Yusuf-cm/wild-deck/actions/runs/41555619042) **PASSED**. New-code workflows [41562472225](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562472225), [41562491023](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562491023), [41562521029](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562521029), and [41562549300](https://github.com/Yusuf-cm/wild-deck/actions/runs/41562549300) were **in progress** at this write. Do **not** treat this implementation as fully verified until the latest implementation/test run concludes successfully.
+
+### Specific remaining hydrology acceptance gaps
+
+- **Sender debit is not atomic with receiver settlement.** The new gate authenticates the atlas edge, not sender inventory or transfer-ID issuance. The existing timed ledger does not persist source-edge provenance, so replay from a different alleged source is not independently auditable after restart. Distributed acknowledgement, anti-forgery and global exactly-once settlement remain unfinished.
+- **Atlas authority is externally supplied.** Incremental depression filling through arbitrary unknown unloaded terrain, mixed-resolution state remapping, and in-flight water migration across changed drainage topology remain unfinished. Only known canonical edges in a complete atlas can be authenticated.
+- **No fully coupled sediment/terrain tick.** Water, snow/soil, lake storage, sediment outboxes, riverbed evolution and terrain changes are not one globally atomic epoch. Physically calibrated travel times, erosion and deposition remain incomplete.
+- Multiple lake spillways, groundwater/backwater, flood hydraulics, climate calibration, ledger-history compaction, and planetary endurance/fault-injection acceptance remain incomplete.
+
+**Safety:** No PR, merge, `main`/other-branch write, production operation or paid infrastructure change. Continue hydrology before other world layers.
