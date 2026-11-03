@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.math.BigDecimal;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -194,5 +195,22 @@ class HydrologyTimedBoundaryFleetAuditV2Test {
         assertThrows(IllegalArgumentException.class,()->
             HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
                 List.of(goodSender),badReceiver,atlas,true));
+    }
+
+    @Test void hardLinkedSenderJournalCannotBeCountedTwice()
+            throws IOException {
+        var atlas=atlas();
+        Path sender=directory.resolve("sender-original.chk");
+        Path alias=directory.resolve("sender-hardlink.chk");
+        Path receiver=directory.resolve("receiver-hardlink.chk");
+        HydrologyTimedBoundarySenderV2.initialize(sender,
+            HydrologyTimedBoundarySenderV2.empty("w",Map.of(at(2,2),7.0)));
+        Files.createLink(alias,sender);
+        HydrologyCheckpointStoreV2.save(receiver,receiverInitial(atlas));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+                List.of(sender,alias),receiver,atlas,true));
+        assertEquals(0,HydrologyTimedBoundaryFleetAuditV2.auditCheckpoints(
+            List.of(sender),receiver,atlas,true).missing().size());
     }
 }
