@@ -167,6 +167,16 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
             Map.of(destination,dry(destination)),Map.of(),
             Set.of(destination),2,86400);
         assertEquals(prepared.checkpoint(),committed.checkpoint());
+        // A receiver-local CAS now holds every cooperating sender/receiver
+        // sidecar lock during the complete-fleet preflight and replacement.
+        for (var senderFile : senders.values())
+            assertTrue(Files.exists(senderFile.resolveSibling(
+                "." + senderFile.getFileName() + ".hydrology.lock")));
+        for (var receiver : receivers.values()) {
+            var p = receiver.checkpoint();
+            assertTrue(Files.exists(p.resolveSibling(
+                "." + p.getFileName() + ".hydrology.lock")));
+        }
         assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(receiverFile));
         assertEquals(untouched,HydrologyCheckpointStoreV2.load(
             receivers.get("r1").checkpoint()));
