@@ -259,4 +259,49 @@ class HydrologySeasonalErosionPreviewV2Test {
         assertEquals(0.6,one.terminalVolume(),1e-8);
         assertTrue(before.elevations().isEmpty());
     }
+
+    @Test void simultaneousBoundaryWaterAndSedimentDriveConservativeErosionPreview() {
+        var addresses=window();
+        var source=addresses.get(0);
+        var dry=season(addresses,0);
+        var previous=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var first=HydrologySeasonalErosionPreviewV2.calculate(
+            previous,addresses,5,5,seed(),dry,RADIUS,2000,0,0,
+            new double[25],Set.of(24),Map.of(source,500.0),
+            Map.of(source,2_000.0));
+        assertEquals(0,first.runoffVolume(),0);
+        assertEquals(500,first.terminalVolume(),1e-6);
+        assertEquals(0,first.terrain().landscape().erodedMass(),0);
+        assertEquals(2_000,first.terrain().landscape().importedMass(),0);
+        assertEquals(2_000,first.terrain().landscape().depositedMass(),0);
+        assertEquals(0,first.terrain().landscape().exportedMass(),0);
+        assertTrue(first.terrain().state().elevations().get(source)>seed().at(source));
+        assertTrue(previous.elevations().isEmpty());
+        var replay=HydrologySeasonalErosionPreviewV2.calculate(
+            previous,addresses,5,5,seed(),dry,RADIUS,2000,0,0,
+            new double[25],Set.of(24),Map.of(source,500.0),
+            Map.of(source,2_000.0));
+        assertEquals(first.terrain().state(),replay.terrain().state());
+    }
+
+    @Test void rejectsUnownedSedimentAndUnrepresentableImportedWater() {
+        var addresses=window();
+        var previous=new HydrologyTerrainOverlayV2.State("world",Map.of());
+        var dry=season(addresses,0);
+        var foreign=new GlobalHydrologyAddressV2.Sample(2,4,3,4);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculate(
+                previous,addresses,5,5,seed(),dry,RADIUS,2000,0,0,
+                capacity(),Set.of(24),Map.of(),Map.of(foreign,1.0)));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculate(
+                previous,addresses,5,5,seed(),dry,RADIUS,2000,0,0,
+                capacity(),Set.of(24),Map.of(),Map.of(addresses.get(0),-1.0)));
+        var wet=season(addresses,2);
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologySeasonalErosionPreviewV2.calculate(
+                previous,addresses,5,5,seed(),wet,RADIUS,2000,0,0,
+                capacity(),Set.of(24),
+                Map.of(addresses.get(0),Double.MIN_VALUE),Map.of()));
+    }
 }
