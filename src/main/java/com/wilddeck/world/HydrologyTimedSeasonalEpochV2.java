@@ -1,6 +1,7 @@
 package com.wilddeck.world;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
@@ -163,6 +164,16 @@ public final class HydrologyTimedSeasonalEpochV2 {
         }
         var pending = HydrologySeasonalLakeInboxCommitV2.combined(
             lake.pendingM3(),released);
+        // Do not settle a durable transit ID if its water disappears when
+        // merged into a much larger double-valued pending inventory.
+        for (var entry : released.entrySet()) {
+            double old = lake.pendingM3().getOrDefault(entry.getKey(),0.0);
+            BigDecimal exact = BigDecimal.valueOf(old).add(
+                BigDecimal.valueOf(entry.getValue()));
+            if (BigDecimal.valueOf(pending.get(entry.getKey())).compareTo(exact) != 0)
+                throw new IllegalArgumentException(
+                    "Timed transfer would lose precision in pending water");
+        }
         var augmented = new HydrologySeasonalLakeCarryoverStateV2.State(
             lake.world(),lake.season(),lake.lakeStorageM3(),pending);
         var updatedTopology = HydrologySeasonalTopologyEpochV2.encode(
