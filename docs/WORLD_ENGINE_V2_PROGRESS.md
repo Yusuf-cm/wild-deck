@@ -3013,3 +3013,41 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Physics and scale:** Multiple lake spillways, groundwater/backwater, calibrated travel velocities and flood hydraulics, climate calibration, long-horizon planet-scale conservation/fault injection, and safe transfer-history compaction remain unaccepted.
 
 **Safety:** No PR, merge, `main` or other-branch write, production operation or paid infrastructure change. Continue outstanding hydrology work before other world layers.
+
+
+## 2026-11-03 — Cooperative local checkpoint CAS and network recovery fleet fencing
+
+**Scope:** Exclusively `Yusuf-cm/wild-deck` / `feature/world-engine-v2`. Baseline HEAD `0e15b344005d3240914276c8c5cc5a71cdbaf65f`; [Actions 41592619187](https://github.com/Yusuf-cm/wild-deck/actions/runs/41592619187) **PASSED** before this run. No baseline CI failure.
+
+### Implemented
+
+1. `HydrologyCheckpointStoreV2` now serializes all five local write paths (`save`, `saveNext`, `saveIncoming`, `saveFloodDiscovery`, `saveSedimentIncoming`) with the existing persistent sidecar `HydrologyCheckpointFileLockV2`. The freshness check and atomic replacement of `saveNext` are now one critical section for **cooperating local JVM writers**, including different processes using the same filesystem. Hard-link and final-path symlink checkpoint writes fail closed. Lock files must persist after atomic checkpoint replacement; they are NOT temporary files to delete in production.
+2. Added deterministic `withLocks` fleet locking with canonical parent-path resolution and duplicate-physical-file rejection. It sorts canonical paths before acquiring nested sidecar locks, preventing lock-order inversion between cooperating multi-file writers. This does not provide a distributed lock or rollback.
+3. `HydrologyTimedBoundaryNetworkRecoveryV2.commitUniform` and `commitScheduled` now hold **every supplied sender and receiver checkpoint sidecar lock** throughout complete-network re-audit, seasonal preparation and the **one selected receiver** CAS. A dedicated `saveNextWithLockHeld` helper avoids reacquiring the selected receiver's lock. Sender journals and other receivers remain read-only. This closes the local cooperating-writer preflight-to-commit race, NOT the distributed or noncooperating-writer race.
+4. Added `HydrologyCheckpointLocalCasV2Test`: repeated two-writer stale-CAS contention, competing same-epoch future receipt appends, symlink/hard-link rejection, reverse-order fleet locking, and canonical alias-parent rejection (**5 test methods**). Extended the durable network recovery integration test to assert sidecar locks for every participant. Updated one older temporary-directory test to remove its sidecar during test cleanup.
+
+### CI and corrections
+
+- `8c48712442c6d55a7be62a10134c39cf507e928b` — locked checkpoint writer paths.
+- `e5c3a894542edf8bed8b0c0d960b50af6687342a` — initial CAS concurrency tests.
+- `bfe7fa6579094b1f2252fd47952c625541fd8db8` — sorted fleet locks.
+- `a436d4b95d3cefbb2a7e9251737d1f1e291d379a` — locked-context CAS.
+- `121e06dcc201c149ff150a406bae4f7027040a2e` — network recovery fleet fence.
+- `77cb76c458f14263ebe1f7a5ad22e709c6836a0a` — canonical fleet lock ordering.
+- Early workflows, including [Actions 41598936226](https://github.com/Yusuf-cm/wild-deck/actions/runs/41598936226), **FAILED** two tests: the new receipt fixture used a nonadjacent geographic edge, and a legacy test's temporary-directory cleanup did not account for the newly persistent sidecar lock file. These were test/fixture and cleanup failures, not evidence of a passing build.
+- `fbca52d071ebaf897fd4d8d58e0033b1838bc241` — correct first receipt fixture.
+- `47f62c0fdeece6560e3c3eff64a5bd623ac5a5fa` — correct legacy test cleanup.
+- `6a703d9b9a726eaaadd199d00ee5d4ffb4d17192` — reverse-order fleet and alias tests.
+- `1835a79c40a5567c7cc1d35590d9171235042cf1` — complete-fleet recovery lock assertions. **[Actions 41599011249](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599011249) PASSED: 1,285 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS**, including 5/5 new CAS tests and 4/4 network recovery tests. Full GitHub Actions workflow passed.
+- `655ff6e8b5a67c951150615c71267e108d9edc99` — corrected checkpoint CAS documentation. **[Actions 41599037541](https://github.com/Yusuf-cm/wild-deck/actions/runs/41599037541) PASSED** full workflow.
+- `9aad63c6a05ad4ca5132a11c63e6f2bf2db0a452` — final adjacent nonpolar receipt fixture refinement; **CI verification still pending at time of this entry**, do not extrapolate earlier green workflows to this HEAD.
+
+### Remaining hydrology acceptance gaps
+
+1. **No distributed multi-file transaction:** The fleet fence protects only cooperating local writers on the same filesystem. It is NOT a global sender/receiver commit, sender acknowledgment, remote lease, crash-safe multi-file rollback or consensus. Noncooperating and remote writers remain a race; durable journal compaction is not safe yet.
+2. **Physical conservation:** The new locks do not couple sender inventory to live river sources, or account for settled transfers after physical delivery through rivers, lakes, oceans, snow/soil, sediment, and terrain. Existing receipt and journal audits remain scoped to authenticated transfer records.
+3. **Changing landscapes:** Water/sediment/riverbed/erosion/terrain changes are not one globally atomic epoch. No arbitrary in-flight topology migration, mixed-resolution physical water-store remapping, or global incremental drainage through unknown unloaded terrain.
+4. **Physics and scale:** Multiple lake spillways, groundwater/backwater, calibrated velocities, flood hydraulics, climate forcing, planetary multi-season endurance/fault injection and safe journal/receipt compaction remain unfinished.
+5. **Locking caveats:** A sidecar lock requires a local filesystem with working advisory locks and atomic rename/directory sync. This run did not execute a separate cross-process fault-injection or distributed-network acceptance suite. Read-only audits outside the fenced commit remain snapshots, not globally synchronized observations.
+
+**Safety:** No merge, PR, main/other-branch write, production change or paid infrastructure operation. Continue hydrology before other world layers.
