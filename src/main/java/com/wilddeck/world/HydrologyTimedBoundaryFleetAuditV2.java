@@ -1,5 +1,7 @@
 package com.wilddeck.world;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -31,6 +33,37 @@ public final class HydrologyTimedBoundaryFleetAuditV2 {
                 accountedM3.compareTo(availableM3.add(issuedM3)) != 0)
                 throw new IllegalArgumentException("Fleet boundary water is not conserved");
         }
+    }
+
+    /**
+     * Read multiple durable sender checkpoints and one seasonal receiver
+     * checkpoint without writing either side. Reject stale embedded epochs,
+     * duplicate file references and inconsistent receiver transit clocks.
+     * Recovery candidates are returned in stable transfer-ID order.
+     */
+    public static Audit auditCheckpoints(Collection<Path> senderFiles,
+            Path receiverFile, HydrologySphericalRouteAtlasV2 atlas,
+            boolean strictReceiverCoverage) throws IOException {
+        Objects.requireNonNull(senderFiles);
+        Objects.requireNonNull(receiverFile);
+        var uniqueFiles = new HashSet<Path>();
+        var senders = new ArrayList<HydrologyTimedBoundarySenderV2.State>();
+        for (var file : senderFiles) {
+            var normalized = Objects.requireNonNull(file).toAbsolutePath().normalize();
+            if (!uniqueFiles.add(normalized))
+                throw new IllegalArgumentException("Duplicate sender checkpoint path");
+            var checkpoint = HydrologyCheckpointStoreV2.load(normalized);
+            var sender = HydrologyTimedBoundarySenderV2.decode(checkpoint.worldState());
+            if (sender.epoch() != checkpoint.epoch())
+                throw new IllegalArgumentException("Sender checkpoint epoch mismatch");
+            senders.add(sender);
+        }
+        var checkpoint = HydrologyCheckpointStoreV2.load(receiverFile);
+        var state = HydrologyTimedSeasonalEpochV2.decode(checkpoint.worldState());
+        var receiver = HydrologyTimedTransitLedgerV2.decode(state.transit());
+        if (checkpoint.epoch() != receiver.tick())
+            throw new IllegalArgumentException("Receiver checkpoint epoch mismatch");
+        return audit(senders,receiver,atlas,strictReceiverCoverage);
     }
 
     /**
