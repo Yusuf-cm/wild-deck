@@ -262,4 +262,82 @@ class HydrologyTimedSeasonalEpochV2Test {
         assertEquals(100,accepted.transit().releasedTotalM3().doubleValue(),1e-9);
     }
 
+    private static GlobalHydrologyAddressV2.Sample verifiedInlet(
+            HydrologySphericalRouteAtlasV2 atlas,
+            GlobalHydrologyAddressV2.Sample mouth) {
+        return atlas.routes().stream().filter(node ->
+            mouth.equals(node.downstream())).findFirst().orElseThrow().address();
+    }
+
+    @Test void verifiedBoundaryTransitPersistsExactlyOnceWithRainAndRestart() throws IOException {
+        var routes=atlas();
+        var source=verifiedInlet(routes,M);
+        var incoming=new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+            "verified-edge-1",source,M,1,3);
+        var first=initial(routes);
+        Path file=directory.resolve("verified-boundary.chk");
+        HydrologyCheckpointStoreV2.save(file,first);
+        var committed=HydrologyTimedSeasonalEpochV2.commitStreamingUniformVerified(
+            file,first,routes,Map.of(M,weather(M,2)),Map.of(),Set.of(M),
+            List.of(incoming,incoming),2,86400);
+        assertEquals(3,committed.transit().releasedTotalM3().doubleValue(),1e-9);
+        assertEquals(5,committed.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+        assertEquals(committed.checkpoint(),HydrologyCheckpointStoreV2.load(file));
+        assertThrows(IOException.class,()->
+            HydrologyTimedSeasonalEpochV2.commitStreamingUniformVerified(
+                file,first,routes,Map.of(M,weather(M,2)),Map.of(),Set.of(M),
+                List.of(incoming),2,86400));
+        var resumed=HydrologyTimedSeasonalEpochV2.commitStreamingUniformVerified(
+            file,HydrologyCheckpointStoreV2.load(file),routes,
+            Map.of(M,weather(M,0)),Map.of(),Set.of(M),
+            List.of(incoming),2,86400);
+        assertTrue(resumed.transit().releasedM3().isEmpty());
+        assertEquals(5,resumed.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+    }
+
+    @Test void rejectsForgedNonDownstreamTerminalAndAliasedBoundaryTransfers() {
+        var routes=atlas();
+        var source=verifiedInlet(routes,M);
+        var valid=new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+            "boundary",source,M,1,3);
+        var verified=HydrologyVerifiedTimedBoundaryV2.verify(routes,
+            List.of(valid,valid));
+        assertEquals(1,verified.size());
+        assertEquals(HydrologyGlobalCatchmentsV2.coordinate(M),
+            verified.get(0).destination());
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyVerifiedTimedBoundaryV2.verify(routes,List.of(
+                new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                    "forged",source,B,1,3))));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyVerifiedTimedBoundaryV2.verify(routes,List.of(
+                new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                    "terminal",M,source,1,3))));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyVerifiedTimedBoundaryV2.verify(routes,List.of(
+                new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                    "alias",at(8,2),M,1,3))));
+        assertThrows(IllegalArgumentException.class,()->
+            HydrologyVerifiedTimedBoundaryV2.verify(routes,List.of(
+                valid,new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                    "boundary",source,M,2,3))));
+    }
+
+    @Test void verifiedScheduledLakeDeliveryUsesCarryoverRatherThanRain() {
+        var routes=atlas();
+        var source=verifiedInlet(routes,M);
+        var first=initial(routes);
+        var transfer=new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+            "scheduled-verified",source,M,1,4);
+        var verified=HydrologyTimedSeasonalEpochV2.prepareStreamingScheduledVerified(
+            first,routes,Map.of(M,weather(M,1)),Map.of(),Map.of(),
+            Set.of(M),List.of(transfer),86400);
+        assertEquals(4,verified.transit().releasedTotalM3().doubleValue(),1e-9);
+        assertEquals(1,verified.seasonal().snow().runoffVolume(),1e-8);
+        assertEquals(5,verified.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+    }
+
 }
