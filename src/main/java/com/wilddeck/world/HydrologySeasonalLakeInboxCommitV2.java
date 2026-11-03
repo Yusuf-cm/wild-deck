@@ -92,9 +92,10 @@ public final class HydrologySeasonalLakeInboxCommitV2 {
             double value=Objects.requireNonNull(entry.getValue());
             if (!Double.isFinite(value) || value<0)
                 throw new IllegalArgumentException("Invalid received water");
-            double sum=merged.getOrDefault(address,0.0)+value;
-            if (!Double.isFinite(sum))
-                throw new IllegalArgumentException("Received water volume overflow");
+            // Reject receipt or prior frontier water that vanishes entirely
+            // when a small and a huge double-valued store converge.
+            double sum=HydrologyWaterVolumeAdditionV2.add(
+                merged.getOrDefault(address,0.0),value);
             merged.put(address,sum==0?0.0:sum);
         }
         // Enforce canonical addresses and reject different LODs owning one
