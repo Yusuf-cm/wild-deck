@@ -340,4 +340,49 @@ class HydrologyTimedSeasonalEpochV2Test {
             .dischargedM3().get(M),1e-8);
     }
 
+    @Test void verifiedBoundaryTransferWaitsAtUnloadedReceiverWithoutRestartingDeadline() {
+        var routes=atlas();
+        var source=verifiedInlet(routes,M);
+        var transfer=new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+            "verified-unloaded",source,M,1,6);
+        var first=initial(routes);
+        var one=HydrologyTimedSeasonalEpochV2.prepareStreamingUniformVerified(
+            first,routes,Map.of(M,weather(M,0),B,weather(B,0)),
+            Map.of(),Set.of(B),List.of(transfer),2,86400);
+        assertEquals(6,one.transit().remainingM3().doubleValue(),1e-9);
+        assertTrue(one.transit().releasedM3().isEmpty());
+        var two=HydrologyTimedSeasonalEpochV2.prepareStreamingUniformVerified(
+            one.checkpoint(),routes,Map.of(M,weather(M,0),B,weather(B,0)),
+            Map.of(),Set.of(B),List.of(transfer),2,86400);
+        assertEquals(6,two.transit().remainingM3().doubleValue(),1e-9);
+        var three=HydrologyTimedSeasonalEpochV2.prepareStreamingUniformVerified(
+            two.checkpoint(),routes,Map.of(M,weather(M,1),B,weather(B,0)),
+            Map.of(),Set.of(B,M),List.of(transfer),2,86400);
+        assertEquals(6,three.transit().releasedTotalM3().doubleValue(),1e-9);
+        assertEquals(7,three.seasonal().water().water().state()
+            .dischargedM3().get(M),1e-8);
+    }
+
+    @Test void verifiedBoundaryRoutingAcceptsLongitudeSeamAndPolarEdges() {
+        var sources=new ArrayList<HydrologyGlobalSlopeRouterV2.Source>();
+        sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,0),0));
+        for(long y=1;y<4;y++) for(long x=0;x<8;x++)
+            sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(x,y),0));
+        sources.add(new HydrologyGlobalSlopeRouterV2.Source(at(0,4),0));
+        var seam=at(0,2);
+        var seamAtlas=HydrologySphericalRouteAtlasV2.compile(
+            sources,a->a.equals(seam)?0:10,Set.of(seam));
+        assertEquals(seam,seamAtlas.routeAt(at(7,2)).downstream());
+        assertEquals(1,HydrologyVerifiedTimedBoundaryV2.verify(seamAtlas,
+            List.of(new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                "seam",at(7,2),seam,1,2))).size());
+        var pole=at(0,0);
+        var polarAtlas=HydrologySphericalRouteAtlasV2.compile(
+            sources,a->a.equals(pole)?0:10,Set.of(pole));
+        assertEquals(pole,polarAtlas.routeAt(at(7,1)).downstream());
+        assertEquals(1,HydrologyVerifiedTimedBoundaryV2.verify(polarAtlas,
+            List.of(new HydrologyVerifiedTimedBoundaryV2.EdgeTransfer(
+                "pole",at(7,1),pole,1,2))).size());
+    }
+
 }
