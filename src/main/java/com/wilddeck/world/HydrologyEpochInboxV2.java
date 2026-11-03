@@ -86,8 +86,8 @@ public final class HydrologyEpochInboxV2 {
         for(var entry:ledger.snapshot().entrySet()){
             var key=entry.getKey();
             if(key.epoch()>epoch||delivered.contains(key)||!loaded.contains(key.to()))continue;
-            double sum=totals.getOrDefault(key.to(),0.0)+entry.getValue();
-            if(!Double.isFinite(sum))throw new IllegalArgumentException("Transfer overflow");
+            double sum=HydrologyWaterVolumeAdditionV2.add(
+                totals.getOrDefault(key.to(),0.0),entry.getValue());
             totals.put(key.to(),sum);
             ready.add(key);
         }
