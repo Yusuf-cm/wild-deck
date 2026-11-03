@@ -36,4 +36,13 @@ class HydrologyTransferLedgerV2Test {
         assertThrows(IllegalArgumentException.class,()->
             new HydrologyTransferLedgerV2().accept(key,-1));
     }
+
+    @Test void legacyEpochAggregationRejectsLostPositiveConfluence(){
+        var ledger=new HydrologyTransferLedgerV2();
+        var mouth=at(2,2);
+        ledger.accept(new HydrologyTransferLedgerV2.Key(5,at(1,2),mouth),1e20);
+        ledger.accept(new HydrologyTransferLedgerV2.Key(5,at(2,1),mouth),1);
+        assertThrows(IllegalArgumentException.class,()->ledger.incoming(5));
+        assertEquals(2,ledger.snapshot().size());
+    }
 }
