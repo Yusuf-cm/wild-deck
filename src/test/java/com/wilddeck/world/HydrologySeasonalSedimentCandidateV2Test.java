@@ -82,6 +82,24 @@ class HydrologySeasonalSedimentCandidateV2Test {
             .sediment().delivered().contains(receipt(1)));
     }
 
+    @Test void keepsImportedWaterSeparateFromPrecipitationAndSediment() {
+        var received = HydrologySedimentReceiptInboxV2.receive(
+            HydrologySedimentReceiptInboxV2.empty(),receipt(1),100);
+        var landing = window().get(0);
+        var candidate = HydrologySeasonalSedimentCandidateV2.stage(
+            checkpoint(received),window(),5,5,seed(),weather(),RADIUS,
+            2000,.1,.4,capacity(),Set.of(24),Map.of(landing,20.0));
+        var preview = candidate.landscape().preview();
+        assertEquals(100,candidate.claimed().importedMass(),0);
+        assertEquals(preview.erosion().runoffVolume()+20,
+            preview.erosion().terminalVolume(),1e-6);
+        var unimported = stage(checkpoint(received)).landscape().preview();
+        assertEquals(unimported.season().precipitationVolume(),
+            preview.season().precipitationVolume(),0);
+        assertEquals(unimported.season().runoffVolume(),
+            preview.season().runoffVolume(),0);
+    }
+
     @Test void leavesFutureUnloadedReceiptsPendingWithoutAddingMass() {
         var received = HydrologySedimentReceiptInboxV2.receive(
             HydrologySedimentReceiptInboxV2.empty(), receipt(3), 75);
