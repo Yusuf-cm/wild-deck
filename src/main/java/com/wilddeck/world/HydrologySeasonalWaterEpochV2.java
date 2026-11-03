@@ -127,9 +127,9 @@ public final class HydrologySeasonalWaterEpochV2 {
         ledger.putAll(previous.dischargedM3());
         for (var entry:delta.entrySet()) {
             double prior=ledger.getOrDefault(entry.getKey(),0.0);
-            double next=prior+entry.getValue();
-            if (!Double.isFinite(next) || (entry.getValue()>0 && next==prior))
-                throw new IllegalArgumentException("Seasonal outlet ledger lost precision");
+            // Both historical ocean discharge and the new epoch's outflow
+            // must remain representable; neither may disappear on addition.
+            double next=HydrologyWaterVolumeAdditionV2.add(prior,entry.getValue());
             ledger.put(entry.getKey(),next);
         }
         var next=new HydrologySeasonalOutletSettlementV2.State(nextLakes,ledger);
@@ -174,9 +174,10 @@ public final class HydrologySeasonalWaterEpochV2 {
             GlobalHydrologyAddressV2.Sample at,double volume) {
         if (!Double.isFinite(volume) || volume<0)
             throw new IllegalArgumentException("Invalid ocean discharge");
-        double next=values.getOrDefault(at,0.0)+volume;
-        if (!Double.isFinite(next))
-            throw new IllegalArgumentException("Ocean discharge overflow");
+        // Old frontier water and new seasonal runoff can reach the same
+        // ocean mouth. Losing either contribution would corrupt the budget.
+        double next=HydrologyWaterVolumeAdditionV2.add(
+            values.getOrDefault(at,0.0),volume);
         values.put(at,next);
     }
 
