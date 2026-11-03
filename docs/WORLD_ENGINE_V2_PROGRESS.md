@@ -2894,3 +2894,32 @@ The file-based sender recovery read now verifies that the embedded journal epoch
 All implementation and regression commits through `939af24bee13c4e914e554d8668ddef009f293b8` are included in this passing run. This verifies the **opt-in local sender journal, geometric travel planner, and read-only missing-receiver replay planning** under the tested cases. It does **not** establish distributed sender/receiver atomicity, authoritative live-source debit, safe arbitrary topology migration, calibrated hydraulic travel times, or global water/sediment/terrain conservation. Those acceptance gaps remain open.
 
 This final verification paragraph is documentation-only and its own new commit workflow must be checked separately before calling the documentation HEAD green.
+
+
+## 2026-11-03 — Verified multi-sender boundary water audit and checkpoint recovery
+
+**Scope:** `Yusuf-cm/wild-deck`, `feature/world-engine-v2` only. Starting HEAD `257eb3edc6dfa84310de149cf2a19702fa6c9d43` passed [Actions 41574880807](https://github.com/Yusuf-cm/wild-deck/actions/runs/41574880807). No baseline CI failure.
+
+### Implemented
+
+1. Added `HydrologyTimedBoundaryFleetAuditV2.audit`, a **read-only**, exact-decimal reconciliation of multiple independently journaled sender inventories against one receiver's timed transit ledger. It rejects duplicate physical sender water owners, including mixed-resolution aliases, and **cross-sender transfer ID collisions** before producing a deterministic missing-receiver replay plan. It separately reports available sender water, issued water, receiver-pending and receiver-settled transfers, and unreceived transfers. It does **not** mistake unreceived transfers for rainfall or a second debit.
+2. The caller may choose **strict receiver coverage** to reject receiver transfers not issued by any supplied sender, or open coverage to report foreign receiver entries without attributing their water to the audited sender fleet. The exact-decimal identity checked is `issued = pending + settled + unreceived` and `accounted = available + issued`. This is **journal-level accounting**, not a complete physical world water inventory after settled transfers enter lakes, rivers or outlets.
+3. Added `auditCheckpoints`, a read-only multi-file recovery audit. It loads each durable sender checkpoint and the timed-seasonal receiver checkpoint, rejects duplicate file references, verifies embedded sender/receiver epoch consistency, and returns the same deterministic replay candidates without mutating either side. The caller must still authenticate the complete set of senders, atlas, checkpoint files, and world ownership.
+
+### Verification and commits
+
+- `97c4365554923ca21340819353fc6d5a80792ad3` — multi-sender water audit implementation.
+- `8862249ca00c9f5ae0db3409022fff6c159c3f14` — initial five regressions. [Actions 41575249862](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575249862) **FAILED** at test compilation because the test referred to a nonexistent `HydrologySphericalRouteAtlasV2.Route` type.
+- `e37ed4dbf134d9ac3ff85c61760d782b2cdaaf14` — corrected test type; [Actions 41575262727](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575262727) **PASSED**.
+- `d315909c8a9a583395033b042906f040c35e38ba` — strengthened changed-outlet test; [Actions 41575294481](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575294481) **PASSED**.
+- `449e9c3499514cbcffd02592687114964e549dca` — durable multi-checkpoint audit; [Actions 41575336996](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575336996) **PASSED**.
+- `b4ce271906682bb0d55b78ec3a63f6e4cc4bf544` — two additional crash-recovery/forged-epoch regressions. **[Actions 41575352574](https://github.com/Yusuf-cm/wild-deck/actions/runs/41575352574) PASSED: 1,265 Maven/JUnit tests, zero failures/errors/skips, BUILD SUCCESS.** Seven new fleet audit JUnit tests passed as part of the suite. The same workflow passed the smallest world experiment, finite resource replay, browser save controls, portable atlas export and real-browser atlas verification.
+
+### Still unfinished (water subsystem NOT complete)
+
+1. **Not distributed atomicity:** Sender debit, receiver transit settlement, seasonal water, erosion, sediment, terrain and riverbed state are not committed as one globally atomic epoch. This audit only reads and checks existing independent checkpoints; it does not send, acknowledge, or settle transfers.
+2. **Incomplete physical mass accounting:** Settled transfer volume is counted as delivered to the receiver, not traced through the receiver's subsequent lakes, channels, outlets and terrain. The initial sender inventory and atlas remain caller-authenticated, and no global multi-receiver audit or cross-process lock exists.
+3. **Terrain and topology:** No safe migration of in-flight water/sediment after arbitrary drainage edits; no general incremental priority-flood through unknown unloaded terrain; no mixed-resolution water-store migration (duplicate ownership is rejected instead).
+4. **Physics and scale:** Multiple lake spillways, groundwater, backwater, transient flood hydraulics, calibrated river velocities/climate, global sediment/erosion commits, large-world endurance/fault injection, and safe transfer-history compaction remain outstanding.
+
+**Safety:** No merge, PR, `main`/other-branch write, production operation, or paid infrastructure change. The documentation commit itself requires a separate CI result before calling the final documentation HEAD green.
