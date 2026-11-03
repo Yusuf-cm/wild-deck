@@ -224,4 +224,46 @@ class HydrologyTimedBoundaryNetworkRecoveryV2Test {
             HydrologyCheckpointStoreV2.load(senderFile).epoch());
         assertEquals(1,HydrologyCheckpointStoreV2.load(receiverFile).epoch());
     }
+
+    @Test void forgedPlanCannotAssignMissingWaterToAnotherPhysicalReceiver() {
+        var routes=atlas();
+        var selected=edges(routes);
+        var a=selected.get(0);
+        var b=selected.get(1);
+        var valid=HydrologyTimedBoundaryNetworkRecoveryV2.plan(
+            List.of(sender(routes,a),sender(routes,b)),
+            Map.of("east",receiver(a.destination(),
+                        HydrologyTimedTransitLedgerV2.empty("world")),
+                   "west",receiver(b.destination(),
+                        HydrologyTimedTransitLedgerV2.empty("world"))),routes);
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologyTimedBoundaryNetworkRecoveryV2.Plan(
+                valid.audit(),
+                Map.of("east",List.of(b),"west",List.of(a)),
+                valid.assignedByReceiver(),Map.of()));
+        // The same constructor must still accept the genuine recovery plan.
+        var copied=new HydrologyTimedBoundaryNetworkRecoveryV2.Plan(
+            valid.audit(),valid.missingByReceiver(),
+            valid.assignedByReceiver(),Map.of());
+        assertEquals(valid.missingByReceiver(),copied.missingByReceiver());
+    }
+
+    @Test void manuallyBuiltRecoveryPlanRejectsCrossReceiverSharedVertex() {
+        var routes=atlas();
+        var selected=edges(routes);
+        var a=selected.get(0);
+        var b=selected.get(1);
+        var valid=HydrologyTimedBoundaryNetworkRecoveryV2.plan(
+            List.of(sender(routes,a),sender(routes,b)),
+            Map.of("east",receiver(a.destination(),
+                        HydrologyTimedTransitLedgerV2.empty("world")),
+                   "west",receiver(b.destination(),
+                        HydrologyTimedTransitLedgerV2.empty("world"))),routes);
+        assertThrows(IllegalArgumentException.class,()->
+            new HydrologyTimedBoundaryNetworkRecoveryV2.Plan(
+                valid.audit(),valid.missingByReceiver(),
+                Map.of("east",Set.of(a.destination()),
+                       "west",Set.of(b.destination(),a.destination())),Map.of()));
+    }
+
 }
