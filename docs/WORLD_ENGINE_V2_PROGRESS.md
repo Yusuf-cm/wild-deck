@@ -3129,3 +3129,45 @@ This final verification paragraph is documentation-only and its own new commit w
 4. **Numerical and scale:** The guards catch *complete* loss of a positive contribution, not all floating-point rounding. The `BigDecimal` aggregate audit has a relative tolerance and is not an exact physical mass solver. No planetary long-horizon conservation/endurance, distributed fault injection, remote writer fencing, or safe receipt-history compaction.
 
 **Safety:** No merge, PR, main/other-branch write, production operation or paid infrastructure change. Continue hydrology before other layers.
+
+
+## 2026-11-03 — Seasonal sediment receipt staging, physical ownership, and precision-safe claims
+
+**Scope and baseline:** Work exclusively in `Yusuf-cm/wild-deck`, branch `feature/world-engine-v2`. Started at `ae297516c3ec2ddf0962a1a80821659d9d7912ea` with [baseline CI 41615010409](https://github.com/Yusuf-cm/wild-deck/actions/runs/41615010409) **PASSED**. No baseline CI failure to repair.
+
+### Implemented
+
+1. `HydrologySeasonalLandscapeStateV2.prepareWithIncoming` now has a two-import overload that calculates one seasonal snow/soil and erosion candidate with separately supplied imported boundary water (m³) and imported sediment (kg). Neither import becomes precipitation or locally eroded mass. This is a **noncommitting** preview; caller-supplied water still requires external authentication.
+2. Added `HydrologySeasonalSedimentCandidateV2.stage`: reads the combined seasonal-landscape/sediment checkpoint envelope; validates the receipt ledger's epoch; rejects outstanding water receipts (which require a coupled water transaction); stages eligible sediment receipts at canonical, uniquely owned physical vertices; and computes a seasonal snow/soil + eroded terrain candidate. It checks newly claimed receipt sources are physically external, and landings are downhill both before and after the candidate erosion, including cross-resolution source aliases. The next-epoch candidate contains the updated sediment receipt markers and both physical stores **inside one checksummed world payload**. Future/unloaded receipts remain pending in the staged ledger.
+3. Hardened `HydrologySedimentReceiptInboxV2.claimAvailable` so positive sediment mass cannot vanish entirely when exact-decimal per-destination or global totals are narrowed to doubles. Both per-receiver and across-receiver additions are guarded. A rejected precision-losing claim does not consume an epoch or mutate the original snapshot. This is not arbitrary-precision sediment storage.
+
+**Important noncompletion:** The new candidate is intentionally **not committed by this API**. It does not authenticate remote sender journals, audit all old/new drainage routes, migrate future receipts across changing topology, durably settle ocean/sediment exports, or activate the new atlas. Its checkpoint is a *candidate only*; do not persist it as authoritative until a separately verified route and cross-inventory transaction exists. No global sender/receiver transaction was added.
+
+### Tests and CI
+
+- Added **7** `HydrologySeasonalSedimentCandidateV2Test` methods: deterministic replay and combined checkpoint payload; future receipt carryover; stale ledger/interior-source rejection; duplicate owner/radius rejection; pending water fail-closed; cross-resolution source alias; and simultaneous imported water/sediment without rainfall double-counting.
+- Added **2** `HydrologySedimentReceiptInboxV2Test` methods: precision-losing same-receiver confluence (with a representable control) and precision loss across different receiver destinations.
+- [Final code/test CI 41622536466](https://github.com/Yusuf-cm/wild-deck/actions/runs/41622536466) **PASSED** on `2bf85452282bce1845531fb343f249df91196380`: **1,315 Maven/JUnit tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS**. Focused suites: `HydrologySeasonalSedimentCandidateV2Test` **7/7** and `HydrologySedimentReceiptInboxV2Test` **12/12**. World experiment, finite resource extraction/replay, browser-save controls, planet atlas export, and real-browser atlas verification passed.
+- The documentation-only commit following this section must be checked separately; code/test CI evidence above does not automatically verify that later documentation HEAD.
+
+### Commits
+
+- `f60d0b7b44ed3dc838e1b541b20c5975c68ee993` — dual water/sediment seasonal preparation overload.
+- `147c71beff67f4dbfbcdf324adefbae598635832` — noncommitting receipt-to-seasonal-landscape candidate bridge.
+- `90c2eccb985f4d8aefdd0d4edad4767ca9b5efa9` — initial candidate checkpoint and receipt tests.
+- `f4eceeba5905398033ed2d854dea494cbc2acb32` — sediment receipt precision-loss guard.
+- `c152ea6069c860063a8a8b481fefdba8df590310` — same-receiver precision regression.
+- `ba4d1e0bf5f6993a24a3c1e040ba48b08dd9834a` — across-receiver precision regression.
+- `a645ed7f90b539b18f84b66ff3f71754bb108974` — pending-water rejection regression.
+- `bdb8c55d72e154cdd8e82edb3268266cddf219e7` — cross-resolution physical sender ownership guard.
+- `744bd1952950f4d74b9733134dff706baf55df54` — cross-resolution source alias regression.
+- `2bf85452282bce1845531fb343f249df91196380` — combined imported water/sediment rainfall-accounting regression.
+
+### Remaining hydrology acceptance gaps
+
+1. **Authoritative atomic settlement:** The candidate is not a committed epoch. Still need a replay-safe transaction coupling water and sediment receipt consumption, sender debits/acknowledgments, snow/soil/lake storage, riverbed and terrain changes, and verified outlet exports. Local file CAS is not distributed atomicity.
+2. **Drainage topology:** No general migration of future/in-flight water and sediment after erosion changes drainage, arbitrary unknown unloaded-region routing, or mixed-resolution physical-state migration. A complete authenticated global atlas is still required for stable global catchment/river authority.
+3. **Physical fidelity:** Multiple spillways, groundwater, backwater, calibrated velocities/erosion, flood-wave hydraulics and globally consistent lake storage remain unfinished. Local downhill landing checks do not establish global routing correctness.
+4. **Conservation and scale:** Double precision still rounds representable additions; guards only prevent *complete* loss of positive inputs. Planet-scale long-horizon mass/water audits, distributed fault injection, remote writer fencing, and safe journal/receipt compaction remain unfinished.
+
+**Safety:** No merges, PRs, `main`/other-branch writes, production or paid infrastructure changes. Continue unfinished hydrology before other world layers.
