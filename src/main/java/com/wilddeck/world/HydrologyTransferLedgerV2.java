@@ -38,6 +38,9 @@ public final class HydrologyTransferLedgerV2 {
     }
 
     private final TreeMap<Key,Double> received=new TreeMap<>(ORDER);
+    // Index physical discharge ownership so journal replay and recovery are
+    // linear rather than quadratic in the number of historical receipts.
+    private final Map<Origin,Key> sourceOwners=new HashMap<>();
 
     public synchronized boolean accept(Key key,double flow) {
         Objects.requireNonNull(key);
@@ -50,11 +53,11 @@ public final class HydrologyTransferLedgerV2 {
             return false;
         }
         var source=origin(key);
-        for(var known:received.keySet())
-            if(origin(known).equals(source))
-                throw new IllegalArgumentException(
-                    "Physical water source already discharged this epoch");
+        if(sourceOwners.containsKey(source))
+            throw new IllegalArgumentException(
+                "Physical water source already discharged this epoch");
         received.put(key,flow);
+        sourceOwners.put(source,key);
         return true;
     }
 
